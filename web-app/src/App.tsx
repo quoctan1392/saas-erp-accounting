@@ -5,6 +5,8 @@ import { AuthProvider } from './context/AuthContext';
 import SplashScreen from './pages/SplashScreen';
 import LoginScreen from './pages/LoginScreen';
 import SignupScreen from './pages/SignupScreen';
+import { ForgotPasswordScreen } from './pages/ForgotPasswordScreen';
+import { ResetPasswordScreen } from './pages/ResetPasswordScreen';
 import LoginDemoScreen from './pages/LoginDemoScreen';
 import ProcessingScreen from './pages/ProcessingScreen';
 import SelectTenantScreen from './pages/SelectTenantScreen';
@@ -74,6 +76,8 @@ function App() {
               <Route path="/" element={<SplashScreen />} />
               <Route path="/login" element={<LoginScreen />} />
               <Route path="/signup" element={<SignupScreen />} />
+              <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
+              <Route path="/reset-password" element={<ResetPasswordScreen />} />
               <Route path="/login-demo" element={<LoginDemoScreen />} />
               <Route path="/processing" element={<ProcessingScreen />} />
               <Route path="/select-tenant" element={<SelectTenantScreen />} />

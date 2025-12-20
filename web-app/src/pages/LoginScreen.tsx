@@ -20,6 +20,7 @@ import CloseRounded from '@mui/icons-material/CloseRounded';
 import { apiService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../config/constants';
+import loginBgMobile from '../assets/Header_day.png';
 
 export const LoginScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -143,6 +144,25 @@ export const LoginScreen: React.FC = () => {
         position: 'relative',
       }}
     >
+      {/* Background image cho mobile */}
+      <Box
+        component="img"
+        src={loginBgMobile}
+        alt=""
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: 'auto',
+          maxHeight: '200px',
+          objectFit: 'cover',
+          objectPosition: 'center top',
+          zIndex: 0,
+          display: { xs: 'block', sm: 'none' }, // Chỉ hiển thị trên mobile
+        }}
+      />
+      
       <Box
         sx={{
           position: 'absolute',
@@ -151,6 +171,7 @@ export const LoginScreen: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           gap: 0.5,
+          zIndex: 10, // Đảm bảo hiển thị trên background
         }}
       >
         <Box
@@ -164,8 +185,24 @@ export const LoginScreen: React.FC = () => {
         </Typography>
       </Box>
 
-      <Container maxWidth="sm">
-        <Box sx={{ px: { xs: 3, sm: 4 }, py: { xs: 4, sm: 6 } }}>
+      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1 }}>
+        <Box 
+          sx={{ 
+            background: '#fff',
+            borderRadius: { 
+              xs: '16px 16px 0 0',  // Mobile: chỉ top-left và top-right có border radius
+              sm: '16px',            // Tablet và Desktop: tất cả các góc đều có border radius
+            },
+            px: { xs: 3, sm: 4 }, 
+            py: { xs: 4, sm: 6 },
+            position: { xs: 'fixed', sm: 'relative' }, // Mobile: fixed để chạm đáy
+            top: { xs: '140px', sm: 'auto' },          // Mobile: cách top 140px
+            bottom: { xs: 0, sm: 'auto' },             // Mobile: chạm cạnh dưới
+            left: { xs: '12px', sm: 'auto' },          // Mobile: margin left 12px
+            right: { xs: '12px', sm: 'auto' },         // Mobile: margin right 12px
+            maxWidth: { xs: 'calc(100% - 24px)', sm: '100%' }, // Mobile: trừ đi margin 2 bên
+          }}
+        >
           <Typography
             sx={{
               fontFamily: '"Bricolage Grotesque", sans-serif',
@@ -234,7 +271,7 @@ export const LoginScreen: React.FC = () => {
               variant="outlined"
               InputProps={{
                 endAdornment: (
-                  <InputAdornment position="end" sx={{ mr: '16px' }}>
+                  <InputAdornment position="end" sx={{ mr: '16px'}}>
                     <IconButton 
                       onClick={() => setShowPassword(!showPassword)} 
                       edge="end" 
@@ -246,7 +283,7 @@ export const LoginScreen: React.FC = () => {
                 ),
               }}
               sx={{
-                mb: 3,
+                mb: 1,
                 '& .MuiOutlinedInput-root': {
                   backgroundColor: '#FFF',
                   borderRadius: '48px',
@@ -257,6 +294,23 @@ export const LoginScreen: React.FC = () => {
                 '& .MuiOutlinedInput-input': { paddingLeft: '16px', paddingRight: '16px' },
               }}
             />
+
+            <Box sx={{ mb: 3, textAlign: 'right' }}>
+              <Link
+                component={RouterLink}
+                to={ROUTES.FORGOT_PASSWORD}
+                sx={{
+                  color: '#FB7E00',
+                  fontSize: '0.875rem',
+                  textDecoration: 'none',
+                  '&:hover': {
+                    textDecoration: 'underline',
+                  },
+                }}
+              >
+                Quên mật khẩu?
+              </Link>
+            </Box>
 
             <Button
               fullWidth

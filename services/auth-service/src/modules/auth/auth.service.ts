@@ -1,11 +1,16 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, LessThan } from 'typeorm';
 import { UsersService } from '../users/users.service';
+import { EmailService } from '../../common/services/email.service';
 import { User, AuthProvider, UserRole } from '../users/entities/user.entity';
+import { PasswordResetToken } from '../users/entities/password-reset-token.entity';
 import { OAuth2Client } from 'google-auth-library';
 import { firstValueFrom } from 'rxjs';
+import * as crypto from 'crypto';
 
 export interface JwtPayload {
   sub: string;
@@ -28,6 +33,9 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private httpService: HttpService,
+    private emailService: EmailService,
+    @InjectRepository(PasswordResetToken)
+    private passwordResetTokenRepository: Repository<PasswordResetToken>,
   ) {
     // For verifying ID tokens, we only need the client ID
     this.googleClient = new OAuth2Client(
@@ -284,5 +292,86 @@ export class AuthService {
       throw new UnauthorizedException('User not found or inactive');
     }
     return user;
+  }
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const user = await this.usersService.findByEmail(email);
+    
+    // Always return success message for security (don't reveal if email exists)
+    if (!user) {
+      return { 
+        message: 'If the email exists, a password reset link has been sent.' 
+      };
+    }
+
+    // Don't allow password reset for OAuth users
+    if (user.provider !== AuthProvider.LOCAL) {
+      return { 
+        message: 'If the email exists, a password reset link has been sent.' 
+      };
+    }
+
+    // Delete any existing unused tokens for this user
+    await this.passwordResetTokenRepository.delete({
+      userId: user.id,
+      used: false,
+    });
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1); // Token expires in 1 hour
+
+    // Save token to database
+    await this.passwordResetTokenRepository.save({
+      token: resetToken,
+      userId: user.id,
+      expiresAt,
+      used: false,
+    });
+
+    // Send password reset email
+    try {
+      await this.emailService.sendPasswordResetEmail(user.email, resetToken);
+    } catch (error) {
+      // Log error but don't fail the request
+      console.error('Failed to send password reset email:', error);
+      
+      // In development, still log the token
+      if (this.configService.get('NODE_ENV') === 'development') {
+        console.log('Password reset token for', email, ':', resetToken);
+        console.log('Reset link: http://localhost:5173/reset-password?token=' + resetToken);
+      }
+    }
+
+    return { 
+      message: 'If the email exists, a password reset link has been sent.' 
+    };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    // Clean up expired tokens
+    await this.passwordResetTokenRepository.delete({
+      expiresAt: LessThan(new Date()),
+    });
+
+    // Find valid token
+    const resetToken = await this.passwordResetTokenRepository.findOne({
+      where: { token, used: false },
+      relations: ['user'],
+    });
+
+    if (!resetToken || resetToken.expiresAt < new Date()) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    // Update password
+    await this.usersService.updatePassword(resetToken.userId, newPassword);
+
+    // Mark token as used
+    resetToken.used = true;
+    await this.passwordResetTokenRepository.save(resetToken);
+
+    return { message: 'Password has been reset successfully' };
   }
 }

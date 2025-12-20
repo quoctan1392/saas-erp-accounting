@@ -69,6 +69,16 @@ class ApiService {
     return response.data;
   }
 
+  async forgotPassword(email: string) {
+    const response = await this.authApi.post('/auth/forgot-password', { email });
+    return response.data;
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    const response = await this.authApi.post('/auth/reset-password', { token, newPassword });
+    return response.data;
+  }
+
   // Tenant API
   async createTenant(name: string) {
     const response = await this.tenantApi.post('/tenants', { name });

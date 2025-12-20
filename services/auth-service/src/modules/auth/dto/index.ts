@@ -44,3 +44,5 @@ export class RefreshTokenDto {
 }
 
 export * from './google-auth.dto';
+export * from './forgot-password.dto';
+export * from './reset-password.dto';

@@ -4,7 +4,6 @@ import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import {
   Box,
   Container,
-  Paper,
   Typography,
   Alert,
   CircularProgress,
@@ -12,16 +11,24 @@ import {
   Button,
   Divider,
   Link,
+  IconButton,
+  InputAdornment,
 } from '@mui/material';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import CloseRounded from '@mui/icons-material/CloseRounded';
 import { apiService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../config/constants';
+import loginBgMobile from '../assets/Header_day.png';
 
 export const SignupScreen: React.FC = () => {
   const navigate = useNavigate();
   const { login, setTenants } = useAuth();
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -158,155 +165,272 @@ export const SignupScreen: React.FC = () => {
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        py: 4,
+        justifyContent: 'center',
+        background: '#F5EBE0',
+        position: 'relative',
       }}
     >
-      <Container maxWidth="sm">
-        <Paper
-          elevation={3}
-          sx={{
-            p: { xs: 3, sm: 5 },
-            borderRadius: 3,
+      {/* Background image cho mobile */}
+      <Box
+        component="img"
+        src={loginBgMobile}
+        alt=""
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: 'auto',
+          maxHeight: '200px',
+          objectFit: 'cover',
+          objectPosition: 'center top',
+          zIndex: 0,
+          display: { xs: 'block', sm: 'none' }, // Chỉ hiển thị trên mobile
+        }}
+      />
+      
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 16,
+          right: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+          zIndex: 10, // Đảm bảo hiển thị trên background
+        }}
+      >
+        <Box
+          component="img"
+          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20'%3E%3Crect width='30' height='20' fill='%23da251d'/%3E%3Cpolygon points='15,4 11.47,14.85 20.71,8.15 9.29,8.15 18.53,14.85' fill='%23ff0'/%3E%3C/svg%3E"
+          alt="VN"
+          sx={{ width: 24, height: 16 }}
+        />
+        <Typography sx={{ fontSize: '0.875rem', color: '#333', fontWeight: 500 }}>
+          Tiếng Việt
+        </Typography>
+      </Box>
+
+      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1 }}>
+        <Box 
+          sx={{ 
+            background: '#fff',
+            borderRadius: { 
+              xs: '16px 16px 0 0',  // Mobile: chỉ top-left và top-right có border radius
+              sm: '16px',            // Tablet và Desktop: tất cả các góc đều có border radius
+            },
+            px: { xs: 3, sm: 4 }, 
+            py: { xs: 4, sm: 6 },
+            position: { xs: 'fixed', sm: 'relative' }, // Mobile: fixed để chạm đáy
+            top: { xs: '140px', sm: 'auto' },          // Mobile: cách top 140px
+            bottom: { xs: 0, sm: 'auto' },             // Mobile: chạm cạnh dưới
+            left: { xs: '12px', sm: 'auto' },          // Mobile: margin left 12px
+            right: { xs: '12px', sm: 'auto' },         // Mobile: margin right 12px
+            maxWidth: { xs: 'calc(100% - 24px)', sm: '100%' }, // Mobile: trừ đi margin 2 bên
           }}
         >
-          {/* Logo/Illustration */}
-          <Box
+          <Typography
             sx={{
-              mb: 3,
-              display: 'flex',
-              justifyContent: 'center',
+              fontFamily: '"Bricolage Grotesque", sans-serif',
+              fontSize: '28px',
+              fontWeight: 600,
+              lineHeight: '28px',
+              letterSpacing: '0.25px',
+              color: '#BA5C00',
+              mb: 4,
+              textAlign: 'left',
             }}
           >
-            <Box
-              sx={{
-                width: 80,
-                height: 80,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '2.5rem',
-                fontWeight: 700,
-              }}
-            >
-              S
-            </Box>
-          </Box>
-
-          {/* Title */}
-          <Typography
-            variant="h4"
-            component="h1"
-            gutterBottom
-            sx={{
-              fontWeight: 700,
-              color: 'text.primary',
-              fontSize: { xs: '1.75rem', sm: '2.125rem' },
-              textAlign: 'center',
-            }}
-          >
-            Tạo tài khoản mới
+            Tạo tài khoản Symper
           </Typography>
 
-          <Typography
-            variant="body1"
-            color="text.secondary"
-            sx={{ mb: 3, textAlign: 'center' }}
-          >
-            Đăng ký để bắt đầu sử dụng Symper
-          </Typography>
-
-          {/* Error Alert */}
           {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
+            <Alert severity="error" sx={{ mb: 3, backgroundColor: '#fff', border: '1px solid #f44336', borderRadius: 2 }}>
               {error}
             </Alert>
           )}
 
-          {/* Google Sign Up */}
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              mb: 3,
-            }}
-          >
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 3 }}>
             {loading ? (
-              <CircularProgress />
+              <CircularProgress sx={{ color: '#FB7E00' }} />
             ) : (
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-                size="large"
-                text="signup_with"
-                locale="vi"
-              />
+              <GoogleLogin onSuccess={handleGoogleSuccess} onError={handleGoogleError} size="large" text="signup_with" locale="vi" width="100%" />
             )}
           </Box>
 
-          <Divider sx={{ my: 3 }}>
-            <Typography variant="body2" color="text.secondary">
-              Hoặc đăng ký bằng email
-            </Typography>
+          <Divider sx={{ my: 4, borderColor: '#E0E0E0' }}>
+            <Typography variant="body2" sx={{ color: '#666', fontSize: '0.875rem' }}>Hoặc</Typography>
           </Divider>
 
-          {/* Sign Up Form */}
           <Box component="form" onSubmit={handleSubmit}>
             <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
               <TextField
                 fullWidth
-                label="Tên"
+                placeholder="Tên"
                 name="firstName"
                 value={formData.firstName}
                 onChange={handleInputChange}
                 variant="outlined"
+                InputProps={{
+                  endAdornment: formData.firstName ? (
+                    <InputAdornment position="end" sx={{ mr: '16px' }}>
+                      <IconButton
+                        onClick={() => setFormData(prev => ({ ...prev, firstName: '' }))}
+                        edge="end"
+                        sx={{ bgcolor: 'rgba(0,0,0,0.04)', width: 32, height: 32, '&:hover': { bgcolor: 'rgba(0,0,0,0.06)' } }}
+                      >
+                        <CloseRounded fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : undefined,
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: '#FFF',
+                    borderRadius: '48px',
+                    '& fieldset': { borderColor: '#C5C5C5', borderWidth: '1px' },
+                    '&:hover fieldset': { borderColor: '#FB7E00' },
+                    '&.Mui-focused fieldset': { borderColor: '#FB7E00', borderWidth: '1px' },
+                  },
+                  '& .MuiOutlinedInput-input': { paddingLeft: '16px', paddingRight: '16px' },
+                }}
               />
               <TextField
                 fullWidth
-                label="Họ"
+                placeholder="Họ"
                 name="lastName"
                 value={formData.lastName}
                 onChange={handleInputChange}
                 variant="outlined"
+                InputProps={{
+                  endAdornment: formData.lastName ? (
+                    <InputAdornment position="end" sx={{ mr: '16px' }}>
+                      <IconButton
+                        onClick={() => setFormData(prev => ({ ...prev, lastName: '' }))}
+                        edge="end"
+                        sx={{ bgcolor: 'rgba(0,0,0,0.04)', width: 32, height: 32, '&:hover': { bgcolor: 'rgba(0,0,0,0.06)' } }}
+                      >
+                        <CloseRounded fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : undefined,
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: '#FFF',
+                    borderRadius: '48px',
+                    '& fieldset': { borderColor: '#C5C5C5', borderWidth: '1px' },
+                    '&:hover fieldset': { borderColor: '#FB7E00' },
+                    '&.Mui-focused fieldset': { borderColor: '#FB7E00', borderWidth: '1px' },
+                  },
+                  '& .MuiOutlinedInput-input': { paddingLeft: '16px', paddingRight: '16px' },
+                }}
               />
             </Box>
 
             <TextField
               fullWidth
-              label="Email"
+              placeholder="Email"
               name="email"
               type="email"
               value={formData.email}
               onChange={handleInputChange}
               required
-              sx={{ mb: 2 }}
+              variant="outlined"
+              InputProps={{
+                endAdornment: formData.email ? (
+                  <InputAdornment position="end" sx={{ mr: '16px' }}>
+                    <IconButton
+                      onClick={() => setFormData(prev => ({ ...prev, email: '' }))}
+                      edge="end"
+                      sx={{ bgcolor: 'rgba(0,0,0,0.04)', width: 32, height: 32, '&:hover': { bgcolor: 'rgba(0,0,0,0.06)' } }}
+                    >
+                      <CloseRounded fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : undefined,
+              }}
+              sx={{
+                mb: 2,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: '#FFF',
+                  borderRadius: '48px',
+                  '& fieldset': { borderColor: '#C5C5C5', borderWidth: '1px' },
+                  '&:hover fieldset': { borderColor: '#FB7E00' },
+                  '&.Mui-focused fieldset': { borderColor: '#FB7E00', borderWidth: '1px' },
+                },
+                '& .MuiOutlinedInput-input': { paddingLeft: '16px', paddingRight: '16px' },
+              }}
             />
 
             <TextField
               fullWidth
-              label="Mật khẩu"
+              placeholder="Mật khẩu (ít nhất 8 ký tự)"
               name="password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               value={formData.password}
               onChange={handleInputChange}
               required
-              helperText="Ít nhất 8 ký tự"
-              sx={{ mb: 2 }}
+              variant="outlined"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end" sx={{ mr: '16px' }}>
+                    <IconButton 
+                      onClick={() => setShowPassword(!showPassword)} 
+                      edge="end" 
+                      sx={{ bgcolor: 'rgba(0,0,0,0.04)', width: 32, height: 32, '&:hover': { bgcolor: 'rgba(0,0,0,0.06)' } }}
+                    >
+                      {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                mb: 2,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: '#FFF',
+                  borderRadius: '48px',
+                  '& fieldset': { borderColor: '#C5C5C5', borderWidth: '1px' },
+                  '&:hover fieldset': { borderColor: '#FB7E00' },
+                  '&.Mui-focused fieldset': { borderColor: '#FB7E00', borderWidth: '1px' },
+                },
+                '& .MuiOutlinedInput-input': { paddingLeft: '16px', paddingRight: '16px' },
+              }}
             />
 
             <TextField
               fullWidth
-              label="Xác nhận mật khẩu"
+              placeholder="Xác nhận mật khẩu"
               name="confirmPassword"
-              type="password"
+              type={showConfirmPassword ? 'text' : 'password'}
               value={formData.confirmPassword}
               onChange={handleInputChange}
               required
-              sx={{ mb: 3 }}
+              variant="outlined"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end" sx={{ mr: '16px' }}>
+                    <IconButton 
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)} 
+                      edge="end" 
+                      sx={{ bgcolor: 'rgba(0,0,0,0.04)', width: 32, height: 32, '&:hover': { bgcolor: 'rgba(0,0,0,0.06)' } }}
+                    >
+                      {showConfirmPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                mb: 3,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: '#FFF',
+                  borderRadius: '48px',
+                  '& fieldset': { borderColor: '#C5C5C5', borderWidth: '1px' },
+                  '&:hover fieldset': { borderColor: '#FB7E00' },
+                  '&.Mui-focused fieldset': { borderColor: '#FB7E00', borderWidth: '1px' },
+                },
+                '& .MuiOutlinedInput-input': { paddingLeft: '16px', paddingRight: '16px' },
+              }}
             />
 
             <Button
@@ -316,24 +440,29 @@ export const SignupScreen: React.FC = () => {
               size="large"
               disabled={loading}
               sx={{
-                py: 1.5,
+                py: 1.75,
                 textTransform: 'none',
                 fontSize: '1rem',
-                fontWeight: 600,
+                fontWeight: 500,
+                backgroundColor: loading ? '#E0E0E0' : '#FB7E00',
+                borderRadius: '100px',
+                color: '#fff',
+                boxShadow: 'none',
+                '&:hover': { backgroundColor: '#C96400', boxShadow: 'none' },
+                '&:disabled': { backgroundColor: '#E0E0E0', color: '#999' },
               }}
             >
-              {loading ? <CircularProgress size={24} /> : 'Đăng ký'}
+              {loading ? <CircularProgress size={24} sx={{ color: '#999' }} /> : 'Đăng ký'}
             </Button>
           </Box>
 
-          {/* Footer */}
-          <Box sx={{ mt: 3, textAlign: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
+          <Box sx={{ mt: 4, textAlign: 'center' }}>
+            <Typography variant="body2" sx={{ color: '#666' }}>
               Đã có tài khoản?{' '}
               <Link
                 component={RouterLink}
                 to={ROUTES.LOGIN}
-                sx={{ fontWeight: 600, textDecoration: 'none' }}
+                sx={{ fontWeight: 600, textDecoration: 'none', color: '#FB7E00', '&:hover': { textDecoration: 'underline' } }}
               >
                 Đăng nhập ngay
               </Link>
@@ -342,12 +471,11 @@ export const SignupScreen: React.FC = () => {
 
           <Typography
             variant="caption"
-            color="text.secondary"
-            sx={{ mt: 3, display: 'block', textAlign: 'center' }}
+            sx={{ mt: 3, display: 'block', textAlign: 'center', color: '#999', fontSize: '0.75rem' }}
           >
             Bằng cách đăng ký, bạn đồng ý với Điều khoản dịch vụ và Chính sách bảo mật
           </Typography>
-        </Paper>
+        </Box>
       </Container>
     </Box>
   );
