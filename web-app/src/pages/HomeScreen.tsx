@@ -37,20 +37,20 @@ const HomeScreen = () => {
     if (hasFetchedTenant.current) {
       return;
     }
-    
+
     // Check authentication - first check if user has basic access token
     const accessToken = localStorage.getItem('accessToken');
     const tenantAccessToken = localStorage.getItem('tenantAccessToken');
-    
+
     console.log('🔑 accessToken:', accessToken ? 'EXISTS' : 'NOT FOUND');
     console.log('🔑 tenantAccessToken:', tenantAccessToken ? 'EXISTS' : 'NOT FOUND');
-    
+
     if (!accessToken) {
       console.log('❌ No accessToken, redirecting to login');
       navigate('/login');
       return;
     }
-    
+
     // If no tenant access token, redirect to tenant selection
     if (!tenantAccessToken) {
       console.log('❌ No tenantAccessToken, redirecting to tenant selection');
@@ -61,7 +61,7 @@ const HomeScreen = () => {
     // Load user and tenant data
     const userData = localStorage.getItem('user');
     const tenantData = localStorage.getItem('currentTenant');
-    
+
     console.log('👤 userData:', userData ? 'EXISTS' : 'NOT FOUND');
     console.log('🏢 tenantData:', tenantData ? 'EXISTS' : 'NOT FOUND');
 
@@ -69,7 +69,7 @@ const HomeScreen = () => {
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
     }
-    
+
     if (tenantData) {
       const parsedTenant = JSON.parse(tenantData);
       console.log('Setting currentTenant:', parsedTenant);
@@ -79,22 +79,22 @@ const HomeScreen = () => {
       // Has tenant access token but no current tenant data
       console.log('Has tenantAccessToken but no currentTenant data');
       console.log('Checking how many tenants user has...');
-      
+
       // Mark as fetching to prevent duplicate calls
       hasFetchedTenant.current = true;
       setIsLoadingTenant(true);
-      
+
       // Get user's tenants and auto-select if only one
       const handleMissingTenant = async () => {
         try {
           console.log('Calling getMyTenants API...');
           const tenantsResponse = await apiService.getMyTenants();
           console.log('getMyTenants response:', tenantsResponse);
-          
+
           const userTenants = tenantsResponse.data?.tenants || tenantsResponse.data || [];
-          
+
           console.log('User has', userTenants.length, 'tenant(s):', userTenants);
-          
+
           if (userTenants.length === 0) {
             console.log('No tenants found, redirecting to processing');
             navigate('/processing');
@@ -118,7 +118,7 @@ const HomeScreen = () => {
           setIsLoadingTenant(false);
         }
       };
-      
+
       handleMissingTenant();
     }
   }, [navigate]);
@@ -149,14 +149,14 @@ const HomeScreen = () => {
   const handleBusinessSetup = async () => {
     console.log('🔄 handleBusinessSetup called');
     console.log('🏢 currentTenant state:', currentTenant);
-    
+
     if (!currentTenant) {
       console.log('❌ No currentTenant in state');
-      
+
       // Check if we have tenant in localStorage but not in state
       const tenantFromStorage = localStorage.getItem('currentTenant');
       console.log('🏢 tenantFromStorage:', tenantFromStorage);
-      
+
       if (tenantFromStorage) {
         const parsedTenant = JSON.parse(tenantFromStorage);
         console.log('✅ Found tenant in localStorage, updating state:', parsedTenant);
@@ -164,7 +164,7 @@ const HomeScreen = () => {
         // Don't retry automatically, wait for next user action
         return;
       }
-      
+
       // No tenant data found - need to select tenant first
       console.log('➡️ No tenant found, redirecting to tenant selection');
       navigate('/select-tenant');
@@ -175,24 +175,32 @@ const HomeScreen = () => {
     try {
       // Get onboarding status from database
       const response = await apiService.getOnboardingStatus(currentTenant.id);
-      
+
       if (response.success && response.data) {
         const { onboardingCompleted, businessType, businessInfo } = response.data;
-        
+
         console.log('📊 Onboarding data:', {
           onboardingCompleted,
           businessType,
-          businessInfo: businessInfo ? 'exists' : 'null'
+          businessInfo: businessInfo ? 'exists' : 'null',
         });
-        
-        // Store only edit mode flag in localStorage, not the actual data
-        // Data will be fetched fresh by each screen via API
+
+        // Store full onboarding data in localStorage for screens to use (caching)
         const onboardingData = {
-          isEdit: !!(onboardingCompleted || businessType || businessInfo)
+          isEdit: !!(onboardingCompleted || businessType || businessInfo),
+          businessType,
+          businessInfo,
+          onboardingCompleted,
+          cachedAt: Date.now(),
         };
-        
+
         localStorage.setItem('onboardingData', JSON.stringify(onboardingData));
-        
+
+        // Also update currentTenant with latest businessType
+        const updatedTenant = { ...currentTenant, businessType, onboardingCompleted };
+        localStorage.setItem('currentTenant', JSON.stringify(updatedTenant));
+        setCurrentTenant(updatedTenant);
+
         if (onboardingCompleted || businessType || businessInfo) {
           // User has existing onboarding data, navigate based on current step
           if (businessInfo) {
@@ -236,12 +244,7 @@ const HomeScreen = () => {
           }}
         >
           <Toolbar>
-            <IconButton
-              edge="start"
-              color="primary"
-              aria-label="menu"
-              sx={{ mr: 2 }}
-            >
+            <IconButton edge="start" color="primary" aria-label="menu" sx={{ mr: 2 }}>
               <MenuIcon />
             </IconButton>
 
@@ -272,10 +275,7 @@ const HomeScreen = () => {
             )}
 
             <IconButton onClick={handleMenuOpen}>
-              <Avatar
-                src={user?.picture}
-                sx={{ width: 36, height: 36 }}
-              >
+              <Avatar src={user?.picture} sx={{ width: 36, height: 36 }}>
                 {user?.name ? user.name.charAt(0) : 'U'}
               </Avatar>
             </IconButton>
@@ -297,13 +297,7 @@ const HomeScreen = () => {
                 <Typography variant="body2" color="text.secondary">
                   {user?.email}
                 </Typography>
-                {currentTenant && (
-                  <Chip
-                    label={currentTenant.name}
-                    size="small"
-                    sx={{ mt: 1 }}
-                  />
-                )}
+                {currentTenant && <Chip label={currentTenant.name} size="small" sx={{ mt: 1 }} />}
               </Box>
               <MenuItem onClick={handleSwitchWorkspace}>
                 <SwitchAccountIcon sx={{ mr: 1.5 }} />
@@ -346,11 +340,7 @@ const HomeScreen = () => {
             >
               Chào mừng đến với Symper
             </Typography>
-            <Typography
-              variant="h6"
-              color="text.secondary"
-              sx={{ mb: 4, textAlign: 'center' }}
-            >
+            <Typography variant="h6" color="text.secondary" sx={{ mb: 4, textAlign: 'center' }}>
               Trang chủ đang được phát triển
             </Typography>
 
@@ -371,7 +361,16 @@ const HomeScreen = () => {
             </Button>
 
             {/* Placeholder Cards */}
-            <Box sx={{ maxWidth: 900, mt: 4, display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Box
+              sx={{
+                maxWidth: 900,
+                mt: 4,
+                display: 'flex',
+                gap: 3,
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+              }}
+            >
               <Box sx={{ flex: '1 1 250px', maxWidth: 300 }}>
                 <Card sx={{ textAlign: 'center', p: 3 }}>
                   <CardContent>

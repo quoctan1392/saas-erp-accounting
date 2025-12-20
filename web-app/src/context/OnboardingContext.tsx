@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import {
@@ -16,17 +16,20 @@ interface OnboardingState {
   isLoading: boolean;
   error: string | null;
   tenantId: string | null;
+  isLoaded: boolean; // Track if data has been loaded
+  onboardingCompleted: boolean;
 }
 
 interface OnboardingContextValue extends OnboardingState {
   setTenantId: (tenantId: string) => void;
-  loadOnboardingStatus: () => Promise<void>;
+  loadOnboardingStatus: (forceRefresh?: boolean) => Promise<void>;
   setBusinessType: (type: BusinessType) => Promise<void>;
   saveBusinessInfo: (info: BusinessInfoForm) => Promise<void>;
   getTaxInfo: (taxId: string) => Promise<TaxInfoResult | null>;
   completeOnboarding: () => Promise<void>;
   goToStep: (step: number) => void;
   clearError: () => void;
+  resetState: () => void;
 }
 
 const OnboardingContext = createContext<OnboardingContextValue | undefined>(undefined);
@@ -37,6 +40,8 @@ interface OnboardingProviderProps {
 
 export const OnboardingProvider: React.FC<OnboardingProviderProps> = ({ children }) => {
   const navigate = useNavigate();
+  const loadingRef = useRef(false); // Prevent duplicate API calls
+
   const [state, setState] = useState<OnboardingState>({
     currentStep: 0,
     businessType: null,
@@ -44,43 +49,87 @@ export const OnboardingProvider: React.FC<OnboardingProviderProps> = ({ children
     isLoading: false,
     error: null,
     tenantId: null,
+    isLoaded: false,
+    onboardingCompleted: false,
   });
 
   const setTenantId = useCallback((tenantId: string) => {
-    setState((prev) => ({ ...prev, tenantId }));
+    setState((prev) => {
+      // Reset loaded state if tenant changes
+      if (prev.tenantId !== tenantId) {
+        return { ...prev, tenantId, isLoaded: false };
+      }
+      return { ...prev, tenantId };
+    });
   }, []);
 
-  const loadOnboardingStatus = useCallback(async () => {
-    if (!state.tenantId) return;
+  const loadOnboardingStatus = useCallback(
+    async (forceRefresh = false) => {
+      if (!state.tenantId) return;
 
-    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+      // Skip if already loaded and not forcing refresh
+      if (state.isLoaded && !forceRefresh) {
+        console.log('[OnboardingContext] Using cached onboarding status');
+        return;
+      }
 
-    try {
-      const response = await apiService.getOnboardingStatus(state.tenantId);
-      
-      if (response.success) {
-        const status: OnboardingStatus = response.data;
+      // Prevent duplicate concurrent calls
+      if (loadingRef.current) {
+        console.log('[OnboardingContext] Already loading, skipping duplicate call');
+        return;
+      }
+
+      loadingRef.current = true;
+      setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+      try {
+        console.log('[OnboardingContext] Loading onboarding status for tenant:', state.tenantId);
+        const response = await apiService.getOnboardingStatus(state.tenantId);
+
+        if (response.success) {
+          const status: OnboardingStatus = response.data;
+          setState((prev) => ({
+            ...prev,
+            currentStep: status.currentStep,
+            businessType: status.businessType,
+            businessInfo: status.businessInfo || null,
+            onboardingCompleted: status.onboardingCompleted,
+            isLoading: false,
+            isLoaded: true,
+          }));
+
+          // Redirect if already completed
+          if (status.onboardingCompleted) {
+            navigate('/dashboard');
+          }
+        }
+      } catch (error: any) {
+        console.error('loadOnboardingStatus error:', error);
         setState((prev) => ({
           ...prev,
-          currentStep: status.currentStep,
-          businessType: status.businessType,
+          error: error.message || 'Failed to load onboarding status',
           isLoading: false,
+          isLoaded: true, // Mark as loaded even on error to prevent infinite retries
         }));
-
-        // Redirect if already completed
-        if (status.onboardingCompleted) {
-          navigate('/dashboard');
-        }
+      } finally {
+        loadingRef.current = false;
       }
-    } catch (error: any) {
-      console.error('loadOnboardingStatus error:', error);
-      setState((prev) => ({
-        ...prev,
-        error: error.message || 'Failed to load onboarding status',
-        isLoading: false,
-      }));
-    }
-  }, [state.tenantId, navigate]);
+    },
+    [state.tenantId, state.isLoaded, navigate],
+  );
+
+  const resetState = useCallback(() => {
+    setState({
+      currentStep: 0,
+      businessType: null,
+      businessInfo: null,
+      isLoading: false,
+      error: null,
+      tenantId: null,
+      isLoaded: false,
+      onboardingCompleted: false,
+    });
+  }, []);
 
   const setBusinessType = useCallback(
     async (type: BusinessType) => {
@@ -111,26 +160,23 @@ export const OnboardingProvider: React.FC<OnboardingProviderProps> = ({ children
         }));
       }
     },
-    [state.tenantId, navigate]
+    [state.tenantId, navigate],
   );
 
-  const getTaxInfo = useCallback(
-    async (taxId: string): Promise<TaxInfoResult | null> => {
-      try {
-        const response: ApiResponse<TaxInfoResult> = await apiService.getTaxInfo(taxId);
+  const getTaxInfo = useCallback(async (taxId: string): Promise<TaxInfoResult | null> => {
+    try {
+      const response: ApiResponse<TaxInfoResult> = await apiService.getTaxInfo(taxId);
 
-        if (response.success && response.data) {
-          return response.data;
-        } else if (response.error) {
-          throw new Error(response.error.message);
-        }
-        return null;
-      } catch (error: any) {
-        throw error;
+      if (response.success && response.data) {
+        return response.data;
+      } else if (response.error) {
+        throw new Error(response.error.message);
       }
-    },
-    []
-  );
+      return null;
+    } catch (error: any) {
+      throw error;
+    }
+  }, []);
 
   const saveBusinessInfo = useCallback(
     async (info: BusinessInfoForm) => {
@@ -163,7 +209,7 @@ export const OnboardingProvider: React.FC<OnboardingProviderProps> = ({ children
         throw error;
       }
     },
-    [state.tenantId]
+    [state.tenantId],
   );
 
   const completeOnboarding = useCallback(async () => {
@@ -200,6 +246,7 @@ export const OnboardingProvider: React.FC<OnboardingProviderProps> = ({ children
         completeOnboarding,
         goToStep,
         clearError,
+        resetState,
       }}
     >
       {children}

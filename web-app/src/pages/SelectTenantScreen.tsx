@@ -52,19 +52,18 @@ const SelectTenantScreen = () => {
       }
 
       const response = await apiService.selectTenant(tenantId);
+      const tenant = response.data.tenant;
 
       localStorage.setItem('tenantAccessToken', response.data.tenantAccessToken);
-      localStorage.setItem('currentTenant', JSON.stringify(response.data.tenant));
+      localStorage.setItem('currentTenant', JSON.stringify(tenant));
 
-      // Check if onboarding is completed
-      const statusResponse = await apiService.getOnboardingStatus(tenantId);
-      
-      if (statusResponse.success && !statusResponse.data.onboardingCompleted) {
-        // Redirect to onboarding if not completed
-        navigate('/onboarding/welcome');
-      } else {
+      // Check if tenant has onboardingCompleted flag from select response
+      if (tenant.onboardingCompleted) {
         // Go to dashboard if onboarding completed
         navigate('/home');
+      } else {
+        // Redirect to onboarding if not completed
+        navigate('/onboarding/welcome');
       }
     } catch (err) {
       console.error('Tenant selection error:', err);
@@ -232,11 +231,7 @@ const SelectTenantScreen = () => {
             </List>
 
             {/* Footer Note */}
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ mt: 4, textAlign: 'center' }}
-            >
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 4, textAlign: 'center' }}>
               Bạn có thể chuyển đổi giữa các workspace bất cứ lúc nào
             </Typography>
           </Paper>

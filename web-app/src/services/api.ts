@@ -30,30 +30,38 @@ class ApiService {
     });
 
     this.tenantApi.interceptors.request.use((config) => {
-      // For my-tenants and select endpoints, use accessToken instead of tenantAccessToken
-      if (config.url?.includes('/tenants/my-tenants') || config.url?.includes('/select')) {
-        const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
+      // Endpoints that need user accessToken (not tenantAccessToken):
+      // - POST /tenants (create tenant)
+      // - GET /tenants/my-tenants (list user's tenants)
+      // - POST /tenants/:id/select (select a tenant)
+      const useUserToken =
+        (config.method === 'post' && config.url === '/tenants') || // Create tenant
+        config.url?.includes('/tenants/my-tenants') ||
+        config.url?.includes('/select');
+
+      let token: string | null = null;
+
+      if (useUserToken) {
+        token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
       } else {
-        // For other tenant endpoints, use tenantAccessToken
-        const tenantToken = localStorage.getItem('tenantAccessToken');
-        if (tenantToken) {
-          config.headers.Authorization = `Bearer ${tenantToken}`;
-        }
+        // For other tenant endpoints, use tenantAccessToken first, fallback to accessToken
+        token =
+          localStorage.getItem('tenantAccessToken') ||
+          localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
       }
+
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        console.warn('[TenantAPI] No token available for request:', config.url);
+      }
+
       return config;
     });
   }
 
   // Auth API
-  async register(data: {
-    email: string;
-    password: string;
-    firstName?: string;
-    lastName?: string;
-  }) {
+  async register(data: { email: string; password: string; firstName?: string; lastName?: string }) {
     const response = await this.authApi.post('/auth/register', data);
     return response.data;
   }
@@ -123,7 +131,10 @@ class ApiService {
   }
 
   async saveBusinessInfo(tenantId: string, data: any) {
-    const response = await this.tenantApi.post(`/tenants/${tenantId}/onboarding/business-info`, data);
+    const response = await this.tenantApi.post(
+      `/tenants/${tenantId}/onboarding/business-info`,
+      data,
+    );
     return response.data;
   }
 

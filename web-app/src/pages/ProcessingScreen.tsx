@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -15,41 +15,65 @@ import { apiService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../config/constants';
 
-const steps = [
-  'Tạo không gian làm việc',
-  'Cấu hình dữ liệu',
-  'Hoàn tất',
-];
+const steps = ['Tạo không gian làm việc', 'Cấu hình dữ liệu', 'Hoàn tất'];
 
 export const ProcessingScreen: React.FC = () => {
   const navigate = useNavigate();
   const { user, setTenants } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const [error, setError] = useState<string>('');
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     const createTenant = async () => {
+      // Prevent duplicate execution (React StrictMode)
+      if (isProcessingRef.current) {
+        return;
+      }
+      isProcessingRef.current = true;
+
       try {
         if (!user) {
           navigate(ROUTES.LOGIN);
           return;
         }
 
+        // Wait a moment to ensure token is saved to localStorage
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        // Verify token exists before proceeding
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+          console.error('No access token found in localStorage');
+          setError('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
+          setTimeout(() => navigate(ROUTES.LOGIN), 2000);
+          return;
+        }
+
         // Step 1: Check existing tenants first
         setActiveStep(0);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         const existingTenantsResponse = await apiService.getMyTenants();
-        if (existingTenantsResponse.success && existingTenantsResponse.data.tenants?.length > 0) {
-          // User already has tenant(s), navigate to selection or dashboard
-          const userTenants = existingTenantsResponse.data.tenants;
-          setTenants(userTenants);
+        const existingTenants = existingTenantsResponse.data?.tenants || [];
 
-          if (userTenants.length === 1) {
-            // Auto-select the only tenant and go to dashboard
-            const selectResponse = await apiService.selectTenant(userTenants[0].id);
+        if (existingTenants.length > 0) {
+          // User already has tenant(s)
+          setTenants(existingTenants);
+
+          if (existingTenants.length === 1) {
+            // Auto-select the only tenant
+            const selectResponse = await apiService.selectTenant(existingTenants[0].id);
+            const selectedTenant = selectResponse.data.tenant;
+
             localStorage.setItem('tenantAccessToken', selectResponse.data.tenantAccessToken);
-            navigate(ROUTES.HOME);
+            localStorage.setItem('currentTenant', JSON.stringify(selectedTenant));
+
+            // Check if onboarding is completed from selectTenant response
+            if (selectedTenant.onboardingCompleted) {
+              navigate(ROUTES.HOME);
+            } else {
+              navigate(ROUTES.ONBOARDING_WELCOME);
+            }
           } else {
             // Multiple tenants - show selection screen
             navigate(ROUTES.TENANT_SELECTION);
@@ -57,60 +81,34 @@ export const ProcessingScreen: React.FC = () => {
           return;
         }
 
-        // Step 2: Create new workspace if no tenant exists
+        // Step 2: Create new workspace (no existing tenant)
         setActiveStep(1);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         const userName = user.firstName || user.lastName || user.email.split('@')[0];
         const tenantName = `Công ty của ${userName}`;
-        const response = await apiService.createTenant(tenantName);
+        const createResponse = await apiService.createTenant(tenantName);
 
-        // Step 3: Configure data
-        setActiveStep(2);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (createResponse.success && createResponse.data?.tenant) {
+          const newTenant = createResponse.data.tenant;
 
-        if (response.success) {
-          // Fetch updated tenant list
-          const tenantsResponse = await apiService.getMyTenants();
-          if (tenantsResponse.success && tenantsResponse.data.tenants) {
-            setTenants(tenantsResponse.data.tenants);
+          // Step 3: Select the new tenant
+          setActiveStep(2);
 
-            // Auto-select the newly created tenant
-            const newTenant = tenantsResponse.data.tenants[0];
-            if (newTenant) {
-              const selectResponse = await apiService.selectTenant(newTenant.id);
-              localStorage.setItem('tenantAccessToken', selectResponse.data.tenantAccessToken);
-            }
-          }
+          setTenants([newTenant]);
+          const selectResponse = await apiService.selectTenant(newTenant.id);
+          const selectedTenant = selectResponse.data.tenant;
+
+          localStorage.setItem('tenantAccessToken', selectResponse.data.tenantAccessToken);
+          localStorage.setItem('currentTenant', JSON.stringify(selectedTenant));
 
           // Navigate to onboarding for new tenant
-          setTimeout(() => {
-            navigate(ROUTES.ONBOARDING_WELCOME);
-          }, 500);
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          navigate(ROUTES.ONBOARDING_WELCOME);
         }
       } catch (err) {
         console.error('Tenant creation error:', err);
         const error = err as { response?: { data?: { message?: string; error?: string } } };
         const errorMessage = error.response?.data?.message || error.response?.data?.error;
-
-        // If tenant already exists, fetch and navigate
-        if (errorMessage?.includes('already exists')) {
-          try {
-            const tenantsResponse = await apiService.getMyTenants();
-            if (tenantsResponse.success && tenantsResponse.data.tenants?.length > 0) {
-              const userTenants = tenantsResponse.data.tenants;
-              setTenants(userTenants);
-              
-              const selectResponse = await apiService.selectTenant(userTenants[0].id);
-              localStorage.setItem('tenantAccessToken', selectResponse.data.tenantAccessToken);
-              navigate(ROUTES.HOME);
-              return;
-            }
-          } catch (fetchError) {
-            console.error('Error fetching existing tenants:', fetchError);
-          }
-        }
-
         setError(errorMessage || 'Không thể tạo tài khoản. Vui lòng thử lại.');
       }
     };
@@ -164,11 +162,7 @@ export const ProcessingScreen: React.FC = () => {
                 ))}
               </Stepper>
 
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                textAlign="center"
-              >
+              <Typography variant="body2" color="text.secondary" textAlign="center">
                 Vui lòng đợi trong giây lát...
               </Typography>
             </>

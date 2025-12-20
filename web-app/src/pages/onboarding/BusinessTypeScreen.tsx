@@ -1,11 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
-  Box,
-  Container,
-  Typography,
-  Chip,
-  CircularProgress,
-} from '@mui/material';
+import { Box, Container, Typography, Chip, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 import { BusinessType } from '../../types/onboarding';
@@ -31,50 +25,22 @@ const BusinessTypeScreen = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
 
-  // Load existing data on component mount
+  // Load existing data on component mount - use cached data from localStorage
   useEffect(() => {
-    const loadOnboardingData = async () => {
+    const loadOnboardingData = () => {
       setIsDataLoading(true);
       try {
-        // Get current tenant
-        const currentTenantStr = localStorage.getItem('currentTenant');
-        if (!currentTenantStr) return;
-        
-        const currentTenant = JSON.parse(currentTenantStr);
-        
-        // Call API to get latest onboarding data
-        const response = await apiService.getOnboardingStatus(currentTenant.id);
-        
-        if (response.success && response.data) {
-          const { businessType } = response.data;
-          if (businessType) {
-            setSelectedType(businessType as BusinessType);
-          }
-        }
-        
-        // Check if this is edit mode from localStorage (user clicked "Thiết lập doanh nghiệp")
-        const onboardingData = localStorage.getItem('onboardingData');
-        if (onboardingData) {
-          try {
-            const data = JSON.parse(onboardingData);
-            setIsEditMode(data.isEdit || false);
-          } catch (error) {
-            console.error('Error parsing onboarding data:', error);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading onboarding data:', error);
-        // On error, still check localStorage for edit mode
+        // Check localStorage for existing onboarding data (cached from context/previous API calls)
         const onboardingData = localStorage.getItem('onboardingData');
         if (onboardingData) {
           try {
             const data = JSON.parse(onboardingData);
             if (data.businessType) {
-              setSelectedType(data.businessType);
+              setSelectedType(data.businessType as BusinessType);
             }
             setIsEditMode(data.isEdit || false);
-          } catch (err) {
-            console.error('Error parsing localStorage onboarding data:', err);
+          } catch (error) {
+            console.error('Error parsing onboarding data:', error);
           }
         }
       } finally {
@@ -88,21 +54,42 @@ const BusinessTypeScreen = () => {
   const businessTypes: BusinessTypeOption[] = [
     {
       type: BusinessType.HOUSEHOLD_BUSINESS,
-      icon: <Box component="img" src={businessTypeImg1} alt="Hộ kinh doanh" sx={{ width: 64, height: 64 }} />,
+      icon: (
+        <Box
+          component="img"
+          src={businessTypeImg1}
+          alt="Hộ kinh doanh"
+          sx={{ width: 64, height: 64 }}
+        />
+      ),
       label: 'Hộ kinh doanh cá thể',
       description: 'Phù hợp cho cửa hàng, quán ăn, dịch vụ nhỏ',
       disabled: false,
     },
     {
       type: BusinessType.PRIVATE_ENTERPRISE,
-      icon: <Box component="img" src={businessTypeImg2} alt="Doanh nghiệp tư nhân" sx={{ width: 64, height: 64 }} />,
+      icon: (
+        <Box
+          component="img"
+          src={businessTypeImg2}
+          alt="Doanh nghiệp tư nhân"
+          sx={{ width: 64, height: 64 }}
+        />
+      ),
       label: 'Doanh nghiệp tư nhân',
       description: 'Dành cho doanh nghiệp có quy mô vừa',
       disabled: false,
     },
     {
       type: BusinessType.LIMITED_COMPANY,
-      icon: <Box component="img" src={businessTypeImg3} alt="Công ty TNHH" sx={{ width: 64, height: 64, opacity: 0.6 }} />,
+      icon: (
+        <Box
+          component="img"
+          src={businessTypeImg3}
+          alt="Công ty TNHH"
+          sx={{ width: 64, height: 64, opacity: 0.6 }}
+        />
+      ),
       label: 'Công ty TNHH/Cổ phần',
       description: 'Dành cho công ty có pháp nhân',
       disabled: true,
@@ -128,55 +115,40 @@ const BusinessTypeScreen = () => {
   const handleContinue = async () => {
     if (selectedType) {
       setIsLoading(true);
-      
+
       try {
-        // Get current tenant - check multiple possible keys
-        let currentTenant = null;
+        // Get current tenant from localStorage
         const currentTenantStr = localStorage.getItem('currentTenant');
-        const selectedTenantStr = localStorage.getItem('selectedTenant');
-        const tenantAccessToken = localStorage.getItem('tenantAccessToken');
-        
-        try {
-          if (currentTenantStr) {
-            currentTenant = JSON.parse(currentTenantStr);
-          } else if (selectedTenantStr) {
-            currentTenant = JSON.parse(selectedTenantStr);
-          } else if (tenantAccessToken) {
-            // Decode JWT token to get tenant info
-            const tokenParts = tenantAccessToken.split('.');
-            if (tokenParts.length === 3) {
-              const payload = JSON.parse(atob(tokenParts[1]));
-              if (payload.tenantId) {
-                currentTenant = {
-                  id: payload.tenantId,
-                  role: payload.tenantRole || 'unknown'
-                };
-                console.log('Extracted tenant from JWT:', currentTenant);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error parsing tenant data:', error);
-        }
-        
-        if (!currentTenant || !currentTenant.id) {
-          alert('Không tìm thấy thông tin tenant. Bạn sẽ được chuyển về màn hình chọn tenant.');
-          navigate('/select-tenant');
+        if (!currentTenantStr) {
+          alert('Không tìm thấy thông tin tenant. Vui lòng đăng nhập lại.');
+          navigate('/login');
           return;
         }
 
+        const currentTenant = JSON.parse(currentTenantStr);
+        console.log('[BusinessTypeScreen] Updating businessType for tenant:', currentTenant.id);
+        console.log('[BusinessTypeScreen] New businessType:', selectedType);
+
         // Save business type to database
         const response = await apiService.updateBusinessType(currentTenant.id, selectedType);
-        
+        console.log('[BusinessTypeScreen] API response:', response);
+
         if (response.success) {
-          // Update localStorage for next screen
+          // Update localStorage with new businessType
           const existingData = JSON.parse(localStorage.getItem('onboardingData') || '{}');
-          localStorage.setItem('onboardingData', JSON.stringify({
+          const updatedData = {
             ...existingData,
             businessType: selectedType,
-            isEdit: isEditMode
-          }));
-          
+            isEdit: isEditMode,
+            cachedAt: Date.now(),
+          };
+          localStorage.setItem('onboardingData', JSON.stringify(updatedData));
+          console.log('[BusinessTypeScreen] Updated localStorage:', updatedData);
+
+          // Also update currentTenant with new businessType
+          const updatedTenant = { ...currentTenant, businessType: selectedType };
+          localStorage.setItem('currentTenant', JSON.stringify(updatedTenant));
+
           navigate(ROUTES.ONBOARDING_BUSINESS_INFO);
         } else {
           throw new Error(response.message || 'Có lỗi xảy ra khi lưu thông tin');
@@ -199,10 +171,7 @@ const BusinessTypeScreen = () => {
         pt: 10,
       }}
     >
-      <OnboardingHeader
-        onBack={handleBack}
-        progress={33}
-      />
+      <OnboardingHeader onBack={handleBack} progress={33} />
 
       <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1, py: 4 }}>
         {/* Title */}
@@ -269,69 +238,76 @@ const BusinessTypeScreen = () => {
             <>
               {/* Business Type Cards */}
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 4 }}>
-              {businessTypes.map((option) => (
-                <Box
-                  key={option.type}
-                  onClick={() => handleSelectType(option.type, option.disabled)}
-                  sx={{
-                    display: 'flex',
-                    padding: '12px',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    gap: '12px',
-                    flex: '1 0 0',
-                    alignSelf: 'stretch',
-                    borderRadius: '12px',
-                    border: selectedType === option.type 
-                      ? '2px solid #FB7E00' 
-                      : '2px solid #dbdadab0',
-                    backgroundColor: option.disabled ? 'rgba(0, 0, 0, 0.04)' : 'transparent',
-                    cursor: option.disabled ? 'not-allowed' : 'pointer',
-                    opacity: option.disabled ? 0.6 : 1,
-                    transition: 'all 0.2s',
-                    '&:hover': {
-                      borderColor: option.disabled ? '#dbdadab0' : '#FB7E00',
-                      borderWidth: option.disabled ? '2px' : '2px',
-                    },
-                  }}
-                >
-                  {option.icon}
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 0.5 }}>
-                      <Typography sx={{ fontWeight: 600, fontSize: '16px', color: '#000' }}>
-                        {option.label}
+                {businessTypes.map((option) => (
+                  <Box
+                    key={option.type}
+                    onClick={() => handleSelectType(option.type, option.disabled)}
+                    sx={{
+                      display: 'flex',
+                      padding: '12px',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: '12px',
+                      flex: '1 0 0',
+                      alignSelf: 'stretch',
+                      borderRadius: '12px',
+                      border:
+                        selectedType === option.type ? '2px solid #FB7E00' : '2px solid #dbdadab0',
+                      backgroundColor: option.disabled ? 'rgba(0, 0, 0, 0.04)' : 'transparent',
+                      cursor: option.disabled ? 'not-allowed' : 'pointer',
+                      opacity: option.disabled ? 0.6 : 1,
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        borderColor: option.disabled ? '#dbdadab0' : '#FB7E00',
+                        borderWidth: option.disabled ? '2px' : '2px',
+                      },
+                    }}
+                  >
+                    {option.icon}
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 1,
+                          mb: 0.5,
+                        }}
+                      >
+                        <Typography sx={{ fontWeight: 600, fontSize: '16px', color: '#000' }}>
+                          {option.label}
+                        </Typography>
+                        {option.disabled && (
+                          <Chip
+                            label="Sắp ra mắt"
+                            size="small"
+                            sx={{
+                              height: 20,
+                              fontSize: '12px',
+                              backgroundColor: '#E0E0E0',
+                              color: '#666',
+                            }}
+                          />
+                        )}
+                      </Box>
+                      <Typography sx={{ fontSize: '14px', color: 'rgba(0, 0, 0, 0.6)' }}>
+                        {option.description}
                       </Typography>
-                      {option.disabled && (
-                        <Chip 
-                          label="Sắp ra mắt" 
-                          size="small" 
-                          sx={{ 
-                            height: 20, 
-                            fontSize: '12px',
-                            backgroundColor: '#E0E0E0',
-                            color: '#666',
-                          }} 
-                        />
-                      )}
                     </Box>
-                    <Typography sx={{ fontSize: '14px', color: 'rgba(0, 0, 0, 0.6)' }}>
-                      {option.description}
-                    </Typography>
                   </Box>
-                </Box>
-              ))}
-            </Box>
+                ))}
+              </Box>
 
-          {/* Continue Button */}
-          <PrimaryButton
-            onClick={handleContinue}
-            disabled={!selectedType}
-            loading={isLoading}
-            loadingText={isEditMode ? "Đang cập nhật..." : "Đang xử lý..."}
-          >
-            {isEditMode ? "Cập nhật" : "Tiếp tục"}
-          </PrimaryButton>
+              {/* Continue Button */}
+              <PrimaryButton
+                onClick={handleContinue}
+                disabled={!selectedType}
+                loading={isLoading}
+                loadingText={isEditMode ? 'Đang cập nhật...' : 'Đang xử lý...'}
+              >
+                {isEditMode ? 'Cập nhật' : 'Tiếp tục'}
+              </PrimaryButton>
             </>
           )}
         </Box>

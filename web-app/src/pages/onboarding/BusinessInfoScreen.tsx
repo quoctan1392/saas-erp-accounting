@@ -8,15 +8,15 @@ import {
   CircularProgress,
   InputAdornment,
 } from '@mui/material';
-import { 
-  Refresh, 
-  ReceiptOutlined, 
-  BusinessOutlined, 
-  LocationOnOutlined, 
-  PersonOutlined, 
+import {
+  Refresh,
+  ReceiptOutlined,
+  BusinessOutlined,
+  LocationOnOutlined,
+  PersonOutlined,
   BadgeOutlined,
   CalendarTodayOutlined,
-  PeopleOutlined 
+  PeopleOutlined,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
@@ -52,68 +52,21 @@ const BusinessInfoScreen = () => {
     text: string;
   } | null>(null);
 
-  // Load existing data on component mount
+  // Load existing data on component mount - use cached data from localStorage
   useEffect(() => {
-    const loadOnboardingData = async () => {
+    const loadOnboardingData = () => {
       setIsDataLoading(true);
       try {
-        // Get current tenant
-        const currentTenantStr = localStorage.getItem('currentTenant');
-        if (!currentTenantStr) return;
-        
-        const currentTenant = JSON.parse(currentTenantStr);
-        
-        // Call API to get latest onboarding data
-        const response = await apiService.getOnboardingStatus(currentTenant.id);
-        
-        if (response.success && response.data) {
-          const { businessType, businessInfo } = response.data;
-          
-          // Set business type if available
-          if (businessType) {
-            setFormData(prev => ({ ...prev, businessType: businessType as BusinessType }));
-          }
-          
-          // Set business info if available
-          if (businessInfo) {
-            // Format establishmentDate for input field (YYYY-MM-DD format)
-            const formattedBusinessInfo = { ...businessInfo };
-            if (formattedBusinessInfo.establishmentDate) {
-              const date = new Date(formattedBusinessInfo.establishmentDate);
-              if (!isNaN(date.getTime())) {
-                formattedBusinessInfo.establishmentDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
-              }
-            }
-            
-            setFormData(prev => ({ 
-              ...prev, 
-              ...formattedBusinessInfo,
-              // Ensure businessType is also set from businessInfo if not already set
-              businessType: businessType || formattedBusinessInfo.businessType || prev.businessType
-            }));
-          }
-        }
-        
-        // Check if this is edit mode from localStorage (user clicked "Thiết lập doanh nghiệp")
+        // Check localStorage for existing onboarding data (cached from context/previous API calls)
         const onboardingData = localStorage.getItem('onboardingData');
         if (onboardingData) {
           try {
             const data = JSON.parse(onboardingData);
-            setIsEditMode(data.isEdit || false);
-          } catch (error) {
-            console.error('Error parsing onboarding data:', error);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading onboarding data:', error);
-        // On API error, fallback to localStorage data
-        const onboardingData = localStorage.getItem('onboardingData');
-        if (onboardingData) {
-          try {
-            const data = JSON.parse(onboardingData);
-            if (data.businessType) {
-              setFormData(prev => ({ ...prev, businessType: data.businessType }));
-            }
+
+            // Prepare updates object
+            const updates: Partial<BusinessInfoForm> = {};
+
+            // Set business info if available (but exclude businessType)
             if (data.businessInfo) {
               // Format establishmentDate for input field (YYYY-MM-DD format)
               const businessInfo = { ...data.businessInfo };
@@ -123,11 +76,26 @@ const BusinessInfoScreen = () => {
                   businessInfo.establishmentDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
                 }
               }
-              setFormData(prev => ({ ...prev, ...businessInfo }));
+              // Remove businessType from businessInfo - we'll use the top-level one
+              delete businessInfo.businessType;
+              Object.assign(updates, businessInfo);
             }
+
+            // Set business type from top-level (this is the correct/current value)
+            // This MUST come after businessInfo to ensure it takes priority
+            if (data.businessType) {
+              updates.businessType = data.businessType as BusinessType;
+            }
+
+            // Apply all updates in a single setState call
+            if (Object.keys(updates).length > 0) {
+              console.log('[BusinessInfoScreen] Loading form data:', updates);
+              setFormData((prev) => ({ ...prev, ...updates }));
+            }
+
             setIsEditMode(data.isEdit || false);
-          } catch (err) {
-            console.error('Error parsing localStorage onboarding data:', err);
+          } catch (error) {
+            console.error('Error parsing onboarding data:', error);
           }
         }
       } finally {
@@ -233,12 +201,17 @@ const BusinessInfoScreen = () => {
       const dateStr = formData.establishmentDate;
       // Check if it's a valid date format (YYYY-MM-DD)
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-        newErrors.establishmentDate = 'Ngày thành lập phải có định dạng YYYY-MM-DD (VD: 2020-01-15)';
+        newErrors.establishmentDate =
+          'Ngày thành lập phải có định dạng YYYY-MM-DD (VD: 2020-01-15)';
       } else {
         // Validate that it's a real date
         const date = new Date(dateStr);
         const [year, month, day] = dateStr.split('-').map(Number);
-        if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+        if (
+          date.getFullYear() !== year ||
+          date.getMonth() !== month - 1 ||
+          date.getDate() !== day
+        ) {
           newErrors.establishmentDate = 'Ngày thành lập không hợp lệ';
         }
       }
@@ -262,13 +235,13 @@ const BusinessInfoScreen = () => {
 
     try {
       setIsLoading(true);
-      
+
       // Get current tenant - check multiple possible keys
       let currentTenant = null;
       const currentTenantStr = localStorage.getItem('currentTenant');
       const selectedTenantStr = localStorage.getItem('selectedTenant');
       const tenantAccessToken = localStorage.getItem('tenantAccessToken');
-      
+
       try {
         if (currentTenantStr) {
           currentTenant = JSON.parse(currentTenantStr);
@@ -282,7 +255,7 @@ const BusinessInfoScreen = () => {
             if (payload.tenantId) {
               currentTenant = {
                 id: payload.tenantId,
-                role: payload.tenantRole || 'unknown'
+                role: payload.tenantRole || 'unknown',
               };
               console.log('Extracted tenant from JWT:', currentTenant);
             }
@@ -291,7 +264,7 @@ const BusinessInfoScreen = () => {
       } catch (error) {
         console.error('Error parsing tenant data:', error);
       }
-      
+
       if (!currentTenant || !currentTenant.id) {
         alert('Không tìm thấy thông tin tenant. Bạn sẽ được chuyển về màn hình chọn tenant.');
         navigate('/select-tenant');
@@ -316,15 +289,15 @@ const BusinessInfoScreen = () => {
       if (formData.ownerName && formData.ownerName.trim()) {
         businessInfoPayload.ownerName = formData.ownerName.trim();
       }
-      
+
       if (formData.nationalId && formData.nationalId.trim()) {
         businessInfoPayload.nationalId = formData.nationalId.trim();
       }
-      
+
       if (formData.businessCode && formData.businessCode.trim()) {
         businessInfoPayload.businessCode = formData.businessCode.trim();
       }
-      
+
       if (formData.establishmentDate && formData.establishmentDate.trim()) {
         const dateStr = formData.establishmentDate.trim();
         // Ensure ISO format - if it's just YYYY-MM-DD, convert to full ISO
@@ -334,23 +307,23 @@ const BusinessInfoScreen = () => {
           businessInfoPayload.establishmentDate = dateStr;
         }
       }
-      
+
       if (formData.employeeCount && formData.employeeCount > 0) {
         businessInfoPayload.employeeCount = formData.employeeCount;
       }
-      
+
       if (formData.taxInfoAutoFilled !== undefined) {
         businessInfoPayload.taxInfoAutoFilled = formData.taxInfoAutoFilled;
       }
 
       console.log('Sending business info payload:', businessInfoPayload);
-      
+
       const response = await apiService.saveBusinessInfo(currentTenant.id, businessInfoPayload);
 
       if (response.success) {
         // Clean up localStorage
         localStorage.removeItem('onboardingData');
-        
+
         if (isEditMode) {
           alert('Thông tin doanh nghiệp đã được cập nhật thành công!');
         } else {
@@ -363,13 +336,13 @@ const BusinessInfoScreen = () => {
       }
     } catch (error: any) {
       console.error('Failed to save business info:', error);
-      
+
       // Better error handling
       let errorMessage = 'Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại.';
-      
+
       if (error.response) {
         console.error('Error response:', error.response.data);
-        
+
         if (error.response.status === 400) {
           const validationErrors = error.response.data?.message;
           if (Array.isArray(validationErrors)) {
@@ -389,7 +362,7 @@ const BusinessInfoScreen = () => {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       alert(errorMessage);
     } finally {
       setIsLoading(false);
@@ -408,10 +381,7 @@ const BusinessInfoScreen = () => {
         pt: 8,
       }}
     >
-      <OnboardingHeader
-        onBack={handleBack}
-        progress={66}
-      />
+      <OnboardingHeader onBack={handleBack} progress={66} />
 
       <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1, py: 2 }}>
         {/* Title */}
@@ -478,178 +448,186 @@ const BusinessInfoScreen = () => {
             <>
               {/* Auto-fill Message */}
               {autoFillMessage && (
-                <Alert severity={autoFillMessage.type} sx={{ mb: 3 }} onClose={() => setAutoFillMessage(null)}>
+                <Alert
+                  severity={autoFillMessage.type}
+                  sx={{ mb: 3 }}
+                  onClose={() => setAutoFillMessage(null)}
+                >
                   {autoFillMessage.text}
                 </Alert>
               )}
 
-          {/* Form */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 4 }}>
-          {/* Tax ID with Auto-fill button */}
-          <Box>
-            <RoundedTextField
-              fullWidth
-              required
-              label="Mã số thuế"
-              placeholder="Nhập mã số thuế"
-              value={formData.taxId}
-              onChange={(e) => handleChange('taxId', e.target.value)}
-              error={!!errors.taxId}
-              helperText={errors.taxId}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <ReceiptOutlined sx={{ color: '#4E4E4E' }} />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <Button
-                    size="small"
-                    disabled={isAutoFilling || !formData.taxId}
-                    onClick={handleAutoFill}
-                    sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
-                  >
-                    Lấy thông tin
-                  </Button>
-                ),
-              }}
-            />
-          </Box>
+              {/* Form */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 4 }}>
+                {/* Tax ID with Auto-fill button */}
+                <Box>
+                  <RoundedTextField
+                    fullWidth
+                    required
+                    label="Mã số thuế"
+                    placeholder="Nhập mã số thuế"
+                    value={formData.taxId}
+                    onChange={(e) => handleChange('taxId', e.target.value)}
+                    error={!!errors.taxId}
+                    helperText={errors.taxId}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <ReceiptOutlined sx={{ color: '#4E4E4E' }} />
+                        </InputAdornment>
+                      ),
+                      endAdornment: (
+                        <Button
+                          size="small"
+                          disabled={isAutoFilling || !formData.taxId}
+                          onClick={handleAutoFill}
+                          sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+                        >
+                          Lấy thông tin
+                        </Button>
+                      ),
+                    }}
+                  />
+                </Box>
 
-          {/* Business Name */}
-          <RoundedTextField
-            fullWidth
-            required
-            label={isHKD ? 'Tên Hộ kinh doanh' : 'Tên doanh nghiệp'}
-            placeholder={isHKD ? 'VD: Cửa hàng tạp hóa Minh An' : 'VD: Doanh nghiệp tư nhân ABC'}
-            value={formData.businessName}
-            onChange={(e) => handleChange('businessName', e.target.value)}
-            error={!!errors.businessName}
-            helperText={errors.businessName}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <BusinessOutlined sx={{ color: '#4E4E4E' }} />
-                </InputAdornment>
-              ),
-            }}
-          />
+                {/* Business Name */}
+                <RoundedTextField
+                  fullWidth
+                  required
+                  label={isHKD ? 'Tên Hộ kinh doanh' : 'Tên doanh nghiệp'}
+                  placeholder={
+                    isHKD ? 'VD: Cửa hàng tạp hóa Minh An' : 'VD: Doanh nghiệp tư nhân ABC'
+                  }
+                  value={formData.businessName}
+                  onChange={(e) => handleChange('businessName', e.target.value)}
+                  error={!!errors.businessName}
+                  helperText={errors.businessName}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <BusinessOutlined sx={{ color: '#4E4E4E' }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
 
-          {/* Registered Address */}
-          <RoundedTextField
-            fullWidth
-            required
-            label="Địa chỉ đăng ký"
-            placeholder="Nhập địa chỉ đầy đủ"
-            value={formData.registeredAddress}
-            onChange={(e) => handleChange('registeredAddress', e.target.value)}
-            error={!!errors.registeredAddress}
-            helperText={errors.registeredAddress}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <LocationOnOutlined sx={{ color: '#4E4E4E' }} />
-                </InputAdornment>
-              ),
-            }}
-          />
+                {/* Registered Address */}
+                <RoundedTextField
+                  fullWidth
+                  required
+                  label="Địa chỉ đăng ký"
+                  placeholder="Nhập địa chỉ đầy đủ"
+                  value={formData.registeredAddress}
+                  onChange={(e) => handleChange('registeredAddress', e.target.value)}
+                  error={!!errors.registeredAddress}
+                  helperText={errors.registeredAddress}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LocationOnOutlined sx={{ color: '#4E4E4E' }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
 
-          {/* Owner Name */}
-          <RoundedTextField
-            fullWidth
-            label={isHKD ? 'Tên chủ hộ kinh doanh' : 'Tên giám đốc'}
-            placeholder="Nhập họ và tên"
-            value={formData.ownerName}
-            onChange={(e) => handleChange('ownerName', e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <PersonOutlined sx={{ color: '#4E4E4E' }} />
-                </InputAdornment>
-              ),
-            }}
-          />
+                {/* Owner Name */}
+                <RoundedTextField
+                  fullWidth
+                  label={isHKD ? 'Tên chủ hộ kinh doanh' : 'Tên giám đốc'}
+                  placeholder="Nhập họ và tên"
+                  value={formData.ownerName}
+                  onChange={(e) => handleChange('ownerName', e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PersonOutlined sx={{ color: '#4E4E4E' }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
 
-          {/* National ID */}
-          <RoundedTextField
-            fullWidth
-            label="CCCD"
-            placeholder="Nhập số CCCD"
-            value={formData.nationalId}
-            onChange={(e) => handleChange('nationalId', e.target.value)}
-            error={!!errors.nationalId}
-            helperText={errors.nationalId}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <BadgeOutlined sx={{ color: '#4E4E4E' }} />
-                </InputAdornment>
-              ),
-            }}
-          />
+                {/* National ID */}
+                <RoundedTextField
+                  fullWidth
+                  label="CCCD"
+                  placeholder="Nhập số CCCD"
+                  value={formData.nationalId}
+                  onChange={(e) => handleChange('nationalId', e.target.value)}
+                  error={!!errors.nationalId}
+                  helperText={errors.nationalId}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <BadgeOutlined sx={{ color: '#4E4E4E' }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
 
-          {/* DNTN specific fields */}
-          {isDNTN && (
-            <>
-              <RoundedTextField
-                fullWidth
-                label="Mã doanh nghiệp"
-                placeholder="Nhập mã doanh nghiệp"
-                value={formData.businessCode}
-                onChange={(e) => handleChange('businessCode', e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <BusinessOutlined sx={{ color: '#4E4E4E' }} />
-                    </InputAdornment>
-                  ),
-                }}
-              />
+                {/* DNTN specific fields */}
+                {isDNTN && (
+                  <>
+                    <RoundedTextField
+                      fullWidth
+                      label="Mã doanh nghiệp"
+                      placeholder="Nhập mã doanh nghiệp"
+                      value={formData.businessCode}
+                      onChange={(e) => handleChange('businessCode', e.target.value)}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BusinessOutlined sx={{ color: '#4E4E4E' }} />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
 
-              <RoundedTextField
-                fullWidth
-                type="date"
-                label="Ngày thành lập"
-                InputLabelProps={{ shrink: true }}
-                value={formData.establishmentDate}
-                onChange={(e) => handleChange('establishmentDate', e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <CalendarTodayOutlined sx={{ color: '#4E4E4E' }} />
-                    </InputAdornment>
-                  ),
-                }}
-              />
+                    <RoundedTextField
+                      fullWidth
+                      type="date"
+                      label="Ngày thành lập"
+                      InputLabelProps={{ shrink: true }}
+                      value={formData.establishmentDate}
+                      onChange={(e) => handleChange('establishmentDate', e.target.value)}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <CalendarTodayOutlined sx={{ color: '#4E4E4E' }} />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
 
-              <RoundedTextField
-                fullWidth
-                type="number"
-                label="Số lượng nhân sự"
-                placeholder="Nhập số lượng nhân sự"
-                value={formData.employeeCount || ''}
-                onChange={(e) => handleChange('employeeCount', parseInt(e.target.value) || undefined)}
-                inputProps={{ min: 1 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <PeopleOutlined sx={{ color: '#4E4E4E' }} />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            </>
-          )}
-        </Box>
+                    <RoundedTextField
+                      fullWidth
+                      type="number"
+                      label="Số lượng nhân sự"
+                      placeholder="Nhập số lượng nhân sự"
+                      value={formData.employeeCount || ''}
+                      onChange={(e) =>
+                        handleChange('employeeCount', parseInt(e.target.value) || undefined)
+                      }
+                      inputProps={{ min: 1 }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PeopleOutlined sx={{ color: '#4E4E4E' }} />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </>
+                )}
+              </Box>
 
-          {/* Continue Button */}
-          <PrimaryButton
-            onClick={handleSubmit}
-            loading={isLoading}
-            loadingText={isEditMode ? "Đang cập nhật..." : "Đang lưu..."}
-          >
-            {isEditMode ? "Cập nhật" : "Tiếp tục"}
-          </PrimaryButton>
+              {/* Continue Button */}
+              <PrimaryButton
+                onClick={handleSubmit}
+                loading={isLoading}
+                loadingText={isEditMode ? 'Đang cập nhật...' : 'Đang lưu...'}
+              >
+                {isEditMode ? 'Cập nhật' : 'Tiếp tục'}
+              </PrimaryButton>
             </>
           )}
         </Box>
