@@ -8,7 +8,7 @@ export const GOOGLE_CONFIG = {
 };
 
 export const ROUTES = {
-  HOME: '/',
+  HOME: '/home',
   LOGIN: '/login',
   SIGNUP: '/signup',
   FORGOT_PASSWORD: '/forgot-password',
@@ -17,6 +17,9 @@ export const ROUTES = {
   TENANT_SELECTION: '/select-tenant',
   PROCESSING: '/processing',
   DASHBOARD: '/dashboard',
+  ONBOARDING_WELCOME: '/onboarding/welcome',
+  ONBOARDING_BUSINESS_TYPE: '/onboarding/business-type',
+  ONBOARDING_BUSINESS_INFO: '/onboarding/business-info',
 };
 
 export const STORAGE_KEYS = {

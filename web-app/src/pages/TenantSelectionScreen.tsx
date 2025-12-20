@@ -79,7 +79,7 @@ export const TenantSelectionScreen: React.FC = () => {
         selectTenant(tenant);
 
         // Navigate to dashboard
-        navigate(ROUTES.DASHBOARD);
+        navigate(ROUTES.HOME);
       }
     } catch (err: any) {
       console.error('Tenant selection error:', err);

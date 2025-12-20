@@ -7,8 +7,11 @@ import { HttpModule } from '@nestjs/axios';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { HealthModule } from './modules/health/health.module';
+import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { Tenant } from './modules/tenants/entities/tenant.entity';
 import { TenantMember } from './modules/tenants/entities/tenant-member.entity';
+import { TenantBusinessInfo } from './modules/tenants/entities/tenant-business-info.entity';
+import { OnboardingAuditLog } from './modules/tenants/entities/onboarding-audit-log.entity';
 import { Subscription } from './modules/subscriptions/entities/subscription.entity';
 
 @Module({
@@ -23,7 +26,7 @@ import { Subscription } from './modules/subscriptions/entities/subscription.enti
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
         url: configService.get('DATABASE_URL'),
-        entities: [Tenant, TenantMember, Subscription],
+        entities: [Tenant, TenantMember, TenantBusinessInfo, OnboardingAuditLog, Subscription],
         synchronize: configService.get('NODE_ENV') === 'development',
         logging: configService.get('NODE_ENV') === 'development',
         ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
@@ -44,6 +47,7 @@ import { Subscription } from './modules/subscriptions/entities/subscription.enti
     TenantsModule,
     SubscriptionsModule,
     HealthModule,
+    OnboardingModule,
   ],
 })
 export class AppModule {}

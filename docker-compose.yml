@@ -60,6 +60,7 @@ services:
       DATABASE_URL: postgresql://erp_admin:erp_password_123@postgres:5432/auth_db
       REDIS_URL: redis://redis:6379
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      JWT_REFRESH_SECRET: your-super-secret-jwt-refresh-key-change-in-production
       JWT_EXPIRES_IN: 7d
       GOOGLE_CLIENT_ID: your-google-client-id
       GOOGLE_CLIENT_SECRET: your-google-client-secret
@@ -72,9 +73,10 @@ services:
       - rabbitmq
     networks:
       - erp-network
-    volumes:
-      - ./services/auth-service:/app
-      - /app/node_modules
+    # Removed volume mounts - all code is baked into image for now
+    # volumes:
+    #   - ./services/auth-service:/app
+    #   - /app/node_modules
 
   # Tenant Service
   tenant-service:
@@ -88,6 +90,8 @@ services:
       PORT: 3002
       DATABASE_URL: postgresql://erp_admin:erp_password_123@postgres:5432/tenant_db
       REDIS_URL: redis://redis:6379
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      JWT_REFRESH_SECRET: your-super-secret-jwt-refresh-key-change-in-production
       RABBITMQ_URL: amqp://erp_admin:erp_password_123@rabbitmq:5672
       AUTH_SERVICE_URL: http://auth-service:3001
     ports:

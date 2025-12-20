@@ -14,11 +14,14 @@ import {
   Card,
   CardContent,
   Fade,
+  Button,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
 import SwitchAccountIcon from '@mui/icons-material/SwitchAccount';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import SettingsIcon from '@mui/icons-material/Settings';
+import { ROUTES } from '../config/constants';
 
 const HomeScreen = () => {
   const navigate = useNavigate();
@@ -196,6 +199,22 @@ const HomeScreen = () => {
             >
               Trang chủ đang được phát triển
             </Typography>
+
+            {/* Onboarding Button */}
+            <Button
+              variant="outlined"
+              size="large"
+              startIcon={<SettingsIcon />}
+              onClick={() => navigate(ROUTES.ONBOARDING_WELCOME)}
+              sx={{
+                mb: 4,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+              }}
+            >
+              Thiết lập doanh nghiệp
+            </Button>
 
             {/* Placeholder Cards */}
             <Box sx={{ maxWidth: 900, mt: 4, display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>

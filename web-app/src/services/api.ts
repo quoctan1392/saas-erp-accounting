@@ -94,6 +94,34 @@ class ApiService {
     const response = await this.tenantApi.post(`/tenants/${tenantId}/select`);
     return response.data;
   }
+
+  // Onboarding API
+  async getOnboardingStatus(tenantId: string) {
+    const response = await this.tenantApi.get(`/tenants/${tenantId}/onboarding/status`);
+    return response.data;
+  }
+
+  async updateBusinessType(tenantId: string, businessType: string) {
+    const response = await this.tenantApi.put(`/tenants/${tenantId}/onboarding/business-type`, {
+      businessType,
+    });
+    return response.data;
+  }
+
+  async getTaxInfo(taxId: string) {
+    const response = await this.tenantApi.get(`/tax-info?taxId=${taxId}`);
+    return response.data;
+  }
+
+  async saveBusinessInfo(tenantId: string, data: any) {
+    const response = await this.tenantApi.post(`/tenants/${tenantId}/onboarding/business-info`, data);
+    return response.data;
+  }
+
+  async completeOnboarding(tenantId: string) {
+    const response = await this.tenantApi.post(`/tenants/${tenantId}/onboarding/complete`);
+    return response.data;
+  }
 }
 
 export const apiService = new ApiService();

@@ -21,6 +21,12 @@ export enum TenantPlan {
   ENTERPRISE = 'enterprise',
 }
 
+export enum BusinessType {
+  HOUSEHOLD_BUSINESS = 'HOUSEHOLD_BUSINESS',
+  PRIVATE_ENTERPRISE = 'PRIVATE_ENTERPRISE',
+  LIMITED_COMPANY = 'LIMITED_COMPANY',
+}
+
 @Entity('tenants')
 export class Tenant {
   @PrimaryGeneratedColumn('uuid')
@@ -94,6 +100,27 @@ export class Tenant {
 
   @Column({ nullable: true })
   subscriptionEndsAt: Date;
+
+  // Onboarding tracking
+  @Column({ default: false })
+  @Index()
+  onboardingCompleted: boolean;
+
+  @Column({ default: 0 })
+  onboardingStep: number;
+
+  @Column({ nullable: true })
+  onboardingStartedAt: Date;
+
+  @Column({ nullable: true })
+  onboardingCompletedAt: Date;
+
+  @Column({
+    type: 'enum',
+    enum: BusinessType,
+    nullable: true,
+  })
+  businessType: BusinessType;
 
   @CreateDateColumn()
   createdAt: Date;

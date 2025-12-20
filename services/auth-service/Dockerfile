@@ -45,18 +45,18 @@ RUN apk add --no-cache \
     libc-dev \
     linux-headers
 
-RUN npm install -g pnpm
+# Copy package files
+COPY package.json ./
 
-COPY package.json pnpm-lock.yaml* ./
+# Install dependencies with npm instead of pnpm
+RUN npm install
 
-# Install ALL dependencies (including dev) for nest CLI
-RUN pnpm install
-
-# In production, we would build and copy dist
-# For now, just copy source and run with dev command
+# Copy source code
 COPY . .
-RUN rm -rf dist
+
+# Build the application
+RUN npm run build
 
 EXPOSE 3001
 
-CMD ["npx", "nest", "start", "--watch"]
+CMD ["node", "dist/main"]

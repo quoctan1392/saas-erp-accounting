@@ -56,7 +56,16 @@ const SelectTenantScreen = () => {
       localStorage.setItem('tenantAccessToken', response.data.tenantAccessToken);
       localStorage.setItem('currentTenant', JSON.stringify(response.data.tenant));
 
-      navigate('/home');
+      // Check if onboarding is completed
+      const statusResponse = await apiService.getOnboardingStatus(tenantId);
+      
+      if (statusResponse.success && !statusResponse.data.onboardingCompleted) {
+        // Redirect to onboarding if not completed
+        navigate('/onboarding/welcome');
+      } else {
+        // Go to dashboard if onboarding completed
+        navigate('/home');
+      }
     } catch (err) {
       console.error('Tenant selection error:', err);
       setError('Không thể đăng nhập vào workspace. Vui lòng thử lại.');

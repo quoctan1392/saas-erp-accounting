@@ -136,7 +136,7 @@ export const SignupScreen: React.FC = () => {
             if (userTenants.length === 1) {
               const tenantResponse = await apiService.selectTenant(userTenants[0].id);
               localStorage.setItem('tenantAccessToken', tenantResponse.data.tenantAccessToken);
-              navigate(ROUTES.DASHBOARD);
+              navigate(ROUTES.HOME);
             } else {
               setTenants(userTenants);
               navigate(ROUTES.TENANT_SELECTION);

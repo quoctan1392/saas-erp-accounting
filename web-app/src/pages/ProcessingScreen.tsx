@@ -49,7 +49,7 @@ export const ProcessingScreen: React.FC = () => {
             // Auto-select the only tenant and go to dashboard
             const selectResponse = await apiService.selectTenant(userTenants[0].id);
             localStorage.setItem('tenantAccessToken', selectResponse.data.tenantAccessToken);
-            navigate(ROUTES.DASHBOARD);
+            navigate(ROUTES.HOME);
           } else {
             // Multiple tenants - show selection screen
             navigate(ROUTES.TENANT_SELECTION);
@@ -83,9 +83,9 @@ export const ProcessingScreen: React.FC = () => {
             }
           }
 
-          // Navigate to dashboard
+          // Navigate to onboarding for new tenant
           setTimeout(() => {
-            navigate(ROUTES.DASHBOARD);
+            navigate(ROUTES.ONBOARDING_WELCOME);
           }, 500);
         }
       } catch (err) {
@@ -103,7 +103,7 @@ export const ProcessingScreen: React.FC = () => {
               
               const selectResponse = await apiService.selectTenant(userTenants[0].id);
               localStorage.setItem('tenantAccessToken', selectResponse.data.tenantAccessToken);
-              navigate(ROUTES.DASHBOARD);
+              navigate(ROUTES.HOME);
               return;
             }
           } catch (fetchError) {
