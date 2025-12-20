@@ -34,7 +34,17 @@ export class OnboardingController {
     @Body() dto: UpdateBusinessTypeDto,
     @Request() req: any,
   ) {
-    const userId = req.user.userId;
+    console.log('Full request user object:', JSON.stringify(req.user, null, 2)); // Debug log
+    console.log('Request headers:', JSON.stringify(req.headers, null, 2)); // Debug log
+    
+    let userId = null;
+    if (req.user) {
+      userId = req.user.sub || req.user.userId || req.user.id;
+      console.log('Extracted userId:', userId); // Debug log
+    } else {
+      console.log('No user object found in request');
+    }
+    
     const data = await this.onboardingService.updateBusinessType(
       tenantId,
       userId,
@@ -52,7 +62,10 @@ export class OnboardingController {
     @Body() dto: SaveBusinessInfoDto,
     @Request() req: any,
   ) {
-    const userId = req.user.userId;
+    let userId = null;
+    if (req.user) {
+      userId = req.user.sub || req.user.userId || req.user.id;
+    }
     const data = await this.onboardingService.saveBusinessInfo(
       tenantId,
       userId,
@@ -69,7 +82,10 @@ export class OnboardingController {
     @Param('tenantId') tenantId: string,
     @Request() req: any,
   ) {
-    const userId = req.user.userId;
+    let userId = null;
+    if (req.user) {
+      userId = req.user.sub || req.user.userId || req.user.id;
+    }
     const data = await this.onboardingService.completeOnboarding(tenantId, userId);
     return {
       success: true,

@@ -56,6 +56,7 @@ export const LoginScreen: React.FC = () => {
 
       if (response.user && response.accessToken) {
         const { user, accessToken, refreshToken } = response;
+        
         login(user, { accessToken, refreshToken }, []);
 
         try {
@@ -66,6 +67,7 @@ export const LoginScreen: React.FC = () => {
             if (userTenants.length === 1) {
               const tenantResponse = await apiService.selectTenant(userTenants[0].id);
               localStorage.setItem('tenantAccessToken', tenantResponse.data.tenantAccessToken);
+              localStorage.setItem('currentTenant', JSON.stringify(tenantResponse.data.tenant));
               navigate(ROUTES.HOME);
             } else {
               setTenants(userTenants);
@@ -110,6 +112,7 @@ export const LoginScreen: React.FC = () => {
             if (userTenants.length === 1) {
               const tenantResponse = await apiService.selectTenant(userTenants[0].id);
               localStorage.setItem('tenantAccessToken', tenantResponse.data.tenantAccessToken);
+              localStorage.setItem('currentTenant', JSON.stringify(tenantResponse.data.tenant));
               navigate(ROUTES.HOME);
             } else {
               setTenants(userTenants);

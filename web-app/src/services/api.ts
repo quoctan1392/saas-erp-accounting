@@ -30,9 +30,18 @@ class ApiService {
     });
 
     this.tenantApi.interceptors.request.use((config) => {
-      const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      // For my-tenants and select endpoints, use accessToken instead of tenantAccessToken
+      if (config.url?.includes('/tenants/my-tenants') || config.url?.includes('/select')) {
+        const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } else {
+        // For other tenant endpoints, use tenantAccessToken
+        const tenantToken = localStorage.getItem('tenantAccessToken');
+        if (tenantToken) {
+          config.headers.Authorization = `Bearer ${tenantToken}`;
+        }
       }
       return config;
     });
