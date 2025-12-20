@@ -42,3 +42,5 @@ export class RefreshTokenDto {
   @IsNotEmpty()
   refreshToken: string;
 }
+
+export * from './google-auth.dto';

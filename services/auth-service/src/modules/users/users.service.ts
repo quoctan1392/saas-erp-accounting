@@ -20,24 +20,46 @@ export class UsersService {
     provider?: AuthProvider;
     providerId?: string;
   }): Promise<User> {
-    // Check if user already exists
-    const existingUser = await this.findByEmail(createUserDto.email);
-    if (existingUser) {
-      throw new ConflictException('User with this email already exists');
+    try {
+      console.log('Creating user - checking if email exists:', createUserDto.email);
+      
+      // Check if user already exists
+      const existingUser = await this.findByEmail(createUserDto.email);
+      if (existingUser) {
+        console.log('User already exists with email:', createUserDto.email);
+        throw new ConflictException('User with this email already exists');
+      }
+
+      // Hash password if provided
+      let hashedPassword: string | undefined;
+      if (createUserDto.password) {
+        console.log('Hashing password...');
+        hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+        console.log('Password hashed successfully');
+      }
+
+      console.log('Creating user entity...');
+      const user = this.usersRepository.create({
+        email: createUserDto.email,
+        password: hashedPassword,
+        firstName: createUserDto.firstName,
+        lastName: createUserDto.lastName,
+        role: createUserDto.role || UserRole.EMPLOYEE,
+        provider: createUserDto.provider || AuthProvider.LOCAL,
+        providerId: createUserDto.providerId,
+        isActive: true,
+        isEmailVerified: false,
+      });
+
+      console.log('Saving user to database...');
+      const savedUser = await this.usersRepository.save(user);
+      console.log('User saved successfully:', savedUser.id);
+      
+      return savedUser;
+    } catch (error) {
+      console.error('Error in users.service.create:', error);
+      throw error;
     }
-
-    // Hash password if provided
-    let hashedPassword: string | undefined;
-    if (createUserDto.password) {
-      hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-    }
-
-    const user = this.usersRepository.create({
-      ...createUserDto,
-      password: hashedPassword,
-    });
-
-    return await this.usersRepository.save(user);
   }
 
   async findAll(): Promise<User[]> {
@@ -66,7 +88,7 @@ export class UsersService {
 
   async updateRefreshToken(userId: string, refreshToken: string | null): Promise<void> {
     const hashedToken = refreshToken ? await bcrypt.hash(refreshToken, 10) : null;
-    await this.usersRepository.update(userId, { refreshToken: hashedToken });
+    await this.usersRepository.update(userId, { refreshToken: hashedToken || undefined });
   }
 
   async updateLastLogin(userId: string): Promise<void> {

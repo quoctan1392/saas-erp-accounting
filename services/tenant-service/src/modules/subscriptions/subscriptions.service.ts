@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Subscription, SubscriptionStatus, BillingCycle } from './entities/subscription.entity';
 import { TenantsService } from '../tenants/tenants.service';
-import { TenantPlan } from '../tenants/entities/tenant.entity';
 
 @Injectable()
 export class SubscriptionsService {
@@ -19,7 +18,8 @@ export class SubscriptionsService {
     billingCycle: BillingCycle;
     amount: number;
   }): Promise<Subscription> {
-    const tenant = await this.tenantsService.findOne(createSubscriptionDto.tenantId);
+    // Validate tenant exists
+    await this.tenantsService.findOne(createSubscriptionDto.tenantId);
 
     const startDate = new Date();
     const endDate = new Date();

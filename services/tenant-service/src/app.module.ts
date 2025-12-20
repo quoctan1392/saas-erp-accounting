@@ -7,6 +7,9 @@ import { HttpModule } from '@nestjs/axios';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { HealthModule } from './modules/health/health.module';
+import { Tenant } from './modules/tenants/entities/tenant.entity';
+import { TenantMember } from './modules/tenants/entities/tenant-member.entity';
+import { Subscription } from './modules/subscriptions/entities/subscription.entity';
 
 @Module({
   imports: [
@@ -20,7 +23,7 @@ import { HealthModule } from './modules/health/health.module';
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
         url: configService.get('DATABASE_URL'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        entities: [Tenant, TenantMember, Subscription],
         synchronize: configService.get('NODE_ENV') === 'development',
         logging: configService.get('NODE_ENV') === 'development',
         ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,

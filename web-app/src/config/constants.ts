@@ -1,0 +1,25 @@
+export const API_CONFIG = {
+  AUTH_SERVICE_URL: import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:3001',
+  TENANT_SERVICE_URL: import.meta.env.VITE_TENANT_SERVICE_URL || 'http://localhost:3002',
+};
+
+export const GOOGLE_CONFIG = {
+  CLIENT_ID: '943531761045-3j98h5682cbcgoku7gh1d1ureuvac2db.apps.googleusercontent.com',
+};
+
+export const ROUTES = {
+  HOME: '/',
+  LOGIN: '/login',
+  SIGNUP: '/signup',
+  SPLASH: '/splash',
+  TENANT_SELECTION: '/select-tenant',
+  PROCESSING: '/processing',
+  DASHBOARD: '/dashboard',
+};
+
+export const STORAGE_KEYS = {
+  ACCESS_TOKEN: 'accessToken',
+  REFRESH_TOKEN: 'refreshToken',
+  USER: 'user',
+  SELECTED_TENANT: 'selectedTenant',
+};

@@ -13,7 +13,7 @@ import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { RegisterDto, LoginDto, RefreshTokenDto } from './dto';
+import { RegisterDto, LoginDto, RefreshTokenDto, GoogleAuthDto } from './dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -24,7 +24,15 @@ export class AuthController {
   @ApiOperation({ summary: 'Register a new user' })
   @ApiBody({ type: RegisterDto })
   async register(@Body() registerDto: RegisterDto) {
-    return await this.authService.register(registerDto);
+    try {
+      console.log('Register attempt:', { email: registerDto.email });
+      const result = await this.authService.register(registerDto);
+      console.log('Register successful:', { userId: result.user.id });
+      return result;
+    } catch (error) {
+      console.error('Register error:', error);
+      throw error;
+    }
   }
 
   @Post('login')
@@ -32,13 +40,13 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiBody({ type: LoginDto })
-  async login(@Request() req) {
+  async login(@Request() req: any) {
     return await this.authService.login(req.user);
   }
 
   @Get('google')
   @UseGuards(GoogleAuthGuard)
-  @ApiOperation({ summary: 'Login with Google' })
+  @ApiOperation({ summary: 'Login with Google (Web OAuth redirect)' })
   async googleAuth() {
     // Guard redirects to Google
   }
@@ -46,8 +54,16 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Google OAuth callback' })
-  async googleAuthCallback(@Request() req) {
+  async googleAuthCallback(@Request() req: any) {
     return await this.authService.loginWithGoogle(req.user);
+  }
+
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login/Signup with Google (Mobile - ID Token)' })
+  @ApiBody({ type: GoogleAuthDto })
+  async googleAuthMobile(@Body() googleAuthDto: GoogleAuthDto) {
+    return await this.authService.loginWithGoogleToken(googleAuthDto.idToken);
   }
 
   @Post('refresh')
@@ -67,15 +83,52 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Logout user' })
-  async logout(@Request() req) {
+  async logout(@Request() req: any) {
     await this.authService.logout(req.user.id);
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get current user' })
-  async getProfile(@Request() req) {
-    return req.user;
+  @ApiOperation({ summary: 'Get current user with tenant information' })
+  async getProfile(@Request() req: any) {
+    const user = req.user;
+    
+    // Fetch tenant information
+    let tenants = [];
+    try {
+      const { HttpService } = require('@nestjs/axios');
+      const { ConfigService } = require('@nestjs/config');
+      const httpService = new HttpService();
+      const configService = new ConfigService();
+      
+      const tenantServiceUrl = configService.get('TENANT_SERVICE_URL', 'http://localhost:3002');
+      const token = req.headers.authorization?.split(' ')[1];
+      
+      const { firstValueFrom } = require('rxjs');
+      const response = await firstValueFrom(
+        httpService.get(`${tenantServiceUrl}/tenants/my-tenants`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+      );
+      tenants = response.data?.data?.tenants || [];
+    } catch (error) {
+      console.error('Failed to fetch tenants:', (error as Error).message);
+    }
+
+    return {
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.fullName || user.name,
+          picture: user.avatar,
+        },
+        tenants,
+      },
+    };
   }
 }

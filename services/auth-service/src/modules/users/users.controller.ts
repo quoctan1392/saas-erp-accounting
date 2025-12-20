@@ -12,7 +12,7 @@ export class UsersController {
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
-  async getProfile(@Request() req) {
+  async getProfile(@Request() req: any) {
     return await this.usersService.findOne(req.user.id);
   }
 

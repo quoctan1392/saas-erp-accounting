@@ -6,14 +6,17 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as slug from 'slug';
+import slug from 'slug';
 import { Tenant, TenantStatus, TenantPlan } from './entities/tenant.entity';
+import { TenantMember, TenantMemberRole } from './entities/tenant-member.entity';
 
 @Injectable()
 export class TenantsService {
   constructor(
     @InjectRepository(Tenant)
     private tenantsRepository: Repository<Tenant>,
+    @InjectRepository(TenantMember)
+    private tenantMembersRepository: Repository<TenantMember>,
   ) {}
 
   async create(createTenantDto: {
@@ -51,7 +54,12 @@ export class TenantsService {
       features: this.getFeaturesForPlan(createTenantDto.plan || TenantPlan.FREE),
     });
 
-    return await this.tenantsRepository.save(tenant);
+    const savedTenant = await this.tenantsRepository.save(tenant);
+
+    // Create owner membership
+    await this.addMember(savedTenant.id, createTenantDto.ownerId, TenantMemberRole.OWNER);
+
+    return savedTenant;
   }
 
   async findAll(filters?: { status?: TenantStatus; plan?: TenantPlan }): Promise<Tenant[]> {
@@ -138,6 +146,91 @@ export class TenantsService {
   async remove(id: string): Promise<void> {
     const tenant = await this.findOne(id);
     await this.tenantsRepository.remove(tenant);
+  }
+
+  // Tenant Member Management
+  async addMember(
+    tenantId: string,
+    userId: string,
+    role: TenantMemberRole = TenantMemberRole.MEMBER,
+  ): Promise<TenantMember> {
+    const tenant = await this.findOne(tenantId);
+
+    // Check if member already exists
+    const existingMember = await this.tenantMembersRepository.findOne({
+      where: { tenantId, userId },
+    });
+
+    if (existingMember) {
+      throw new ConflictException('User is already a member of this tenant');
+    }
+
+    // Check user limit
+    if (tenant.currentUsers >= tenant.maxUsers) {
+      throw new BadRequestException('Maximum user limit reached for this plan');
+    }
+
+    const member = this.tenantMembersRepository.create({
+      tenantId,
+      userId,
+      role,
+    });
+
+    const savedMember = await this.tenantMembersRepository.save(member);
+    await this.incrementUserCount(tenantId);
+
+    return savedMember;
+  }
+
+  async getUserTenants(userId: string): Promise<Array<{
+    id: string;
+    name: string;
+    role: TenantMemberRole;
+    createdAt: Date;
+  }>> {
+    const memberships = await this.tenantMembersRepository
+      .createQueryBuilder('member')
+      .leftJoinAndSelect('member.tenant', 'tenant')
+      .where('member.userId = :userId', { userId })
+      .andWhere('member.isActive = :isActive', { isActive: true })
+      .andWhere('tenant.status != :status', { status: TenantStatus.CANCELLED })
+      .getMany();
+
+    return memberships.map((membership) => ({
+      id: membership.tenant.id,
+      name: membership.tenant.name,
+      role: membership.role,
+      createdAt: membership.tenant.createdAt,
+    }));
+  }
+
+  async getMemberRole(tenantId: string, userId: string): Promise<TenantMemberRole | null> {
+    const member = await this.tenantMembersRepository.findOne({
+      where: { tenantId, userId, isActive: true },
+    });
+
+    return member?.role || null;
+  }
+
+  async isMember(tenantId: string, userId: string): Promise<boolean> {
+    const count = await this.tenantMembersRepository.count({
+      where: { tenantId, userId, isActive: true },
+    });
+
+    return count > 0;
+  }
+
+  async removeMember(tenantId: string, userId: string): Promise<void> {
+    const member = await this.tenantMembersRepository.findOne({
+      where: { tenantId, userId },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Member not found');
+    }
+
+    await this.tenantMembersRepository.remove(member);
+    await this.decrementUserCount(tenantId);
   }
 
   private getMaxUsersForPlan(plan: TenantPlan): number {

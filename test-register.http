@@ -1,0 +1,30 @@
+### Test Register Endpoint
+POST http://localhost:3001/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "Password123!",
+  "firstName": "Test",
+  "lastName": "User"
+}
+
+### Test Login Endpoint
+POST http://localhost:3001/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "Password123!"
+}
+
+### Test with another user
+POST http://localhost:3001/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "demo@symper.vn",
+  "password": "Demo123456",
+  "firstName": "Demo",
+  "lastName": "User"
+}
