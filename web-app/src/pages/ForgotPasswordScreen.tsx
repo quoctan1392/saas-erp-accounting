@@ -13,8 +13,7 @@ import {
   InputAdornment,
   Paper,
 } from '@mui/material';
-import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
-import CloseRounded from '@mui/icons-material/CloseRounded';
+import Icon from '../components/Icon';
 import { apiService } from '../services/api';
 import { ROUTES } from '../config/constants';
 
@@ -81,7 +80,7 @@ export const ForgotPasswordScreen: React.FC = () => {
               onClick={() => navigate(ROUTES.LOGIN)}
               sx={{ mb: 2 }}
             >
-              <ArrowBackRounded />
+              <Icon name="ArrowLeft2" size={20} variant="Outline" color="#333" />
             </IconButton>
             <Typography
               variant="h4"
@@ -134,7 +133,7 @@ export const ForgotPasswordScreen: React.FC = () => {
                       edge="end"
                       size="small"
                     >
-                      <CloseRounded fontSize="small" />
+                      <Icon name="CloseSquare" size={16} color="rgba(0,0,0,0.6)" variant="Outline" />
                     </IconButton>
                   </InputAdornment>
                 ),

@@ -7,17 +7,9 @@ import {
   Alert,
   CircularProgress,
   InputAdornment,
+  Snackbar,
 } from '@mui/material';
-import {
-  Refresh,
-  ReceiptOutlined,
-  BusinessOutlined,
-  LocationOnOutlined,
-  PersonOutlined,
-  BadgeOutlined,
-  CalendarTodayOutlined,
-  PeopleOutlined,
-} from '@mui/icons-material';
+import Icon from '../../components/Icon';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 import { BusinessType } from '../../types/onboarding';
@@ -51,6 +43,13 @@ const BusinessInfoScreen = () => {
     type: 'success' | 'error' | 'warning';
     text: string;
   } | null>(null);
+  const [snack, setSnack] = useState<{ open: boolean; severity: 'success' | 'error' | 'warning' | 'info'; message: string }>({
+    open: false,
+    severity: 'success',
+    message: '',
+  });
+
+  const handleCloseSnack = () => setSnack((s) => ({ ...s, open: false }));
 
   // Load existing data on component mount - use cached data from localStorage
   useEffect(() => {
@@ -266,8 +265,8 @@ const BusinessInfoScreen = () => {
       }
 
       if (!currentTenant || !currentTenant.id) {
-        alert('Không tìm thấy thông tin tenant. Bạn sẽ được chuyển về màn hình chọn tenant.');
-        navigate('/select-tenant');
+        setSnack({ open: true, severity: 'error', message: 'Không tìm thấy thông tin tenant. Bạn sẽ được chuyển về màn hình chọn tenant.' });
+        setTimeout(() => navigate('/select-tenant'), 1200);
         return;
       }
 
@@ -325,12 +324,16 @@ const BusinessInfoScreen = () => {
         localStorage.removeItem('onboardingData');
 
         if (isEditMode) {
-          alert('Thông tin doanh nghiệp đã được cập nhật thành công!');
+          setSnack({ open: true, severity: 'success', message: 'Thông tin doanh nghiệp đã được cập nhật thành công!' });
+          setTimeout(() => navigate(ROUTES.HOME), 1200);
+          return;
         } else {
           // Complete onboarding for new setup
           await apiService.completeOnboarding(currentTenant.id);
+          setSnack({ open: true, severity: 'success', message: 'Thông tin đã được lưu thành công!' });
+          setTimeout(() => navigate(ROUTES.HOME), 800);
+          return;
         }
-        navigate(ROUTES.HOME);
       } else {
         throw new Error(response.message || 'Có lỗi xảy ra khi lưu thông tin');
       }
@@ -363,7 +366,7 @@ const BusinessInfoScreen = () => {
         errorMessage = error.message;
       }
 
-      alert(errorMessage);
+      setSnack({ open: true, severity: 'error', message: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -420,14 +423,19 @@ const BusinessInfoScreen = () => {
               xs: '16px 16px 0 0',
               sm: '16px',
             },
-            px: { xs: 3, sm: 4 },
-            py: { xs: 4, sm: 6 },
+            // Use a mix of margin and padding on small screens so the panel
+            // doesn't overlap the title: increase outer margin (left/right/top)
+            // and reduce internal padding (px/py) to half.
+            px: { xs: 2, sm: 4 },
+            py: { xs: 2, sm: 6 },
             position: { xs: 'fixed', sm: 'relative' },
-            top: { xs: 'auto', sm: 'auto' },
+            top: { xs: '160px', sm: 'auto' },
             bottom: { xs: 0, sm: 'auto' },
-            left: { xs: '12px', sm: 'auto' },
-            right: { xs: '12px', sm: 'auto' },
-            maxWidth: { xs: 'calc(100% - 24px)', sm: '100%' },
+            // outer margins on mobile (acts as the 'half' margin)
+            left: { xs: '24px', sm: 'auto' },
+            right: { xs: '24px', sm: 'auto' },
+            // account for larger left/right margin when calculating max width
+            maxWidth: { xs: 'calc(100% - 48px)', sm: '100%' },
             display: 'flex',
             flexDirection: 'column',
             minHeight: { xs: 'auto', sm: 'auto' },
@@ -446,35 +454,45 @@ const BusinessInfoScreen = () => {
             </Box>
           ) : (
             <>
-              {/* Auto-fill Message */}
-              {autoFillMessage && (
-                <Alert
-                  severity={autoFillMessage.type}
-                  sx={{ mb: 3 }}
-                  onClose={() => setAutoFillMessage(null)}
-                >
-                  {autoFillMessage.text}
-                </Alert>
-              )}
+              {/* Scrollable content area */}
+              <Box
+                sx={{
+                  flex: 1,
+                  overflowY: { xs: 'auto', sm: 'visible' },
+                  pr: { xs: 1, sm: 0 },
+                  WebkitOverflowScrolling: 'touch',
+                }}
+              >
+                {/* Auto-fill Message */}
+                {autoFillMessage && (
+                  <Alert
+                    severity={autoFillMessage.type}
+                    sx={{ mb: 3 }}
+                    onClose={() => setAutoFillMessage(null)}
+                  >
+                    {autoFillMessage.text}
+                  </Alert>
+                )}
 
-              {/* Form */}
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 4 }}>
+                {/* Form */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 4 }}>
                 {/* Tax ID with Auto-fill button */}
                 <Box>
                   <RoundedTextField
                     fullWidth
                     required
                     label="Mã số thuế"
-                    placeholder="Nhập mã số thuế"
+                    placeholder="10 hoặc 13 chữ số"
                     value={formData.taxId}
                     onChange={(e) => handleChange('taxId', e.target.value)}
                     error={!!errors.taxId}
                     helperText={errors.taxId}
+                    sx={{ mt: '12px' }}
                     InputProps={{
                       startAdornment: (
-                        <InputAdornment position="start">
-                          <ReceiptOutlined sx={{ color: '#4E4E4E' }} />
-                        </InputAdornment>
+                            <InputAdornment position="start">
+                            <Icon name="ReceiptText" size={20} color="#4E4E4E" variant="Outline" />
+                          </InputAdornment>
                       ),
                       endAdornment: (
                         <Button
@@ -505,7 +523,7 @@ const BusinessInfoScreen = () => {
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <BusinessOutlined sx={{ color: '#4E4E4E' }} />
+                        <Icon name="Building" size={20} color="#4E4E4E" variant="Outline" />
                       </InputAdornment>
                     ),
                   }}
@@ -516,7 +534,7 @@ const BusinessInfoScreen = () => {
                   fullWidth
                   required
                   label="Địa chỉ đăng ký"
-                  placeholder="Nhập địa chỉ đầy đủ"
+                  placeholder="Tối thiểu 10 ký tự"
                   value={formData.registeredAddress}
                   onChange={(e) => handleChange('registeredAddress', e.target.value)}
                   error={!!errors.registeredAddress}
@@ -524,7 +542,7 @@ const BusinessInfoScreen = () => {
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <LocationOnOutlined sx={{ color: '#4E4E4E' }} />
+                        <Icon name="Location" size={20} color="#4E4E4E" variant="Outline" />
                       </InputAdornment>
                     ),
                   }}
@@ -540,7 +558,7 @@ const BusinessInfoScreen = () => {
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <PersonOutlined sx={{ color: '#4E4E4E' }} />
+                        <Icon name="User" size={20} color="#4E4E4E" variant="Outline" />
                       </InputAdornment>
                     ),
                   }}
@@ -550,7 +568,7 @@ const BusinessInfoScreen = () => {
                 <RoundedTextField
                   fullWidth
                   label="CCCD"
-                  placeholder="Nhập số CCCD"
+                  placeholder="12 chữ số"
                   value={formData.nationalId}
                   onChange={(e) => handleChange('nationalId', e.target.value)}
                   error={!!errors.nationalId}
@@ -558,7 +576,7 @@ const BusinessInfoScreen = () => {
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <BadgeOutlined sx={{ color: '#4E4E4E' }} />
+                        <Icon name="Personalcard" size={20} color="#4E4E4E" variant="Outline" />
                       </InputAdornment>
                     ),
                   }}
@@ -576,7 +594,7 @@ const BusinessInfoScreen = () => {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <BusinessOutlined sx={{ color: '#4E4E4E' }} />
+                            <Icon name="Building" size={20} color="#4E4E4E" variant="Outline" />
                           </InputAdornment>
                         ),
                       }}
@@ -592,7 +610,7 @@ const BusinessInfoScreen = () => {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <CalendarTodayOutlined sx={{ color: '#4E4E4E' }} />
+                            <Icon name="Calendar" size={20} color="#4E4E4E" variant="Outline" />
                           </InputAdornment>
                         ),
                       }}
@@ -611,7 +629,7 @@ const BusinessInfoScreen = () => {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <PeopleOutlined sx={{ color: '#4E4E4E' }} />
+                            <Icon name="People" size={20} color="#4E4E4E" variant="Outline" />
                           </InputAdornment>
                         ),
                       }}
@@ -619,19 +637,35 @@ const BusinessInfoScreen = () => {
                   </>
                 )}
               </Box>
+              </Box>
 
-              {/* Continue Button */}
-              <PrimaryButton
-                onClick={handleSubmit}
-                loading={isLoading}
-                loadingText={isEditMode ? 'Đang cập nhật...' : 'Đang lưu...'}
+              {/* Fixed button at bottom */}
+              <Box
+                sx={{
+                  mt: 'auto',
+                  pt: 2,
+                  borderTop: { xs: '1px solid #E0E0E0', sm: 'none' },
+                  backgroundColor: { xs: '#fff', sm: 'transparent' },
+                }}
               >
-                {isEditMode ? 'Cập nhật' : 'Tiếp tục'}
-              </PrimaryButton>
+                <PrimaryButton
+                  onClick={handleSubmit}
+                  loading={isLoading}
+                  loadingText={isEditMode ? 'Đang cập nhật...' : 'Đang lưu...'}
+                >
+                  {isEditMode ? 'Cập nhật' : 'Tiếp tục'}
+                </PrimaryButton>
+              </Box>
             </>
           )}
         </Box>
       </Container>
+      {/* Global Snackbar for success/error notifications */}
+      <Snackbar open={snack.open} autoHideDuration={4000} onClose={handleCloseSnack} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert onClose={handleCloseSnack} severity={snack.severity} sx={{ width: '100%' }}>
+          {snack.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

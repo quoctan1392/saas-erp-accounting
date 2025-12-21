@@ -13,11 +13,13 @@ import { ResetPasswordScreen } from './pages/ResetPasswordScreen';
 import ProcessingScreen from './pages/ProcessingScreen';
 import { DashboardScreen } from './pages/DashboardScreen';
 import HomeScreen from './pages/HomeScreen';
+import MoreScreen from './pages/MoreScreen';
 import SelectTenantScreen from './pages/SelectTenantScreen';
 import { TenantSelectionScreen } from './pages/TenantSelectionScreen';
 import WelcomeScreen from './pages/onboarding/WelcomeScreen';
 import BusinessTypeScreen from './pages/onboarding/BusinessTypeScreen';
 import BusinessInfoScreen from './pages/onboarding/BusinessInfoScreen';
+import MainLayout from './components/MainLayout';
 
 const theme = createTheme({
   palette: {
@@ -43,7 +45,7 @@ function App() {
           <Router>
             <OnboardingProvider>
             <Routes>
-              <Route path="/" element={<SplashScreen />} />
+              <Route path="/" element={<Navigate to="/home" replace />} />
               <Route path="/login" element={<LoginScreen />} />
               <Route path="/login-demo" element={<LoginDemoScreenSimple />} />
               <Route path="/signup" element={<SignupScreen />} />
@@ -53,10 +55,16 @@ function App() {
               <Route path="/select-tenant" element={<SelectTenantScreen />} />
               <Route path="/tenant-selection" element={<TenantSelectionScreen />} />
               <Route path="/dashboard" element={<DashboardScreen />} />
-              <Route path="/home" element={<HomeScreen />} />
               <Route path="/onboarding/welcome" element={<WelcomeScreen />} />
               <Route path="/onboarding/business-type" element={<BusinessTypeScreen />} />
               <Route path="/onboarding/business-info" element={<BusinessInfoScreen />} />
+              
+              {/* Routes with persistent bottom navigation */}
+              <Route element={<MainLayout />}>
+                <Route path="/home" element={<HomeScreen />} />
+                <Route path="/more" element={<MoreScreen />} />
+              </Route>
+              
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             </OnboardingProvider>

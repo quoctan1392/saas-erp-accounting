@@ -12,7 +12,7 @@ export const SplashScreen: React.FC = () => {
     const timer = setTimeout(() => {
       if (!isLoading) {
         if (isAuthenticated) {
-          navigate(ROUTES.HOME);
+          navigate(ROUTES.DASHBOARD);
         } else {
           // Navigate to demo login for easier testing
           navigate('/login-demo');

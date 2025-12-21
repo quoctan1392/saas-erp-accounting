@@ -122,36 +122,51 @@ export const ProcessingScreen: React.FC = () => {
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        justifyContent: 'center',
+        background: '#F5EBE0',
+        position: 'relative',
         py: 4,
       }}
     >
-      <Container maxWidth="md">
-        <Paper
-          elevation={3}
+      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1 }}>
+        <Box
           sx={{
-            p: { xs: 3, sm: 5 },
-            borderRadius: 3,
+            background: '#fff',
+            borderRadius: { xs: '16px 16px 0 0', sm: '16px' },
+            px: { xs: 3, sm: 4 },
+            py: { xs: 4, sm: 6 },
+            position: { xs: 'fixed', sm: 'relative' },
+            top: { xs: '140px', sm: 'auto' },
+            bottom: { xs: 0, sm: 'auto' },
+            left: { xs: '12px', sm: 'auto' },
+            right: { xs: '12px', sm: 'auto' },
+            maxWidth: { xs: 'calc(100% - 24px)', sm: '100%' },
           }}
         >
           <Typography
             variant="h5"
             component="h1"
             gutterBottom
-            textAlign="center"
-            sx={{ mb: 4, fontWeight: 600 }}
+            textAlign="left"
+            sx={{
+              mb: 3,
+              fontWeight: 600,
+              fontFamily: '"Bricolage Grotesque", sans-serif',
+              fontSize: { xs: 22, sm: 28 },
+              color: '#BA5C00',
+            }}
           >
             Đang thiết lập tài khoản của bạn...
           </Typography>
 
           {error ? (
-            <Alert severity="error" sx={{ mb: 3 }}>
+            <Alert severity="error" sx={{ mb: 3, backgroundColor: '#fff', border: '1px solid #f44336', borderRadius: 2 }}>
               {error}
             </Alert>
           ) : (
             <>
               <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-                <CircularProgress size={60} />
+                <CircularProgress size={60} sx={{ color: '#FB7E00' }} />
               </Box>
 
               <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
@@ -167,7 +182,7 @@ export const ProcessingScreen: React.FC = () => {
               </Typography>
             </>
           )}
-        </Paper>
+        </Box>
       </Container>
     </Box>
   );

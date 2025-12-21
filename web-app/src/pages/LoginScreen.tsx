@@ -14,9 +14,7 @@ import {
   IconButton,
   InputAdornment,
 } from '@mui/material';
-import Visibility from '@mui/icons-material/Visibility';
-import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import CloseRounded from '@mui/icons-material/CloseRounded';
+import Icon from '../components/Icon';
 import { apiService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../config/constants';
@@ -239,13 +237,13 @@ export const LoginScreen: React.FC = () => {
               variant="outlined"
               InputProps={{
                 endAdornment: formData.email ? (
-                  <InputAdornment position="end" sx={{ mr: '16px' }}>
+                    <InputAdornment position="end" sx={{ mr: '16px' }}>
                     <IconButton
                       onClick={() => setFormData(prev => ({ ...prev, email: '' }))}
                       edge="end"
                       sx={{ bgcolor: 'rgba(0,0,0,0.04)', width: 32, height: 32, '&:hover': { bgcolor: 'rgba(0,0,0,0.06)' } }}
                     >
-                      <CloseRounded fontSize="small" />
+                      <Icon name="CloseSquare" size={16} color="rgba(0,0,0,0.6)" variant="Outline" />
                     </IconButton>
                   </InputAdornment>
                 ) : undefined,
@@ -274,13 +272,17 @@ export const LoginScreen: React.FC = () => {
               variant="outlined"
               InputProps={{
                 endAdornment: (
-                  <InputAdornment position="end" sx={{ mr: '16px'}}>
+                    <InputAdornment position="end" sx={{ mr: '16px'}}>
                     <IconButton 
                       onClick={() => setShowPassword(!showPassword)} 
                       edge="end" 
                       sx={{ bgcolor: 'rgba(0,0,0,0.04)', width: 32, height: 32, '&:hover': { bgcolor: 'rgba(0,0,0,0.06)' } }}
                     >
-                      {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                      {showPassword ? (
+                        <Icon name="EyeSlash" size={16} color="rgba(0,0,0,0.6)" variant="Outline" />
+                      ) : (
+                        <Icon name="Eye" size={16} color="rgba(0,0,0,0.6)" variant="Outline" />
+                      )}
                     </IconButton>
                   </InputAdornment>
                 ),

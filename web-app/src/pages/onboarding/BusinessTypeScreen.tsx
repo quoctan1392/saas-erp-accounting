@@ -5,6 +5,7 @@ import { ROUTES } from '../../config/constants';
 import { BusinessType } from '../../types/onboarding';
 import PrimaryButton from '../../components/PrimaryButton';
 import OnboardingHeader from '../../components/OnboardingHeader';
+import ImageWithSkeleton from '../../components/ImageWithSkeleton';
 import businessTypeImg1 from '../../assets/Business Type Image 1.png';
 import businessTypeImg2 from '../../assets/Business Type Image 2.png';
 import businessTypeImg3 from '../../assets/Business Type Image 3.png';
@@ -55,12 +56,7 @@ const BusinessTypeScreen = () => {
     {
       type: BusinessType.HOUSEHOLD_BUSINESS,
       icon: (
-        <Box
-          component="img"
-          src={businessTypeImg1}
-          alt="Hộ kinh doanh"
-          sx={{ width: 64, height: 64 }}
-        />
+        <ImageWithSkeleton src={businessTypeImg1} alt="Hộ kinh doanh" width={64} height={64} />
       ),
       label: 'Hộ kinh doanh cá thể',
       description: 'Phù hợp cho cửa hàng, quán ăn, dịch vụ nhỏ',
@@ -69,12 +65,7 @@ const BusinessTypeScreen = () => {
     {
       type: BusinessType.PRIVATE_ENTERPRISE,
       icon: (
-        <Box
-          component="img"
-          src={businessTypeImg2}
-          alt="Doanh nghiệp tư nhân"
-          sx={{ width: 64, height: 64 }}
-        />
+        <ImageWithSkeleton src={businessTypeImg2} alt="Doanh nghiệp tư nhân" width={64} height={64} />
       ),
       label: 'Doanh nghiệp tư nhân',
       description: 'Dành cho doanh nghiệp có quy mô vừa',
@@ -83,12 +74,7 @@ const BusinessTypeScreen = () => {
     {
       type: BusinessType.LIMITED_COMPANY,
       icon: (
-        <Box
-          component="img"
-          src={businessTypeImg3}
-          alt="Công ty TNHH"
-          sx={{ width: 64, height: 64, opacity: 0.6 }}
-        />
+        <ImageWithSkeleton src={businessTypeImg3} alt="Công ty TNHH" width={64} height={64} style={{ opacity: 0.6 }} />
       ),
       label: 'Công ty TNHH/Cổ phần',
       description: 'Dành cho công ty có pháp nhân',
