@@ -347,9 +347,9 @@ const HomeScreen = () => {
                       p: 0.5,
                       '&:hover': { bgcolor: 'rgba(0,0,0,0.04)' },
                     }}
-                    aria-label="scan"
+                    aria-label="scan-barcode"
                   >
-                    <Icon name="ScanBarcode" size={20} color="inherit" variant="Outline" />
+                    <Icon name="scan-barcode" size={20} color="inherit" variant="Outline" />
                   </IconButton>
                 </InputAdornment>
               ),
@@ -514,6 +514,7 @@ const HomeScreen = () => {
                   sx={{
                     height: 'auto',
                     py: 0.5,
+                    pl: 1,
                     bgcolor: '#D4EDDA',
                     color: '#28A745',
                     fontSize: '11px',
@@ -571,6 +572,7 @@ const HomeScreen = () => {
                   sx={{
                     height: 'auto',
                     py: 0.5,
+                    pl: 1,
                     bgcolor: '#F8D7DA',
                     color: '#DC3545',
                     fontSize: '11px',

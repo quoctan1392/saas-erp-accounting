@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Button,
@@ -9,6 +9,7 @@ import {
   InputAdornment,
   Snackbar,
 } from '@mui/material';
+import ConfirmDialog from '../../components/ConfirmDialog';
 import Icon from '../../components/Icon';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
@@ -49,6 +50,17 @@ const BusinessInfoScreen = () => {
     message: '',
   });
 
+  // initial form snapshot used to detect unsaved changes
+  const initialFormRef = useRef<Partial<BusinessInfoForm> | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+
+  const handleConfirmLeave = () => {
+    setShowConfirmDialog(false);
+    navigate(ROUTES.ONBOARDING_BUSINESS_TYPE);
+  };
+
+  const handleCancelLeave = () => setShowConfirmDialog(false);
+
   const handleCloseSnack = () => setSnack((s) => ({ ...s, open: false }));
 
   // Load existing data on component mount - use cached data from localStorage
@@ -86,10 +98,17 @@ const BusinessInfoScreen = () => {
               updates.businessType = data.businessType as BusinessType;
             }
 
-            // Apply all updates in a single setState call
+            // Apply all updates in a single setState call and record initial snapshot
             if (Object.keys(updates).length > 0) {
               console.log('[BusinessInfoScreen] Loading form data:', updates);
-              setFormData((prev) => ({ ...prev, ...updates }));
+              const merged = { ...formData, ...updates };
+              setFormData(merged);
+              initialFormRef.current = merged;
+            } else {
+              // ensure initial snapshot is set even if there are no updates
+              if (!initialFormRef.current) {
+                initialFormRef.current = formData;
+              }
             }
 
             setIsEditMode(data.isEdit || false);
@@ -98,6 +117,10 @@ const BusinessInfoScreen = () => {
           }
         }
       } finally {
+        // Ensure initial snapshot exists
+        if (!initialFormRef.current) {
+          initialFormRef.current = formData;
+        }
         setIsDataLoading(false);
       }
     };
@@ -106,15 +129,17 @@ const BusinessInfoScreen = () => {
   }, []);
 
   const handleBack = () => {
-    if (isEditMode) {
-      // If in edit mode and form has changes, warn user
-      if (window.confirm('Bạn có chắc muốn quay lại? Thông tin chưa lưu sẽ bị mất.')) {
+    try {
+      const initial = initialFormRef.current;
+      const changed = initial && JSON.stringify(initial) !== JSON.stringify(formData);
+      if (changed) {
+        setShowConfirmDialog(true);
+      } else {
         navigate(ROUTES.ONBOARDING_BUSINESS_TYPE);
       }
-    } else {
-      if (window.confirm('Bạn có chắc muốn quay lại? Thông tin đã nhập sẽ bị mất.')) {
-        navigate(ROUTES.ONBOARDING_BUSINESS_TYPE);
-      }
+    } catch (err) {
+      // If any error comparing, be conservative and ask confirmation
+      setShowConfirmDialog(true);
     }
   };
 
@@ -660,6 +685,18 @@ const BusinessInfoScreen = () => {
           )}
         </Box>
       </Container>
+      {/* Reusable confirm dialog for unsaved changes */}
+      <ConfirmDialog
+        open={showConfirmDialog}
+        title="Xác nhận rời trang"
+        description="Thông tin trên biểu mẫu chưa được lưu. Nếu bạn rời trang, các thay đổi sẽ bị mất. Bạn có chắc muốn thoát?"
+        cancelText="Hủy"
+        confirmText="Rời đi"
+        confirmColor="error"
+        onCancel={handleCancelLeave}
+        onConfirm={handleConfirmLeave}
+      />
+
       {/* Global Snackbar for success/error notifications */}
       <Snackbar open={snack.open} autoHideDuration={4000} onClose={handleCloseSnack} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert onClose={handleCloseSnack} severity={snack.severity} sx={{ width: '100%' }}>
