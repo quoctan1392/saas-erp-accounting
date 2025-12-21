@@ -292,7 +292,7 @@ const HomeScreen = () => {
           sx={{
             px: 2,
             // ensure content isn't hidden under fixed header on small screens
-            pt: { xs: '96px', sm: '96px', md: 2 },
+            pt: { xs: '124px', sm: '96px', md: 2 },
           }}
         >
           {/* Search Bar */}
@@ -490,7 +490,7 @@ const HomeScreen = () => {
                       justifyContent: 'center',
                     }}
                   >
-                    <Icon name="Wallet" size={18} color="#28A745" variant="TwoTone" />
+                    <Icon name="MoneyRecive" size={18} color="#28A745" variant="TwoTone" />
                   </Box>
                   <Typography sx={{ fontSize: '12px', color: '#6C757D', fontWeight: 500 }}>
                     Tổng đã thu
@@ -548,7 +548,7 @@ const HomeScreen = () => {
                       justifyContent: 'center',
                     }}
                   >
-                    <Icon name="MoneyRecive" size={18} color="#DC3545" variant="TwoTone" />
+                    <Icon name="MoneySend" size={18} color="#DC3545" variant="TwoTone" />
                   </Box>
                   <Typography sx={{ fontSize: '12px', color: '#6C757D', fontWeight: 500 }}>
                     Tổng đã chi
@@ -820,7 +820,7 @@ const HomeScreen = () => {
               size="large"
               fullWidth
               startIcon={<Icon name="Setting2" size={20} color="#FF6B35" variant="Outline" />}
-              onClick={handleBusinessSetup}
+              onClick={handleNavigateToMore}
               sx={{
                 borderRadius: 2,
                 textTransform: 'none',

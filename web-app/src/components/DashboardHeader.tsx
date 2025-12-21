@@ -121,7 +121,7 @@ const DashboardHeader = ({
       position="sticky"
       elevation={0}
       sx={(theme) => ({
-        bgcolor: 'transparent',
+        bgcolor: 'white',
         backgroundImage: `url(${backgroundImage})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -134,7 +134,7 @@ const DashboardHeader = ({
         zIndex: (theme.zIndex?.appBar ?? 1100) + 10,
       })}
     >
-      <Toolbar sx={{ minHeight: '120px !important', px: 2, py: 2 }}>
+      <Toolbar sx={{ minHeight: '100px !important', px: 2, py: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
           {/* Greeting + Badge group. Reserve space on right for notifications (fixed). */}
           <Box
@@ -206,6 +206,7 @@ const DashboardHeader = ({
                   borderRadius: '16px',
                   px: 1,
                   py: 0.5,
+                  mr: 0.5,
                   border: '1px solid rgba(255, 107, 53, 0.2)',
                   flex: '0 0 auto',
                   // Keep badge in flow so it doesn't overlap the greeting text
@@ -231,15 +232,21 @@ const DashboardHeader = ({
           </Box>
 
           {/* Notifications */}
-          <Box ref={notifRef} sx={{ ml: 'auto', flex: '0 0 auto' }}>
+          <Box ref={notifRef} 
+          sx={{ 
+            ml: 'auto', 
+            flex: '0 0 auto',
+            borderWidth: 1,
+            borderColor: 'rgba(0, 0, 0, 0.42)',
+          }}>
             <IconButton
               onClick={onNotificationsClick}
               sx={{
-                bgcolor: 'rgba(255, 255, 255, 0.2)',
+                bgcolor: 'rgba(255, 255, 255)',
                 color: 'black',
                 backdropFilter: 'blur(10px)',
                 '&:hover': {
-                  bgcolor: 'rgba(255, 255, 255, 0.3)',
+                  bgcolor: 'rgba(255, 255, 255, 0.6)',
                 },
               }}
             >

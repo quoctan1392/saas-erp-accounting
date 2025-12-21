@@ -16,6 +16,7 @@ import {
   Divider,
 } from '@mui/material';
 import Icon from '../components/Icon';
+import { apiService } from '../services/api';
 import DashboardHeader from '../components/DashboardHeader';
 import { ROUTES } from '../config/constants';
 
@@ -49,6 +50,64 @@ const MoreScreen = () => {
     localStorage.removeItem('tenantAccessToken');
     localStorage.removeItem('currentTenant');
     navigate('/login');
+  };
+
+  const handleBusinessSetup = async () => {
+    try {
+      let tenant = currentTenant && currentTenant.id ? currentTenant : null;
+
+      if (!tenant) {
+        const tenantStr = localStorage.getItem('currentTenant');
+        if (tenantStr) {
+          tenant = JSON.parse(tenantStr);
+        }
+      }
+
+      if (!tenant || !tenant.id) {
+        // No tenant selected — go to tenant selection
+        navigate('/select-tenant');
+        return;
+      }
+
+      const response = await apiService.getOnboardingStatus(tenant.id);
+
+      if (response.success && response.data) {
+        const { onboardingCompleted, businessType, businessInfo } = response.data;
+
+        const onboardingData = {
+          isEdit: !!(onboardingCompleted || businessType || businessInfo),
+          businessType,
+          businessInfo,
+          onboardingCompleted,
+          cachedAt: Date.now(),
+        };
+
+        localStorage.setItem('onboardingData', JSON.stringify(onboardingData));
+
+        const updatedTenant = { ...tenant, businessType, onboardingCompleted };
+        localStorage.setItem('currentTenant', JSON.stringify(updatedTenant));
+
+        if (onboardingCompleted || businessType || businessInfo) {
+          if (businessInfo) {
+            navigate(ROUTES.ONBOARDING_BUSINESS_INFO);
+          } else if (businessType) {
+            navigate(ROUTES.ONBOARDING_BUSINESS_INFO);
+          } else {
+            navigate(ROUTES.ONBOARDING_BUSINESS_TYPE);
+          }
+        } else {
+          localStorage.removeItem('onboardingData');
+          navigate(ROUTES.ONBOARDING_WELCOME);
+        }
+      } else {
+        localStorage.removeItem('onboardingData');
+        navigate(ROUTES.ONBOARDING_WELCOME);
+      }
+    } catch (error) {
+      console.error('Error fetching onboarding status:', error);
+      localStorage.removeItem('onboardingData');
+      navigate(ROUTES.ONBOARDING_WELCOME);
+    }
   };
 
   // Fixed menu items (rendered explicitly to avoid dynamic render issues)
@@ -213,6 +272,25 @@ const MoreScreen = () => {
                     <Icon name="Shield" size={24} variant="Outline" />
                   </ListItemIcon>
                   <ListItemText primary="Bảo mật" primaryTypographyProps={{ fontSize: '15px', fontWeight: 500 }} />
+                  <Icon name="ArrowRight2" size={20} color="#6C757D" variant="Outline" />
+                </ListItem>
+                <Divider />
+              </Box>
+              
+              <Box>
+                <ListItem
+                  onClick={handleBusinessSetup}
+                  sx={{
+                    py: 2,
+                    px: 2,
+                    cursor: 'pointer',
+                    '&:hover': { bgcolor: '#F8F9FA' },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40, color: '#6C757D' }}>
+                    <Icon name="Setting2" size={24} variant="Outline" />
+                  </ListItemIcon>
+                  <ListItemText primary="Thiết lập doanh nghiệp" primaryTypographyProps={{ fontSize: '15px', fontWeight: 500 }} />
                   <Icon name="ArrowRight2" size={20} color="#6C757D" variant="Outline" />
                 </ListItem>
                 <Divider />
