@@ -37,15 +37,17 @@ Hệ thống dẫn dắt người dùng qua 4 bước chính:
 
 ### Yêu cầu Logic
 - Người dùng **bắt buộc** phải chọn 1 loại hình để nhấn "Tiếp tục"
+- Mặc định tick chọn loại hình "Hộ kinh doanh cá thể (HKD)"
 - Hệ thống ghi nhận loại hình đã chọn (State) để thay đổi giao diện các bước sau
 - Khi nhấn "Tiếp tục":
   - Nếu chọn HKD → Navigate đến `/onboarding/business-info`
   - Nếu chọn DNTN → Navigate đến `/onboarding/business-info-dntn`
   - Lưu businessType vào localStorage và API
+  
 
 ### UI/UX Requirements
 - Background: Welcome screen.png
-- Font: SF Pro Display
+- FontFamily: SF Pro Display
 - Selected state: 5% orange overlay + 2px orange border
 - Mobile sticky footer: 68px white bar with neutral shadow
 - Progress: 25%
@@ -66,17 +68,17 @@ Hệ thống dẫn dắt người dùng qua 4 bước chính:
 
 | Tên trường | Label | Placeholder | Icon | Bắt buộc | Validation |
 |------------|-------|-------------|------|----------|------------|
-| taxId | Mã số thuế | 10 hoặc 13 chữ số | ReceiptText | ✅ | Regex: /^[0-9]{10}$\|^[0-9]{13}$/ |
+| taxId | Mã số thuế | Nhập mã số thuế | ReceiptText | ✅ | Regex: /^[0-9]{10}$\|^[0-9]{13}$/ |
 | businessName | Tên Hộ kinh doanh | VD: Cửa hàng tạp hóa Minh An | Building | ✅ | Min 2 ký tự |
-| registeredAddress | Địa chỉ đăng ký | Tối thiểu 10 ký tự | Location | ✅ | Min 10 ký tự |
+| registeredAddress | Địa chỉ đăng ký | Nhập địa chỉ đăng ký | Location | ✅ | Min 10 ký tự |
 | ownerName | Tên chủ hộ kinh doanh | Nhập họ và tên | User | ❌ | - |
-| nationalId | CCCD | 12 chữ số | Personalcard | ❌ | Regex: /^[0-9]{12}$/ |
+| nationalId | CCCD | Nhập CCCD 12 chữ số | Personalcard | ❌ | Regex: /^[0-9]{12}$/ |
 
 #### Tính năng đặc biệt
 - **Nút "Lấy thông tin"** bên cạnh trường Mã số thuế:
   - Khi nhấn: Gọi API để tự động điền thông tin từ cơ quan thuế
   - Các trường được tự động điền vẫn cho phép chỉnh sửa
-  - Hiển thị message: "Đã tự động điền thông tin từ cơ quan thuế" (success) hoặc "Không tìm thấy thông tin. Vui lòng kiểm tra lại mã số thuế" (warning)
+  - Hiển thị toast message: "Đã tự động điền thông tin từ cơ quan thuế" (success) hoặc "Không tìm thấy thông tin. Vui lòng kiểm tra lại mã số thuế" (error)
 
 #### Navigation
 - Back button: Quay về BusinessTypeScreen (nếu có thay đổi, hiển thị confirm dialog)
@@ -97,17 +99,13 @@ Hệ thống dẫn dắt người dùng qua 4 bước chính:
 
 | Tên trường | Label | Placeholder | Icon | Bắt buộc | Validation |
 |------------|-------|-------------|------|----------|------------|
-| taxId | Mã số thuế | 10 hoặc 13 chữ số | ReceiptText | ✅ | Regex: /^[0-9]{10}$\|^[0-9]{13}$/ |
+| taxId | Mã số thuế | Nhập mã số thuế | ReceiptText | ✅ | Regex: /^[0-9]{10}$\|^[0-9]{13}$/ |
 | businessName | Tên doanh nghiệp | VD: Doanh nghiệp tư nhân ABC | Building | ✅ | Min 2 ký tự |
-| registeredAddress | Địa chỉ đăng ký | Tối thiểu 10 ký tự | Location | ✅ | Min 10 ký tự |
+| registeredAddress | Địa chỉ đăng ký | Nhập địa chỉ đăng | Location | ✅ | Min 10 ký tự |
 | ownerName | Tên chủ doanh nghiệp | Nhập họ và tên | User | ❌ | - |
-| nationalId | CCCD | 12 chữ số | Personalcard | ❌ | Regex: /^[0-9]{12}$/ |
-| businessCode | Mã doanh nghiệp | Nhập mã doanh nghiệp | Building | ❌ | - |
-| establishmentDate | Ngày thành lập | - | Calendar | ❌ | Date format: YYYY-MM-DD |
-| employeeCount | Số lượng nhân sự | Nhập số lượng nhân sự | People | ❌ | Integer, min: 1 |
+| nationalId | CCCD | Nhập CCCD chủ doanh nghiệp | Personalcard | ❌ | Regex: /^[0-9]{12}$/ |
 
 #### Điểm khác biệt so với HKD
-- **3 trường bổ sung**: businessCode, establishmentDate, employeeCount
 - **Label khác**: "Tên doanh nghiệp" thay vì "Tên Hộ kinh doanh", "Tên chủ doanh nghiệp" thay vì "Tên chủ hộ kinh doanh"
 
 #### Tính năng đặc biệt
@@ -134,7 +132,7 @@ Hệ thống dẫn dắt người dùng qua 4 bước chính:
 ### Các trường dữ liệu
 
 #### 4.1. Lĩnh vực hoạt động (Bắt buộc)
-Radio buttons (chọn 1 trong 4):
+Radio buttons (chọn 1 trong 4), tick chọn mặc định vào "Thương mại", user có thể chọn lại
 1. **Thương mại**
    - Icon: Shop
    - Mô tả: "Mua bán, phân phối hàng hóa"
@@ -153,14 +151,13 @@ Radio buttons (chọn 1 trong 4):
 
 #### 4.2. Ngành nghề kinh doanh chính (Bắt buộc)
 - Component: Autocomplete (searchable dropdown)
-- Placeholder: "Tìm kiếm và chọn ngành nghề..."
+- Placeholder: "Tìm kiếm và chọn ngành nghề kinh doanh chính"
 - Data source: API endpoint `/api/business-sectors`
-- Format: "Mã ngành - Tên ngành nghề"
-- Ví dụ: "4711 - Bán lẻ hàng hóa trong các siêu thị, cửa hàng tạp hóa"
-
+- Format: "Số thứ tự - Tên ngành nghề"
+- Ví dụ: "1-Dịch vụ chăm sóc sức khoẻ, sắc đẹp"
+- Hiển thị tối đa 1 dòng
 ### UI Pattern
-- 4 option cards giống BusinessTypeScreen
-- Selected state: 5% orange overlay + 2px orange border
+- 4 lĩnh vực hoạt động chia thành 4 dòng radio buttons
 - Background: Welcome screen.png
 - Mobile sticky footer
 
@@ -180,8 +177,10 @@ Không có sự khác biệt về logic hay UI giữa HKD và DNTN ở bước n
 `/onboarding/accounting-setup`
 
 ### Tiêu đề màn hình
-- Nếu HKD: "Thiết lập kế toán - Hộ kinh doanh"
-- Nếu DNTN: "Thiết lập kế toán - Doanh nghiệp"
+- Cả 2 option đều hiển thị tiêu đề và mô tả giống nhau
+- Tiêu đề: "Thiết lập dữ liệu kế toán"
+### Mô tả
+"Thiết lập dữ liệu kế toán ban đầu."
 
 ### 5.1. Đối với Hộ kinh doanh cá thể (HKD)
 
@@ -191,10 +190,10 @@ Không có sự khác biệt về logic hay UI giữa HKD và DNTN ở bước n
 |------------|-------|------|----------|---------|
 | accountingRegime | Chế độ kế toán | Display only | - | "Thông tư 88/2021/TT-BTC" (Cố định, không cho chọn) |
 | dataStartDate | Ngày bắt đầu dữ liệu | Date picker | ✅ | Format: DD/MM/YYYY |
-| taxFilingFrequency | Tần suất kê khai thuế | Radio buttons | ✅ | "Hàng quý" hoặc "Hàng tháng" (Mẫu 01/CNKD) |
-| usePOSDevice | Sử dụng máy tính tiền xuất hóa đơn | Radio buttons | ✅ | "Có" hoặc "Không" |
+| taxFilingFrequency | Chọn tần suất kê khai thuế và mẫu tờ khai| Radio buttons | ✅ | "Hàng quý" hoặc "Hàng tháng" (Mẫu 01/CNKD) |
+| usePOSDevice | Có sử dụng máy tính tiền xuất hóa đơn | Radio buttons | ✅ | "Có" hoặc "Không" |
 | inventoryValuationMethod | Phương pháp tính giá xuất kho | Display only | - | "Bình quân cuối kỳ" (Mặc định) |
-| taxIndustryGroup | Nhóm ngành nghề tính thuế GTGT, TNCN | Dropdown | ✅ | Danh sách các nhóm ngành (101, 102...) |
+| taxIndustryGroup | Nhóm ngành nghề tính thuế GTGT, TNCN* | Dropdown | ✅ | Danh sách các nhóm ngành (101, 102...) |
 
 #### Mô tả chi tiết
 
@@ -202,18 +201,17 @@ Không có sự khác biệt về logic hay UI giữa HKD và DNTN ở bước n
 - Hiển thị text: "Thông tư 88/2021/TT-BTC (Dành riêng cho hộ kinh doanh)"
 - Background: Light gray (#F5F5F5)
 - Không cho chỉnh sửa
+**Ngày bắt đầu dữ liệu:**
+- Mặc định là ngày đầu tiên của năm hiện tại
+- Click vào hiển thị bottomsheet Datepicker
 
-**Tần suất kê khai thuế:**
-- Option 1: "Hàng quý" (Recommended badge)
+**Chọn tần suất kê khai thuế và mẫu tờ khai:**
+- Option 1: "Hàng quý" (Mặc định chọn)
 - Option 2: "Hàng tháng"
-- Helper text: "Mẫu tờ khai: 01/CNKD"
+- Helper text: "Mẫu 01/CNKD là tờ khai thuế dành cho hộ kinh doanh, cá nhân tự kê khai thuế theo phương pháp kê khai"
 
 **Nhóm ngành nghề tính thuế:**
-- Dropdown với danh sách:
-  - 101 - Bán buôn, bán lẻ (Tỷ lệ 1%)
-  - 102 - Dịch vụ, xây dựng không bao thầu nguyên vật liệu (Tỷ lệ 5%)
-  - 103 - Sản xuất, vận tải, dịch vụ có gắn hàng hóa (Tỷ lệ 3%)
-  - 104 - Hoạt động kinh doanh khác (Tỷ lệ 2%)
+- Dropdown với danh sách: click vào trường thông tin sẽ mở 1 screen Danh sách ngành nghề tính thuế GTGT, TNCN (cập nhật sau)
 
 ---
 
@@ -227,18 +225,19 @@ Không có sự khác biệt về logic hay UI giữa HKD và DNTN ở bước n
 | dataStartDate | Ngày bắt đầu dữ liệu | Date picker | ✅ | Format: DD/MM/YYYY |
 | taxCalculationMethod | Phương pháp tính thuế | Radio buttons | ✅ | "Khấu trừ" hoặc "Trực tiếp trên doanh thu" |
 | baseCurrency | Đồng tiền hạch toán | Radio buttons | ✅ | "VND" hoặc "USD" |
-| hasForeignCurrency | Phát sinh nghiệp vụ ngoại tệ | Checkbox | ❌ | true/false |
-| inventoryValuationMethod | Phương pháp tính giá xuất kho | Radio buttons | ✅ | "Bình quân cuối kỳ", "Bình quân tức thời", "Giá đích danh", "FIFO" |
+| hasForeignCurrency | Phát sinh nghiệp vụ liên quan đến ngoại tệ | Checkbox | ❌ | true/false |
+| inventoryValuationMethod | Phương pháp tính giá xuất kho | Radio buttons | ✅ | "Bình quân cuối kỳ", "Bình quân tức thời", "Giá đích danh", "Nhập trước xuất trước" |
 
 #### Mô tả chi tiết
 
 **Chế độ kế toán:**
-- Option 1: "Thông tư 200/2014/TT-BTC" (Dành cho doanh nghiệp lớn)
-- Option 2: "Thông tư 133/2016/TT-BTC" (Dành cho doanh nghiệp nhỏ và vừa) - Recommended
+- Option 1: "Thông tư 200/2014/TT-BTC - Chế độ kế toán doanh nghiệp" 
+- Option 2: "Thông tư 133/2016/TT-BTC - Chế độ kế toán doanh nghiệp nhỏ và vừa"
+- Mặc định chọn option 1, người dùng có thể chọn lại
 
 **Phương pháp tính thuế:**
-- Option 1: "Phương pháp khấu trừ" (Recommended)
-  - Mô tả: "Thuế GTGT đầu ra - Thuế GTGT đầu vào"
+- Option 1: "Phương pháp khấu trừ" 
+  - Mặc định tick chọn option 1, user có thể chọn lại
 - Option 2: "Phương pháp trực tiếp trên doanh thu"
   - Mô tả: "Doanh thu × Tỷ lệ %"
 
@@ -250,7 +249,7 @@ Không có sự khác biệt về logic hay UI giữa HKD và DNTN ở bước n
 - Option 1: "Bình quân cuối kỳ" (Default, Enabled)
 - Option 2: "Bình quân tức thời" (Disabled, badge "Đang phát triển")
 - Option 3: "Giá đích danh" (Disabled, badge "Đang phát triển")
-- Option 4: "FIFO" (Disabled, badge "Đang phát triển")
+- Option 4: "Nhập trước xuất trước" (Disabled, badge "Đang phát triển")
 
 ---
 
@@ -297,6 +296,7 @@ Không có sự khác biệt về logic hay UI giữa HKD và DNTN ở bước n
 - Real-time validation khi blur khỏi input
 - Error message màu đỏ (#D32F2F) hiển thị dưới field
 - Button "Tiếp tục" disabled khi có lỗi validation hoặc thiếu trường bắt buộc
+- Các trường bắt buộc hiển thị dấu sao * màu đỏ bên cạnh label
 
 ### 6.7. Confirm Dialog
 - Hiển thị khi nhấn Back button và có thay đổi chưa lưu
