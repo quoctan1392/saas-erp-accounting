@@ -9,6 +9,7 @@ import ImageWithSkeleton from '../../components/ImageWithSkeleton';
 import businessTypeImg1 from '../../assets/Business Type Image 1.png';
 import businessTypeImg2 from '../../assets/Business Type Image 2.png';
 import businessTypeImg3 from '../../assets/Business Type Image 3.png';
+import welcomeBg from '../../assets/Welcome screen.png';
 import { apiService } from '../../services/api';
 
 interface BusinessTypeOption {
@@ -21,7 +22,7 @@ interface BusinessTypeOption {
 
 const BusinessTypeScreen = () => {
   const navigate = useNavigate();
-  const [selectedType, setSelectedType] = useState<BusinessType | null>(null);
+  const [selectedType, setSelectedType] = useState<BusinessType | null>(BusinessType.HOUSEHOLD_BUSINESS); // Default to HKD
   const [isLoading, setIsLoading] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -103,45 +104,51 @@ const BusinessTypeScreen = () => {
       setIsLoading(true);
 
       try {
+        // Update localStorage with new businessType first
+        const existingData = JSON.parse(localStorage.getItem('onboardingData') || '{}');
+        const updatedData = {
+          ...existingData,
+          businessType: selectedType,
+          isEdit: isEditMode,
+          cachedAt: Date.now(),
+        };
+        localStorage.setItem('onboardingData', JSON.stringify(updatedData));
+        console.log('[BusinessTypeScreen] Updated localStorage:', updatedData);
+
         // Get current tenant from localStorage
         const currentTenantStr = localStorage.getItem('currentTenant');
-        if (!currentTenantStr) {
-          alert('Không tìm thấy thông tin tenant. Vui lòng đăng nhập lại.');
-          navigate('/login');
-          return;
+        if (currentTenantStr) {
+          try {
+            const currentTenant = JSON.parse(currentTenantStr);
+            console.log('[BusinessTypeScreen] Updating businessType for tenant:', currentTenant.id);
+            console.log('[BusinessTypeScreen] New businessType:', selectedType);
+
+            // Also update currentTenant with new businessType
+            const updatedTenant = { ...currentTenant, businessType: selectedType };
+            localStorage.setItem('currentTenant', JSON.stringify(updatedTenant));
+
+            // Try to save business type to database (fire and forget, continue regardless)
+            apiService.updateBusinessType(currentTenant.id, selectedType)
+              .then((response) => {
+                console.log('[BusinessTypeScreen] API response:', response);
+              })
+              .catch((error) => {
+                console.error('[BusinessTypeScreen] API error (non-blocking):', error);
+              });
+          } catch (error) {
+            console.error('Error updating tenant info:', error);
+          }
         }
 
-        const currentTenant = JSON.parse(currentTenantStr);
-        console.log('[BusinessTypeScreen] Updating businessType for tenant:', currentTenant.id);
-        console.log('[BusinessTypeScreen] New businessType:', selectedType);
-
-        // Save business type to database
-        const response = await apiService.updateBusinessType(currentTenant.id, selectedType);
-        console.log('[BusinessTypeScreen] API response:', response);
-
-        if (response.success) {
-          // Update localStorage with new businessType
-          const existingData = JSON.parse(localStorage.getItem('onboardingData') || '{}');
-          const updatedData = {
-            ...existingData,
-            businessType: selectedType,
-            isEdit: isEditMode,
-            cachedAt: Date.now(),
-          };
-          localStorage.setItem('onboardingData', JSON.stringify(updatedData));
-          console.log('[BusinessTypeScreen] Updated localStorage:', updatedData);
-
-          // Also update currentTenant with new businessType
-          const updatedTenant = { ...currentTenant, businessType: selectedType };
-          localStorage.setItem('currentTenant', JSON.stringify(updatedTenant));
-
+        // Navigate to appropriate screen based on business type
+        if (selectedType === BusinessType.HOUSEHOLD_BUSINESS) {
           navigate(ROUTES.ONBOARDING_BUSINESS_INFO);
-        } else {
-          throw new Error(response.message || 'Có lỗi xảy ra khi lưu thông tin');
+        } else if (selectedType === BusinessType.PRIVATE_ENTERPRISE) {
+          navigate(ROUTES.ONBOARDING_BUSINESS_INFO_DNTN);
         }
       } catch (error: any) {
-        console.error('Failed to save business type:', error);
-        alert(error.message || 'Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại.');
+        console.error('Failed to process business type:', error);
+        alert(error.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
       } finally {
         setIsLoading(false);
       }
@@ -152,7 +159,11 @@ const BusinessTypeScreen = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        background: '#F5EBE0',
+        backgroundColor: '#F5EBE0',
+        backgroundImage: `url(${welcomeBg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
         position: 'relative',
         pt: 10,
       }}
@@ -186,18 +197,20 @@ const BusinessTypeScreen = () => {
             mb: 3,
           }}
         >
-          Nhập thông tin xác thực và lĩnh vực hoạt động.
+          Chọn loại hình kinh doanh của bạn để tiếp tục.
         </Typography>
 
         <Box
           sx={{
-            background: '#fff',
+            backgroundColor: '#FFFFFF',
             borderRadius: {
               xs: '16px 16px 0 0',
               sm: '16px',
             },
             px: { xs: 3, sm: 4 },
             py: { xs: 4, sm: 6 },
+            /* ensure panel content is not hidden by mobile sticky footer */
+            pb: { xs: `calc(68px + env(safe-area-inset-bottom, 0px) + 16px)`, sm: 6 },
             position: { xs: 'fixed', sm: 'relative' },
             top: { xs: 'auto', sm: 'auto' },
             bottom: { xs: 0, sm: 'auto' },
@@ -229,75 +242,134 @@ const BusinessTypeScreen = () => {
                     key={option.type}
                     onClick={() => handleSelectType(option.type, option.disabled)}
                     sx={{
-                      display: 'flex',
-                      padding: '12px',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      gap: '12px',
+                      position: 'relative',
+                      display: 'block',
+                      padding: 0,
                       flex: '1 0 0',
                       alignSelf: 'stretch',
                       borderRadius: '12px',
-                      border:
-                        selectedType === option.type ? '2px solid #FB7E00' : '2px solid #dbdadab0',
-                      backgroundColor: option.disabled ? 'rgba(0, 0, 0, 0.04)' : 'transparent',
+                      transition: 'all 0.2s',
                       cursor: option.disabled ? 'not-allowed' : 'pointer',
                       opacity: option.disabled ? 0.6 : 1,
-                      transition: 'all 0.2s',
-                      '&:hover': {
-                        borderColor: option.disabled ? '#dbdadab0' : '#FB7E00',
-                        borderWidth: option.disabled ? '2px' : '2px',
-                      },
                     }}
                   >
-                    {option.icon}
-                    <Box sx={{ textAlign: 'center' }}>
+                    {/* white base */}
+                    <Box
+                      sx={{
+                        backgroundColor: '#ffffff',
+                        borderRadius: '12px',
+                        p: '12px',
+                        height: '100%',
+                        border: selectedType === option.type ? '2px solid #FB7E00' : '2px solid #dbdadab0',
+                      }}
+                    >
+                      {/* state layer (absolute) */}
+                      {/** place overlay via absolutely positioned layer inside the white base **/}
                       <Box
                         sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 1,
-                          mb: 0.5,
+                          position: 'absolute',
+                          inset: 0,
+                          borderRadius: '12px',
+                          backgroundColor:
+                            option.disabled
+                              ? 'rgba(0,0,0,0.04)'
+                              : selectedType === option.type
+                              ? 'rgba(251,126,0,0.05)'
+                              : 'transparent',
+                          pointerEvents: 'none',
                         }}
-                      >
-                        <Typography sx={{ fontWeight: 600, fontSize: '16px', color: '#000' }}>
-                          {option.label}
-                        </Typography>
-                        {option.disabled && (
-                          <Chip
-                            label="Sắp ra mắt"
-                            size="small"
+                      />
+
+                      <Box sx={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '12px' }}>
+                        {option.icon}
+                        <Box sx={{ textAlign: 'center' }}>
+                          <Box
                             sx={{
-                              height: 20,
-                              fontSize: '12px',
-                              backgroundColor: '#E0E0E0',
-                              color: '#666',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 1,
+                              mb: 0.5,
                             }}
-                          />
-                        )}
+                          >
+                            <Typography sx={{ fontWeight: 600, fontSize: '16px', color: '#000' }}>
+                              {option.label}
+                            </Typography>
+                            {option.disabled && (
+                              <Chip
+                                label="Sắp ra mắt"
+                                size="small"
+                                sx={{
+                                  height: 20,
+                                  fontSize: '12px',
+                                  backgroundColor: '#E0E0E0',
+                                  color: '#666',
+                                }}
+                              />
+                            )}
+                          </Box>
+                          <Typography sx={{ fontSize: '14px', color: 'rgba(0, 0, 0, 0.6)' }}>
+                            {option.description}
+                          </Typography>
+                        </Box>
                       </Box>
-                      <Typography sx={{ fontSize: '14px', color: 'rgba(0, 0, 0, 0.6)' }}>
-                        {option.description}
-                      </Typography>
                     </Box>
                   </Box>
                 ))}
               </Box>
 
-              {/* Continue Button */}
-              <PrimaryButton
-                onClick={handleContinue}
-                disabled={!selectedType}
-                loading={isLoading}
-                loadingText={isEditMode ? 'Đang cập nhật...' : 'Đang xử lý...'}
-              >
-                {isEditMode ? 'Cập nhật' : 'Tiếp tục'}
-              </PrimaryButton>
+              {/* Continue Button (hidden on mobile - shown in sticky footer) */}
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                <PrimaryButton
+                  onClick={handleContinue}
+                  disabled={!selectedType}
+                  loading={isLoading}
+                  loadingText={isEditMode ? 'Đang cập nhật...' : 'Đang xử lý...'}
+                >
+                  {isEditMode ? 'Cập nhật' : 'Tiếp tục'}
+                </PrimaryButton>
+              </Box>
             </>
           )}
         </Box>
       </Container>
+      {/* Mobile sticky footer with white background (94px) and neutral shadow */}
+      <Box
+        sx={{
+          display: { xs: 'flex', sm: 'none' },
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1400,
+          alignItems: 'center',
+          justifyContent: 'center',
+          px: 2,
+          bgcolor: '#ffffff',
+          boxShadow: '0 -8px 16px rgba(0,0,0,0.12)',
+          minHeight: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
+        <Box sx={{ width: '100%', maxWidth: 'calc(100% - 32px)' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <PrimaryButton
+              onClick={handleContinue}
+              disabled={!selectedType}
+              loading={isLoading}
+              loadingText={isEditMode ? 'Đang cập nhật...' : 'Đang xử lý...'}
+              sx={{
+                height: 56,
+                borderRadius: '100px',
+                backgroundColor: '#FB7E00',
+                '&:hover': { backgroundColor: '#C96400' },
+                boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
+              }}
+            >
+              {isEditMode ? 'Cập nhật' : 'Tiếp tục'}
+            </PrimaryButton>
+          </Box>
+        </Box>
+      </Box>
     </Box>
   );
 };

@@ -19,6 +19,9 @@ import { TenantSelectionScreen } from './pages/TenantSelectionScreen';
 import WelcomeScreen from './pages/onboarding/WelcomeScreen';
 import BusinessTypeScreen from './pages/onboarding/BusinessTypeScreen';
 import BusinessInfoScreen from './pages/onboarding/BusinessInfoScreen';
+import BusinessInfoScreenDNTN from './pages/onboarding/BusinessInfoScreenDNTN';
+import BusinessSectorScreen from './pages/onboarding/BusinessSectorScreen';
+import AccountingSetupScreen from './pages/onboarding/AccountingSetupScreen';
 import MainLayout from './components/MainLayout';
 
 const theme = createTheme({
@@ -58,6 +61,9 @@ function App() {
               <Route path="/onboarding/welcome" element={<WelcomeScreen />} />
               <Route path="/onboarding/business-type" element={<BusinessTypeScreen />} />
               <Route path="/onboarding/business-info" element={<BusinessInfoScreen />} />
+              <Route path="/onboarding/business-info-dntn" element={<BusinessInfoScreenDNTN />} />
+              <Route path="/onboarding/business-sector" element={<BusinessSectorScreen />} />
+              <Route path="/onboarding/accounting-setup" element={<AccountingSetupScreen />} />
               
               {/* Routes with persistent bottom navigation */}
               <Route element={<MainLayout />}>

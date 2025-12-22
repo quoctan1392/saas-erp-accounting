@@ -23,7 +23,7 @@ const PrimaryButton: React.FC<PrimaryButtonProps> = ({
       sx={{
         py: 1.75,
         textTransform: 'none',
-        fontSize: '1rem',
+        fontSize: '16px',
         fontWeight: 500,
         backgroundColor: loading || disabled ? '#E0E0E0' : '#FB7E00',
         borderRadius: '100px',

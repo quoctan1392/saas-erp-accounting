@@ -5,15 +5,24 @@ interface RoundedTextFieldProps extends Omit<React.ComponentProps<typeof TextFie
   // Add any custom props here if needed
 }
 
-const RoundedTextField: React.FC<RoundedTextFieldProps> = ({ sx, ...props }) => {
+const RoundedTextField: React.FC<RoundedTextFieldProps> = ({ sx, InputLabelProps, ...props }) => {
   return (
     <TextField
       variant="outlined"
       {...props}
+      InputLabelProps={{
+        ...InputLabelProps,
+      }}
       sx={{
         '& .MuiOutlinedInput-root': {
           backgroundColor: '#FFF',
           borderRadius: '48px',
+          paddingLeft: '16px',
+          paddingRight: '16px',
+          height: '48px',
+          minHeight: '48px',
+          display: 'flex',
+          alignItems: 'center',
           '& fieldset': { 
             borderColor: '#D8D8D8', 
             borderWidth: '1px' 
@@ -27,8 +36,37 @@ const RoundedTextField: React.FC<RoundedTextFieldProps> = ({ sx, ...props }) => 
           },
         },
         '& .MuiOutlinedInput-input': { 
-          paddingLeft: '16px', 
-          paddingRight: '16px' 
+          paddingLeft: 0,
+          paddingRight: 0,
+          color: '#000000', // Black input text
+          paddingTop: '10px',
+          paddingBottom: '10px',
+          boxSizing: 'border-box',
+          height: '100%',
+        },
+        // Gap between adornments and input/placeholder
+        '& .MuiInputAdornment-root.MuiInputAdornment-positionStart': {
+          marginRight: '8px',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+        },
+        '& .MuiInputAdornment-root.MuiInputAdornment-positionEnd': {
+          marginLeft: '8px',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+        },
+        // Label styling: add left offset and white background so outline doesn't show under label
+        '& .MuiInputLabel-root': {
+          left: '8px',
+          padding: '0 8px',
+          backgroundColor: 'transparent',
+          transformOrigin: 'left top',
+          '&.MuiInputLabel-shrink': {
+            left: '8pxß',
+            backgroundColor: '#ffffff',
+          },
         },
         ...sx,
       }}

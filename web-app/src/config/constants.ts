@@ -20,6 +20,9 @@ export const ROUTES = {
   ONBOARDING_WELCOME: '/onboarding/welcome',
   ONBOARDING_BUSINESS_TYPE: '/onboarding/business-type',
   ONBOARDING_BUSINESS_INFO: '/onboarding/business-info',
+  ONBOARDING_BUSINESS_INFO_DNTN: '/onboarding/business-info-dntn',
+  ONBOARDING_BUSINESS_SECTOR: '/onboarding/business-sector',
+  ONBOARDING_ACCOUNTING_SETUP: '/onboarding/accounting-setup',
 };
 
 export const STORAGE_KEYS = {
