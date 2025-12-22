@@ -266,9 +266,7 @@ const HomeScreen = () => {
           minHeight: '100vh',
           bgcolor: '#F8F9FA',
           pb: 10,
-          // Use SF Pro Display across HomeScreen; header title overrides its own font
-          fontFamily:
-            'SF Pro Display, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          // Use global Inter font (titles still override their font-family)
         }}
       >
         {/* Header */}

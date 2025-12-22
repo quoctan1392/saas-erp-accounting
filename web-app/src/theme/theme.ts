@@ -18,7 +18,7 @@ export const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: '"SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica", "Arial", sans-serif',
     h4: {
       fontWeight: 600,
     },
@@ -47,6 +47,13 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        },
+      },
+    },
+    MuiFormControlLabel: {
+      styleOverrides: {
+        label: {
+          marginLeft: '0px',
         },
       },
     },

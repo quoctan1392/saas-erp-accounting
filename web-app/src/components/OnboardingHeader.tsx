@@ -16,7 +16,7 @@ const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({ onBack, progress, s
         left: 0,
         right: 0,
         zIndex: 10,
-        backgroundColor: '#F5EBE0',
+        backgroundColor: 'transparent',
         py: 2,
         px: { xs: 2, sm: 3 },
       }}
@@ -43,7 +43,7 @@ const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({ onBack, progress, s
             sx={{
               height: 8,
               borderRadius: 4,
-              backgroundColor: 'rgba(255, 255, 255, 0.5)',
+              backgroundColor: 'rgba(255, 255, 255, 1)',
               '& .MuiLinearProgress-bar': {
                 backgroundColor: '#FB7E00',
                 borderRadius: 4,

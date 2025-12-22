@@ -21,22 +21,20 @@ import OnboardingHeader from '../../components/OnboardingHeader';
 import { apiService } from '../../services/api';
 import welcomeBg from '../../assets/Welcome screen.png';
 
-const BusinessInfoScreen = () => {
+const BusinessInfoScreenDNTN = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   const [formData, setFormData] = useState<Partial<BusinessInfoForm>>({
-    businessType: BusinessType.HOUSEHOLD_BUSINESS,
+    businessType: BusinessType.PRIVATE_ENTERPRISE,
     taxId: '',
     businessName: '',
     registeredAddress: '',
     ownerName: '',
     nationalId: '',
-    businessCode: '',
-    establishmentDate: '',
-    employeeCount: undefined,
+    // removed: businessCode, establishmentDate, employeeCount
     taxInfoAutoFilled: false,
   });
 
@@ -55,39 +53,8 @@ const BusinessInfoScreen = () => {
   // initial form snapshot used to detect unsaved changes
   const initialFormRef = useRef<Partial<BusinessInfoForm> | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const establishmentDateRef = useRef<HTMLInputElement | null>(null);
-  const establishmentNativeDateRef = useRef<HTMLInputElement | null>(null);
-  const formatDisplayDate = (iso?: string) => {
-    if (!iso) return '';
-    const parts = iso.split('-');
-    if (parts.length !== 3) return iso;
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
-  };
+  
 
-  const openNativeDatePicker = (ref: React.RefObject<HTMLInputElement | null>, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    e?.preventDefault();
-    if (!ref?.current) return;
-    const input = ref.current as HTMLInputElement & { showPicker?: () => void };
-    
-    try {
-      if (typeof input.showPicker === 'function') {
-        input.showPicker();
-        return;
-      }
-    } catch (err) {
-      // Silently fall through
-    }
-    
-    try {
-      input.focus();
-      setTimeout(() => {
-        input.click();
-      }, 10);
-    } catch (err) {
-      console.warn('Could not open date picker:', err);
-    }
-  };
 
   const handleConfirmLeave = () => {
     setShowConfirmDialog(false);
@@ -135,7 +102,7 @@ const BusinessInfoScreen = () => {
 
             // Apply all updates in a single setState call and record initial snapshot
             if (Object.keys(updates).length > 0) {
-              console.log('[BusinessInfoScreen] Loading form data:', updates);
+              console.log('[BusinessInfoScreenDNTN] Loading form data:', updates);
               const merged = { ...formData, ...updates };
               setFormData(merged);
               initialFormRef.current = merged;
@@ -255,33 +222,7 @@ const BusinessInfoScreen = () => {
       newErrors.nationalId = 'CCCD phải là 12 chữ số';
     }
 
-    // Establishment date validation (must be valid date format if provided)
-    if (formData.establishmentDate) {
-      const dateStr = formData.establishmentDate;
-      // Check if it's a valid date format (YYYY-MM-DD)
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-        newErrors.establishmentDate =
-          'Ngày thành lập phải có định dạng YYYY-MM-DD (VD: 2020-01-15)';
-      } else {
-        // Validate that it's a real date
-        const date = new Date(dateStr);
-        const [year, month, day] = dateStr.split('-').map(Number);
-        if (
-          date.getFullYear() !== year ||
-          date.getMonth() !== month - 1 ||
-          date.getDate() !== day
-        ) {
-          newErrors.establishmentDate = 'Ngày thành lập không hợp lệ';
-        }
-      }
-    }
-
-    // Employee count validation (must be positive integer if provided)
-    if (formData.employeeCount !== undefined && formData.employeeCount !== null) {
-      if (!Number.isInteger(formData.employeeCount) || formData.employeeCount < 1) {
-        newErrors.employeeCount = 'Số lượng nhân viên phải là số nguyên dương';
-      }
-    }
+    // (removed establishment date and employee count validations)
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -331,9 +272,18 @@ const BusinessInfoScreen = () => {
       }
 
       // First save business type if it's from localStorage
-      const existingOnboardingData = JSON.parse(localStorage.getItem('onboardingData') || '{}');
-      if (existingOnboardingData.businessType && formData.businessType) {
-        await apiService.updateBusinessType(currentTenant.id, formData.businessType);
+      const onboardingData = JSON.parse(localStorage.getItem('onboardingData') || '{}');
+      if (onboardingData.businessType && formData.businessType) {
+        const bt = formData.businessType as unknown as string;
+        // update business type in background (non-blocking)
+        (async () => {
+          try {
+            const resp = await apiService.updateBusinessType(currentTenant.id, bt);
+            console.log('[BusinessInfoScreenDNTN] updateBusinessType response:', resp);
+          } catch (err) {
+            console.error('[BusinessInfoScreenDNTN] updateBusinessType error (non-blocking):', err);
+          }
+        })();
       }
 
       // Then save business info
@@ -353,49 +303,15 @@ const BusinessInfoScreen = () => {
         businessInfoPayload.nationalId = formData.nationalId.trim();
       }
 
-      if (formData.businessCode && formData.businessCode.trim()) {
-        businessInfoPayload.businessCode = formData.businessCode.trim();
-      }
-
-      if (formData.establishmentDate && formData.establishmentDate.trim()) {
-        const dateStr = formData.establishmentDate.trim();
-        // Ensure ISO format - if it's just YYYY-MM-DD, convert to full ISO
-        if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          businessInfoPayload.establishmentDate = `${dateStr}T00:00:00.000Z`;
-        } else {
-          businessInfoPayload.establishmentDate = dateStr;
-        }
-      }
-
-      if (formData.employeeCount && formData.employeeCount > 0) {
-        businessInfoPayload.employeeCount = formData.employeeCount;
-      }
+      // businessCode, establishmentDate and employeeCount removed from payload
 
       if (formData.taxInfoAutoFilled !== undefined) {
         businessInfoPayload.taxInfoAutoFilled = formData.taxInfoAutoFilled;
       }
 
-      console.log('Sending business info payload:', businessInfoPayload);
+      console.log('Sending business info payload (background):', businessInfoPayload);
 
-      // Try to call API but fallback to local storage if it fails
-      let apiSucceeded = false;
-      try {
-        const response = await apiService.saveBusinessInfo(currentTenant.id, businessInfoPayload);
-        
-        if (response.success) {
-          apiSucceeded = true;
-          console.log('[BusinessInfoScreen] API call succeeded:', response);
-        } else {
-          console.warn('[BusinessInfoScreen] API returned non-success response:', response);
-          // Continue with localStorage fallback
-        }
-      } catch (apiError: any) {
-        console.warn('[BusinessInfoScreen] API call failed, using localStorage fallback:', apiError);
-        // Continue with localStorage fallback instead of throwing error
-      }
-
-      // Always save to localStorage and navigate (regardless of API success/failure)
-      const onboardingData = JSON.parse(localStorage.getItem('onboardingData') || '{}');
+      // Save to localStorage immediately so user can continue even if API is slow
       const updatedOnboardingData = {
         ...onboardingData,
         businessInfo: formData,
@@ -403,26 +319,23 @@ const BusinessInfoScreen = () => {
       };
       localStorage.setItem('onboardingData', JSON.stringify(updatedOnboardingData));
 
-      // Clean up old onboarding data if API succeeded
-      if (apiSucceeded) {
-        // Only clean up if we want to force fresh data from API
-        // localStorage.removeItem('onboardingData'); // Keep for now
-      }
+      // Fire-and-forget API save
+      (async () => {
+        try {
+          const response = await apiService.saveBusinessInfo(currentTenant.id, businessInfoPayload);
+          console.log('[BusinessInfoScreenDNTN] saveBusinessInfo response:', response);
+        } catch (err) {
+          console.error('[BusinessInfoScreenDNTN] saveBusinessInfo error (non-blocking):', err);
+        }
+      })();
 
+      // Navigate immediately
       if (isEditMode) {
-        const message = apiSucceeded 
-          ? 'Thông tin doanh nghiệp đã được cập nhật thành công!' 
-          : 'Thông tin đã được lưu cục bộ. Sẽ đồng bộ khi kết nối ổn định.';
-        setSnack({ open: true, severity: 'success', message });
-        setTimeout(() => navigate(ROUTES.HOME), 1200);
+        setSnack({ open: true, severity: 'success', message: 'Thông tin doanh nghiệp đã được cập nhật!' });
+        setTimeout(() => navigate(ROUTES.HOME), 800);
         return;
       } else {
-        // Always continue to next step
-        const message = apiSucceeded 
-          ? 'Đã lưu thông tin hộ kinh doanh!' 
-          : 'Đã lưu thông tin cục bộ. Tiếp tục thiết lập...';
-        setSnack({ open: true, severity: 'success', message });
-        setTimeout(() => navigate(ROUTES.ONBOARDING_BUSINESS_SECTOR), 800);
+        navigate(ROUTES.ONBOARDING_BUSINESS_SECTOR);
         return;
       }
     } catch (error: any) {
@@ -460,9 +373,6 @@ const BusinessInfoScreen = () => {
     }
   };
 
-  const isHKD = formData.businessType === BusinessType.HOUSEHOLD_BUSINESS;
-  const isDNTN = formData.businessType === BusinessType.PRIVATE_ENTERPRISE;
-
   return (
     <Box
       sx={{
@@ -476,7 +386,7 @@ const BusinessInfoScreen = () => {
         pt: 8,
       }}
     >
-      <OnboardingHeader onBack={handleBack} progress={66} />
+      <OnboardingHeader onBack={handleBack} progress={50} />
 
       <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1, py: 2 }}>
         {/* Title */}
@@ -492,18 +402,18 @@ const BusinessInfoScreen = () => {
             textAlign: 'left',
           }}
         >
-          {isHKD ? 'Thông tin Hộ kinh doanh' : 'Thông tin Doanh nghiệp'}
+          Thông tin Doanh nghiệp
         </Typography>
 
         {/* Description */}
         <Typography
           sx={{
-              fontSize: '16px',
-              lineHeight: '24px',
-              color: 'rgba(0, 0, 0, 0.6)',
-              textAlign: 'left',
-              mb: 3,
-            }}
+            fontSize: '16px',
+            lineHeight: '24px',
+            color: 'rgba(0, 0, 0, 0.6)',
+            textAlign: 'left',
+            mb: 3,
+          }}
         >
           Nhập thông tin xác thực và lĩnh vực hoạt động.
         </Typography>
@@ -515,19 +425,14 @@ const BusinessInfoScreen = () => {
               xs: '16px 16px 0 0',
               sm: '16px',
             },
-            // Use a mix of margin and padding on small screens so the panel
-            // doesn't overlap the title: increase outer margin (left/right/top)
-            // and reduce internal padding (px/py) to half.
             px: { xs: 2, sm: 4 },
             py: { xs: 2, sm: 6 },
             position: { xs: 'fixed', sm: 'relative' },
             top: { xs: '160px', sm: 'auto' },
             bottom: { xs: 0, sm: 'auto' },
-            // outer margins on mobile (acts as the 'half' margin)
-            left: { xs: '24px', sm: 'auto' },
-            right: { xs: '24px', sm: 'auto' },
-            // account for larger left/right margin when calculating max width
-            maxWidth: { xs: 'calc(100% - 48px)', sm: '100%' },
+            left: { xs: '16px', sm: 'auto' },
+            right: { xs: '16px', sm: 'auto' },
+            maxWidth: { xs: 'calc(100% - 32px)', sm: '100%' },
             display: 'flex',
             flexDirection: 'column',
             minHeight: { xs: 'auto', sm: 'auto' },
@@ -568,212 +473,117 @@ const BusinessInfoScreen = () => {
 
                 {/* Form */}
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 4 }}>
-                {/* Tax ID with Auto-fill button */}
-                <Box>
+                  {/* Tax ID with Auto-fill button */}
+                  <Box>
+                    <RoundedTextField
+                      fullWidth
+                      required
+                      label="Mã số thuế"
+                      placeholder="Nhập mã số thuế"
+                      value={formData.taxId}
+                      onChange={(e) => handleChange('taxId', e.target.value)}
+                      error={!!errors.taxId}
+                      helperText={errors.taxId}
+                      sx={{ mt: '12px' }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <Icon name="ReceiptText" size={20} color="#4E4E4E" variant="Outline" />
+                          </InputAdornment>
+                        ),
+                        endAdornment: (
+                          <Button
+                            size="small"
+                            disabled={isAutoFilling || !formData.taxId}
+                            onClick={handleAutoFill}
+                            sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+                          >
+                            Lấy thông tin
+                          </Button>
+                        ),
+                      }}
+                    />
+                  </Box>
+
+                  {/* Business Name */}
                   <RoundedTextField
                     fullWidth
                     required
-                    label="Mã số thuế"
-                    placeholder="Nhập mã số thuế"
-                    value={formData.taxId}
-                    onChange={(e) => handleChange('taxId', e.target.value)}
-                    error={!!errors.taxId}
-                    helperText={errors.taxId}
-                    sx={{ mt: '12px' }}
+                    label="Tên doanh nghiệp"
+                    placeholder="VD: Doanh nghiệp tư nhân ABC"
+                    value={formData.businessName}
+                    onChange={(e) => handleChange('businessName', e.target.value)}
+                    error={!!errors.businessName}
+                    helperText={errors.businessName}
                     InputProps={{
                       startAdornment: (
-                            <InputAdornment position="start">
-                            <Icon name="ReceiptText" size={20} color="#4E4E4E" variant="Outline" />
-                          </InputAdornment>
-                      ),
-                      endAdornment: (
-                        <Button
-                          size="small"
-                          disabled={isAutoFilling || !formData.taxId}
-                          onClick={handleAutoFill}
-                          sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
-                        >
-                          Lấy thông tin
-                        </Button>
+                        <InputAdornment position="start">
+                          <Icon name="Building" size={20} color="#4E4E4E" variant="Outline" />
+                        </InputAdornment>
                       ),
                     }}
                   />
+
+                  {/* Registered Address */}
+                  <RoundedTextField
+                    fullWidth
+                    required
+                    label="Địa chỉ đăng ký"
+                    placeholder="Nhập địa chỉ đăng ký"
+                    value={formData.registeredAddress}
+                    onChange={(e) => handleChange('registeredAddress', e.target.value)}
+                    error={!!errors.registeredAddress}
+                    helperText={errors.registeredAddress}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Icon name="Location" size={20} color="#4E4E4E" variant="Outline" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+
+                  {/* Owner Name */}
+                  <RoundedTextField
+                    fullWidth
+                    label="Tên chủ doanh nghiệp"
+                    placeholder="Nhập họ và tên"
+                    value={formData.ownerName}
+                    onChange={(e) => handleChange('ownerName', e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Icon name="User" size={20} color="#4E4E4E" variant="Outline" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+
+                  {/* National ID */}
+                  <RoundedTextField
+                    fullWidth
+                    label="CCCD"
+                    placeholder="Nhập CCCD chủ doanh nghiệp"
+                    value={formData.nationalId}
+                    onChange={(e) => handleChange('nationalId', e.target.value)}
+                    error={!!errors.nationalId}
+                    helperText={errors.nationalId}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Icon name="Personalcard" size={20} color="#4E4E4E" variant="Outline" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+
+                  {/* DNTN specific fields */}
+                  {/* Removed fields: Mã doanh nghiệp, Ngày thành lập, Số lượng nhân sự */}
                 </Box>
-
-                {/* Business Name */}
-                <RoundedTextField
-                  fullWidth
-                  required
-                  label={isHKD ? 'Tên Hộ kinh doanh' : 'Tên doanh nghiệp'}
-                  placeholder={
-                    isHKD ? 'VD: Cửa hàng tạp hóa Minh An' : 'VD: Doanh nghiệp tư nhân ABC'
-                  }
-                  value={formData.businessName}
-                  onChange={(e) => handleChange('businessName', e.target.value)}
-                  error={!!errors.businessName}
-                  helperText={errors.businessName}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Icon name="Building" size={20} color="#4E4E4E" variant="Outline" />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-
-                {/* Registered Address */}
-                <RoundedTextField
-                  fullWidth
-                  required
-                  label="Địa chỉ đăng ký"
-                  placeholder="Nhập địa chỉ đăng ký"
-                  value={formData.registeredAddress}
-                  onChange={(e) => handleChange('registeredAddress', e.target.value)}
-                  error={!!errors.registeredAddress}
-                  helperText={errors.registeredAddress}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Icon name="Location" size={20} color="#4E4E4E" variant="Outline" />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-
-                {/* Owner Name */}
-                <RoundedTextField
-                  fullWidth
-                  label={isHKD ? 'Tên chủ hộ kinh doanh' : 'Tên giám đốc'}
-                  placeholder="Nhập họ và tên"
-                  value={formData.ownerName}
-                  onChange={(e) => handleChange('ownerName', e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Icon name="User" size={20} color="#4E4E4E" variant="Outline" />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-
-                {/* National ID */}
-                <RoundedTextField
-                  fullWidth
-                  label="CCCD"
-                  placeholder="Nhập CCCD 12 chữ số"
-                  value={formData.nationalId}
-                  onChange={(e) => handleChange('nationalId', e.target.value)}
-                  error={!!errors.nationalId}
-                  helperText={errors.nationalId}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Icon name="Personalcard" size={20} color="#4E4E4E" variant="Outline" />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-
-                {/* DNTN specific fields */}
-                {isDNTN && (
-                  <>
-                    <RoundedTextField
-                      fullWidth
-                      label="Mã doanh nghiệp"
-                      placeholder="Nhập mã doanh nghiệp"
-                      value={formData.businessCode}
-                      onChange={(e) => handleChange('businessCode', e.target.value)}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Icon name="Building" size={20} color="#4E4E4E" variant="Outline" />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-
-                    <input
-                      type="date"
-                      ref={establishmentNativeDateRef}
-                      value={formData.establishmentDate}
-                      onChange={(e) => handleChange('establishmentDate', e.target.value)}
-                      style={{ 
-                        position: 'absolute', 
-                        opacity: 0, 
-                        pointerEvents: 'none',
-                        top: 0,
-                        left: 0,
-                        width: 1, 
-                        height: 1,
-                        zIndex: -1
-                      }}
-                      tabIndex={-1}
-                      aria-hidden="true"
-                    />
-
-                    <RoundedTextField
-                      fullWidth
-                      type="text"
-                      label="Ngày thành lập"
-                      InputLabelProps={{ shrink: true }}
-                      value={formatDisplayDate(formData.establishmentDate)}
-                      onClick={(e) => openNativeDatePicker(establishmentNativeDateRef, e)}
-                      inputRef={establishmentDateRef}
-                      inputProps={{ readOnly: true }}
-                      sx={{ 
-                        '& .MuiOutlinedInput-input': { textAlign: 'left', paddingLeft: 0 },
-                        cursor: 'pointer'
-                      }}
-                      InputProps={{
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <Box 
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                openNativeDatePicker(establishmentNativeDateRef, e);
-                              }}
-                              sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                            >
-                              <Icon name="Calendar" size={20} color="#4E4E4E" variant="Outline" />
-                            </Box>
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-
-                    <RoundedTextField
-                      fullWidth
-                      type="number"
-                      label="Số lượng nhân sự"
-                      placeholder="Nhập số lượng nhân sự"
-                      value={formData.employeeCount || ''}
-                      onChange={(e) =>
-                        handleChange('employeeCount', parseInt(e.target.value) || undefined)
-                      }
-                      inputProps={{ min: 1 }}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Icon name="People" size={20} color="#4E4E4E" variant="Outline" />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </>
-                )}
-              </Box>
               </Box>
 
-              {/* Fixed button at bottom */}
-              <Box
-                sx={{
-                  mt: 'auto',
-                  pt: 2,
-                  borderTop: { xs: '1px solid #E0E0E0', sm: 'none' },
-                  backgroundColor: { xs: '#fff', sm: 'transparent' },
-                }}
-              >
+              {/* Desktop button inside panel (hidden on mobile) */}
+              <Box sx={{ display: { xs: 'none', sm: 'block' }, mt: 2 }}>
                 <PrimaryButton
                   onClick={handleSubmit}
                   loading={isLoading}
@@ -786,6 +596,44 @@ const BusinessInfoScreen = () => {
           )}
         </Box>
       </Container>
+
+      {/* Mobile sticky footer with white background and shadow (matches BusinessTypeScreen) */}
+      <Box
+        sx={{
+          display: { xs: 'flex', sm: 'none' },
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1400,
+          alignItems: 'center',
+          justifyContent: 'center',
+          px: 2,
+          bgcolor: '#ffffff',
+          boxShadow: '0 -8px 16px rgba(0,0,0,0.12)',
+          minHeight: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
+        <Box sx={{ width: '100%', maxWidth: 'calc(100% - 32px)' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <PrimaryButton
+              onClick={handleSubmit}
+              loading={isLoading}
+              loadingText={isEditMode ? 'Đang cập nhật...' : 'Đang lưu...'}
+              sx={{
+                height: 56,
+                borderRadius: '100px',
+                backgroundColor: '#FB7E00',
+                '&:hover': { backgroundColor: '#C96400' },
+                boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
+              }}
+            >
+              {isEditMode ? 'Cập nhật' : 'Tiếp tục'}
+            </PrimaryButton>
+          </Box>
+        </Box>
+      </Box>
+
       {/* Reusable confirm dialog for unsaved changes */}
       <ConfirmDialog
         open={showConfirmDialog}
@@ -808,4 +656,4 @@ const BusinessInfoScreen = () => {
   );
 };
 
-export default BusinessInfoScreen;
+export default BusinessInfoScreenDNTN;
