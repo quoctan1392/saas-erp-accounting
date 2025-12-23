@@ -1,43 +1,57 @@
-export enum BusinessType {
-  HOUSEHOLD_BUSINESS = 'HOUSEHOLD_BUSINESS',
-  PRIVATE_ENTERPRISE = 'PRIVATE_ENTERPRISE',
-  LIMITED_COMPANY = 'LIMITED_COMPANY',
-}
+export const BusinessType = {
+  HOUSEHOLD_BUSINESS: 'HOUSEHOLD_BUSINESS',
+  PRIVATE_ENTERPRISE: 'PRIVATE_ENTERPRISE',
+  LIMITED_COMPANY: 'LIMITED_COMPANY',
+} as const;
 
-export enum BusinessSector {
-  THUONG_MAI = 'THUONG_MAI', // Thương mại
-  DICH_VU = 'DICH_VU', // Dịch vụ
-  SAN_XUAT = 'SAN_XUAT', // Sản xuất
-  XAY_LAP = 'XAY_LAP', // Xây lắp
-}
+export type BusinessType = typeof BusinessType[keyof typeof BusinessType];
 
-export enum TaxFilingFrequency {
-  MONTHLY = 'MONTHLY', // Hàng tháng
-  QUARTERLY = 'QUARTERLY', // Hàng quý
-}
+export const BusinessSector = {
+  THUONG_MAI: 'THUONG_MAI', // Thương mại
+  DICH_VU: 'DICH_VU', // Dịch vụ
+  SAN_XUAT: 'SAN_XUAT', // Sản xuất
+  XAY_LAP: 'XAY_LAP', // Xây lắp
+} as const;
 
-export enum AccountingRegime {
-  TT88_2021 = 'TT88_2021', // Thông tư 88/2021 (HKD)
-  TT200_2014 = 'TT200_2014', // Thông tư 200/2014 (DNTN - lớn)
-  TT133_2016 = 'TT133_2016', // Thông tư 133/2016 (DNTN - vừa và nhỏ)
-}
+export type BusinessSector = typeof BusinessSector[keyof typeof BusinessSector];
 
-export enum TaxCalculationMethod {
-  DEDUCTION = 'DEDUCTION', // Phương pháp khấu trừ
-  DIRECT = 'DIRECT', // Phương pháp trực tiếp trên doanh thu
-}
+export const TaxFilingFrequency = {
+  MONTHLY: 'MONTHLY', // Hàng tháng
+  QUARTERLY: 'QUARTERLY', // Hàng quý
+} as const;
 
-export enum Currency {
-  VND = 'VND', // Việt Nam Đồng
-  USD = 'USD', // Đô-la Mỹ
-}
+export type TaxFilingFrequency = typeof TaxFilingFrequency[keyof typeof TaxFilingFrequency];
 
-export enum InventoryValuationMethod {
-  WEIGHTED_AVERAGE = 'WEIGHTED_AVERAGE', // Bình quân cuối kỳ
-  INSTANT_WEIGHTED_AVERAGE = 'INSTANT_WEIGHTED_AVERAGE', // Bình quân tức thời
-  SPECIFIC_IDENTIFICATION = 'SPECIFIC_IDENTIFICATION', // Giá đích danh
-  FIFO = 'FIFO', // Nhập trước xuất trước
-}
+export const AccountingRegime = {
+  TT88_2021: 'TT88_2021', // Thông tư 88/2021 (HKD)
+  TT200_2014: 'TT200_2014', // Thông tư 200/2014 (DNTN - lớn)
+  TT133_2016: 'TT133_2016', // Thông tư 133/2016 (DNTN - vừa và nhỏ)
+} as const;
+
+export type AccountingRegime = typeof AccountingRegime[keyof typeof AccountingRegime];
+
+export const TaxCalculationMethod = {
+  DEDUCTION: 'DEDUCTION', // Phương pháp khấu trừ
+  DIRECT: 'DIRECT', // Phương pháp trực tiếp trên doanh thu
+} as const;
+
+export type TaxCalculationMethod = typeof TaxCalculationMethod[keyof typeof TaxCalculationMethod];
+
+export const Currency = {
+  VND: 'VND', // Việt Nam Đồng
+  USD: 'USD', // Đô-la Mỹ
+} as const;
+
+export type Currency = typeof Currency[keyof typeof Currency];
+
+export const InventoryValuationMethod = {
+  WEIGHTED_AVERAGE: 'WEIGHTED_AVERAGE', // Bình quân cuối kỳ
+  INSTANT_WEIGHTED_AVERAGE: 'INSTANT_WEIGHTED_AVERAGE', // Bình quân tức thời
+  SPECIFIC_IDENTIFICATION: 'SPECIFIC_IDENTIFICATION', // Giá đích danh
+  FIFO: 'FIFO', // Nhập trước xuất trước
+} as const;
+
+export type InventoryValuationMethod = typeof InventoryValuationMethod[keyof typeof InventoryValuationMethod];
 
 export interface OnboardingStatus {
   tenantId: string;
@@ -70,17 +84,17 @@ export interface BusinessSectorForm {
 
 // For HKD (Household Business)
 export interface AccountingSetupFormHKD {
-  accountingRegime: AccountingRegime.TT88_2021;
+  accountingRegime: typeof AccountingRegime.TT88_2021;
   dataStartDate: string; // ISO date string
   taxFilingFrequency: TaxFilingFrequency;
   usePOSDevice: boolean;
-  inventoryValuationMethod: InventoryValuationMethod.WEIGHTED_AVERAGE;
+  inventoryValuationMethod: typeof InventoryValuationMethod.WEIGHTED_AVERAGE;
   taxIndustryGroup: string; // "101", "102", "103", "104"
 }
 
 // For DNTN (Private Enterprise)
 export interface AccountingSetupFormDNTN {
-  accountingRegime: AccountingRegime.TT200_2014 | AccountingRegime.TT133_2016;
+  accountingRegime: typeof AccountingRegime.TT200_2014 | typeof AccountingRegime.TT133_2016;
   dataStartDate: string; // ISO date string
   taxCalculationMethod: TaxCalculationMethod;
   baseCurrency: Currency;
@@ -108,4 +122,32 @@ export interface ApiResponse<T> {
     code: string;
     message: string;
   };
+}
+
+// E-Invoice Provider
+export interface EInvoiceProvider {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  logo?: string;
+  apiEndpoint?: string;
+  isActive: boolean;
+}
+
+// E-Invoice Connection
+export interface EInvoiceConnection {
+  provider: string;
+  providerName: string;
+  taxCode: string;
+  username: string;
+  password: string;
+  autoIssueOnSale: boolean;
+  connectedAt?: string;
+}
+
+// Advanced Setup Form
+export interface AdvancedSetupForm {
+  eInvoiceEnabled: boolean;
+  eInvoiceConnection?: EInvoiceConnection;
 }

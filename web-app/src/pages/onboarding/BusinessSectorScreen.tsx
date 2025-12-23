@@ -279,8 +279,8 @@ const BusinessSectorScreen = () => {
               xs: '16px 16px 0 0',
               sm: '16px',
             },
-            // Match padding/positioning with BusinessInfoScreen
-            px: { xs: 2, sm: 4 },
+            // Match padding/positioning with other onboarding screens
+            px: 2,
             py: { xs: 2, sm: 6 },
             position: { xs: 'fixed', sm: 'relative' },
             top: { xs: '160px', sm: 'auto' },
@@ -311,7 +311,7 @@ const BusinessSectorScreen = () => {
                 sx={{
                   flex: 1,
                   overflowY: { xs: 'auto', sm: 'visible' },
-                  pr: { xs: 1, sm: 0 },
+                  pr: 0,
                   WebkitOverflowScrolling: 'touch',
                 }}
               >
@@ -347,7 +347,7 @@ const BusinessSectorScreen = () => {
                       }
                       label={
                         <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                          <Typography sx={{ fontSize: '16px', fontWeight: 600, mb: '6px', lineHeight: 1.1 }}>
+                          <Typography sx={{ fontSize: '16px', fontWeight: 700, mb: '6px', lineHeight: 1.1 }}>
                             {option.label}
                           </Typography>
                           <Typography sx={{ fontSize: '14px', color: 'rgba(0,0,0,0.6)', lineHeight: 1.1 }}>
@@ -357,8 +357,8 @@ const BusinessSectorScreen = () => {
                       }
                       sx={{
                         alignItems: 'center',
-                        py: 0.75,
-                        px: 0.75,
+                        py: 1,
+                        px: 0,
                         mb: 0.5,
                         '& .MuiFormControlLabel-label': { marginLeft: '0px' },
                       }}
@@ -449,7 +449,7 @@ const BusinessSectorScreen = () => {
           px: 2,
           bgcolor: '#ffffff',
           boxShadow: '0 -8px 16px rgba(0,0,0,0.12)',
-          minHeight: 'calc(68px + env(safe-area-inset-bottom, 0px))',
+          minHeight: 'calc(80px + env(safe-area-inset-bottom, 0px))',
         }}
       >
         <Box sx={{ width: '100%', maxWidth: 'calc(100% - 32px)' }}>

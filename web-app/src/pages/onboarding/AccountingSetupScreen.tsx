@@ -306,21 +306,15 @@ const AccountingSetupScreen = () => {
       // TODO: Call API to save accounting setup
       // await apiService.saveAccountingSetup(currentTenant.id, accountingSetupPayload);
 
-      // Complete onboarding
-      // await apiService.completeOnboarding(currentTenant.id);
-
-      // Clean up localStorage
-      localStorage.removeItem('onboardingData');
-
       setSnack({
         open: true,
         severity: 'success',
-        message: 'Thiết lập hoàn tất! Đang chuyển đến trang chủ...',
+        message: 'Thiết lập thành công! Đang chuyển sang bước tiếp theo...',
       });
 
       setTimeout(() => {
-        navigate(ROUTES.HOME);
-      }, 1500);
+        navigate(ROUTES.ONBOARDING_ADVANCED_SETUP);
+      }, 1000);
     } catch (error: any) {
       console.error('Failed to complete accounting setup:', error);
       setSnack({
@@ -361,7 +355,7 @@ const AccountingSetupScreen = () => {
             lineHeight: '28px',
             letterSpacing: '0.25px',
             color: '#BA5C00',
-            mb: 2,
+            mb: 1,
             textAlign: 'left',
           }}
         >
@@ -373,9 +367,9 @@ const AccountingSetupScreen = () => {
           sx={{
             fontSize: '16px',
             lineHeight: '24px',
-            color: 'rgba(0, 0, 0, 0.6)',
+            color: 'rgba(0, 0, 0, 0.8)',
             textAlign: 'left',
-            mb: 3,
+            mb: 1,
           }}
         >
           Thiết lập dữ liệu kế toán ban đầu.
@@ -388,7 +382,7 @@ const AccountingSetupScreen = () => {
               xs: '16px 16px 0 0',
               sm: '16px',
             },
-            px: { xs: 2, sm: 4 },
+            px: 2,
             py: { xs: 2, sm: 6 },
             pb: { xs: `calc(68px + env(safe-area-inset-bottom, 0px) + 16px)`, sm: 6 },
             position: { xs: 'fixed', sm: 'relative' },
@@ -421,7 +415,7 @@ const AccountingSetupScreen = () => {
                 sx={{
                   flex: 1,
                   overflowY: { xs: 'auto', sm: 'visible' },
-                  pr: { xs: 1, sm: 0 },
+                  pr: 0,
                   WebkitOverflowScrolling: 'touch',
                 }}
               >
@@ -933,7 +927,7 @@ const AccountingSetupScreen = () => {
           px: 2,
           bgcolor: '#ffffff',
           boxShadow: '0 -8px 16px rgba(0,0,0,0.12)',
-          minHeight: 'calc(68px + env(safe-area-inset-bottom, 0px))',
+          minHeight: 'calc(80px + env(safe-area-inset-bottom, 0px))',
         }}
       >
         <Box sx={{ width: '100%', maxWidth: 'calc(100% - 32px)' }}>

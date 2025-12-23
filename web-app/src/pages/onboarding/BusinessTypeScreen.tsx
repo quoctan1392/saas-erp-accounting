@@ -165,12 +165,12 @@ const BusinessTypeScreen = () => {
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
         position: 'relative',
-        pt: 10,
+        pt: 8,
       }}
     >
       <OnboardingHeader onBack={handleBack} progress={33} />
 
-      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1, py: 4 }}>
+      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1, py: 2 }}>
         {/* Title */}
         <Typography
           sx={{
@@ -180,11 +180,11 @@ const BusinessTypeScreen = () => {
             lineHeight: '28px',
             letterSpacing: '0.25px',
             color: '#BA5C00',
-            mb: 2,
+            mb: 1,
             textAlign: 'left',
           }}
         >
-          Thông tin Hộ kinh doanh
+          Loại hình kinh doanh
         </Typography>
 
         {/* Description */}
@@ -194,7 +194,7 @@ const BusinessTypeScreen = () => {
             lineHeight: '24px',
             color: 'rgba(0, 0, 0, 0.6)',
             textAlign: 'left',
-            mb: 3,
+            mb: 1,
           }}
         >
           Chọn loại hình kinh doanh của bạn để tiếp tục.
@@ -207,12 +207,12 @@ const BusinessTypeScreen = () => {
               xs: '16px 16px 0 0',
               sm: '16px',
             },
-            px: { xs: 3, sm: 4 },
+            px: 2,
             py: { xs: 4, sm: 6 },
             /* ensure panel content is not hidden by mobile sticky footer */
             pb: { xs: `calc(68px + env(safe-area-inset-bottom, 0px) + 16px)`, sm: 6 },
             position: { xs: 'fixed', sm: 'relative' },
-            top: { xs: 'auto', sm: 'auto' },
+            top: { xs: '160px', sm: 'auto' },
             bottom: { xs: 0, sm: 'auto' },
             left: { xs: '12px', sm: 'auto' },
             right: { xs: '12px', sm: 'auto' },
@@ -308,7 +308,7 @@ const BusinessTypeScreen = () => {
                               />
                             )}
                           </Box>
-                          <Typography sx={{ fontSize: '14px', color: 'rgba(0, 0, 0, 0.6)' }}>
+                          <Typography sx={{ fontSize: '14px', color: 'rgba(0, 0, 0, 0.8)' }}>
                             {option.description}
                           </Typography>
                         </Box>

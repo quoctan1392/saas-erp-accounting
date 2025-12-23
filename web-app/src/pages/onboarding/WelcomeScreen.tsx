@@ -34,7 +34,7 @@ const WelcomeScreen = () => {
               xs: '16px 16px 0 0',
               sm: '16px',
             },
-            px: { xs: 3, sm: 4 }, 
+            px: 2,
             py: { xs: 4, sm: 6 },
             position: { xs: 'fixed', sm: 'relative' },
             /* moved up by 80px to free space above fixed CTA */
