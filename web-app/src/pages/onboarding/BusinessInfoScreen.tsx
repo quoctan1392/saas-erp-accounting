@@ -71,6 +71,42 @@ const BusinessInfoScreen = () => {
     const loadOnboardingData = () => {
       setIsDataLoading(true);
       try {
+        // Check if this is a new account registration (no previous tenant)
+        const currentTenantStr = localStorage.getItem('currentTenant');
+        let isNewAccount = false;
+        
+        if (currentTenantStr) {
+          try {
+            const currentTenant = JSON.parse(currentTenantStr);
+            // If tenant has no onboarding data or is brand new, treat as new account
+            isNewAccount = !currentTenant.onboardingCompleted;
+          } catch (e) {
+            console.error('Error parsing currentTenant:', e);
+          }
+        } else {
+          isNewAccount = true;
+        }
+        
+        // For new accounts, clear any old onboarding data to prevent prefill
+        if (isNewAccount) {
+          const onboardingData = localStorage.getItem('onboardingData');
+          if (onboardingData) {
+            try {
+              const data = JSON.parse(onboardingData);
+              // Only keep businessType, clear everything else
+              const cleanData = {
+                businessType: data.businessType || BusinessType.HOUSEHOLD_BUSINESS,
+                isEdit: false,
+                cachedAt: Date.now(),
+              };
+              localStorage.setItem('onboardingData', JSON.stringify(cleanData));
+              console.log('[BusinessInfoScreen-HKD] Cleared old data for new account');
+            } catch (error) {
+              console.error('Error cleaning onboardingData:', error);
+            }
+          }
+        }
+        
         // Check localStorage for existing onboarding data (cached from context/previous API calls)
         const onboardingData = localStorage.getItem('onboardingData');
         if (onboardingData) {
@@ -119,6 +155,8 @@ const BusinessInfoScreen = () => {
             console.error('Error parsing onboarding data:', error);
           }
         }
+      } catch (e) {
+        console.error('Error in loadOnboardingData:', e);
       } finally {
         // Ensure initial snapshot exists
         if (!initialFormRef.current) {
@@ -706,6 +744,42 @@ export const BusinessInfoScreenDNTN = () => {
     const loadOnboardingData = () => {
       setIsDataLoading(true);
       try {
+        // Check if this is a new account registration (no previous tenant)
+        const currentTenantStr = localStorage.getItem('currentTenant');
+        let isNewAccount = false;
+        
+        if (currentTenantStr) {
+          try {
+            const currentTenant = JSON.parse(currentTenantStr);
+            // If tenant has no onboarding data or is brand new, treat as new account
+            isNewAccount = !currentTenant.onboardingCompleted;
+          } catch (e) {
+            console.error('Error parsing currentTenant:', e);
+          }
+        } else {
+          isNewAccount = true;
+        }
+        
+        // For new accounts, clear any old onboarding data to prevent prefill
+        if (isNewAccount) {
+          const onboardingData = localStorage.getItem('onboardingData');
+          if (onboardingData) {
+            try {
+              const data = JSON.parse(onboardingData);
+              // Only keep businessType, clear everything else
+              const cleanData = {
+                businessType: data.businessType || BusinessType.PRIVATE_ENTERPRISE,
+                isEdit: false,
+                cachedAt: Date.now(),
+              };
+              localStorage.setItem('onboardingData', JSON.stringify(cleanData));
+              console.log('[BusinessInfoScreenDNTN] Cleared old data for new account');
+            } catch (error) {
+              console.error('Error cleaning onboardingData:', error);
+            }
+          }
+        }
+        
         const onboardingData = localStorage.getItem('onboardingData');
         if (onboardingData) {
           try {

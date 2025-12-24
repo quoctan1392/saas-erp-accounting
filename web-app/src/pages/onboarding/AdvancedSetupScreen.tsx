@@ -11,7 +11,6 @@ import {
   Alert,
   Chip,
   InputAdornment,
-  Drawer,
   RadioGroup,
   Radio,
   Button,
@@ -24,6 +23,7 @@ import OnboardingHeader from '../../components/OnboardingHeader';
 import RoundedTextField from '../../components/RoundedTextField';
 import welcomeBg from '../../assets/Welcome screen.png';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import BottomSheet from '../../components/BottomSheet';
 import Icon from '../../components/Icon';
 
 const AdvancedSetupScreen = () => {
@@ -337,6 +337,11 @@ const AdvancedSetupScreen = () => {
 
       // Clean up localStorage
       localStorage.removeItem('onboardingData');
+      
+      // Set flag to show initial setup modal on Home screen
+      localStorage.setItem('justCompletedOnboarding', 'true');
+      // Ensure any previous "seen" flag is cleared so the modal will display
+      localStorage.removeItem('hasSeenSetupGuideModal');
 
       const businessName = onboardingData.businessIdentification?.businessName || 'hệ thống';
       setSnack({
@@ -594,30 +599,12 @@ const AdvancedSetupScreen = () => {
       </Box>
 
       {/* Connection Bottom Sheet */}
-      <Drawer
-        anchor="bottom"
+      <BottomSheet
         open={showConnectionSheet}
         onClose={handleCancelConnection}
-        PaperProps={{
-          sx: {
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
-            maxHeight: '90vh',
-          },
-        }}
+        title="Thiết lập kết nối"
+        maxHeight="90vh"
       >
-        <Box sx={{ p: 3 }}>
-          <Typography
-            sx={{
-              fontSize: '20px',
-              fontWeight: 600,
-              mb: 4,
-              color: 'rgba(0, 0, 0, 0.87)',
-              textAlign: 'center',
-            }}
-          >
-            Thiết lập kết nối
-          </Typography>
 
           {/* Error Banner */}
           {errorMessage && (
@@ -792,33 +779,15 @@ const AdvancedSetupScreen = () => {
               {isLoading ? 'Đang kết nối...' : 'Kết nối'}
             </Button>
           </Box>
-        </Box>
-      </Drawer>
+      </BottomSheet>
 
       {/* Provider Selection Bottom Sheet */}
-      <Drawer
-        anchor="bottom"
+      <BottomSheet
         open={showProviderSheet}
         onClose={() => setShowProviderSheet(false)}
-        PaperProps={{
-          sx: {
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
-            maxHeight: '60vh',
-          },
-        }}
+        title="Chọn đơn vị phát hành"
+        maxHeight="60vh"
       >
-        <Box sx={{ p: 3 }}>
-          <Typography
-            sx={{
-              fontSize: '20px',
-              fontWeight: 600,
-              mb: 2,
-              color: 'rgba(0, 0, 0, 0.87)',
-            }}
-          >
-            Chọn đơn vị phát hành
-          </Typography>
 
           <RadioGroup value={selectedProvider} onChange={(e) => handleSelectProvider(e.target.value)}>
             {providers.map((provider) => (
@@ -880,8 +849,7 @@ const AdvancedSetupScreen = () => {
               </Box>
             ))}
           </RadioGroup>
-        </Box>
-      </Drawer>
+      </BottomSheet>
 
       {/* Disconnect Confirm Dialog */}
       <ConfirmDialog

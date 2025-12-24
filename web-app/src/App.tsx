@@ -23,6 +23,11 @@ import { BusinessInfoScreenDNTN } from './pages/onboarding/BusinessInfoScreen';
 import BusinessSectorScreen from './pages/onboarding/BusinessSectorScreen';
 import AccountingSetupScreen from './pages/onboarding/AccountingSetupScreen';
 import AdvancedSetupScreen from './pages/onboarding/AdvancedSetupScreen';
+import CategoryDeclarationScreen from './pages/declaration/CategoryDeclarationScreen';
+import CustomerFormScreen from './pages/declaration/CustomerFormScreen';
+import SupplierFormScreen from './pages/declaration/SupplierFormScreen';
+import WarehouseFormScreen from './pages/declaration/WarehouseFormScreen';
+import ProductFormScreen from './pages/declaration/ProductFormScreen';
 import MainLayout from './components/MainLayout';
 
 const theme = createTheme({
@@ -66,6 +71,13 @@ function App() {
               <Route path="/onboarding/business-sector" element={<BusinessSectorScreen />} />
               <Route path="/onboarding/accounting-setup" element={<AccountingSetupScreen />} />
               <Route path="/onboarding/advanced-setup" element={<AdvancedSetupScreen />} />
+              
+              {/* Declaration routes */}
+              <Route path="/declaration/categories" element={<CategoryDeclarationScreen />} />
+              <Route path="/declaration/customers" element={<CustomerFormScreen />} />
+              <Route path="/declaration/suppliers" element={<SupplierFormScreen />} />
+              <Route path="/declaration/warehouses" element={<WarehouseFormScreen />} />
+              <Route path="/declaration/products" element={<ProductFormScreen />} />
               
               {/* Routes with persistent bottom navigation */}
               <Route element={<MainLayout />}>

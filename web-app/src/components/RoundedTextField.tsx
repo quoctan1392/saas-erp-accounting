@@ -5,19 +5,24 @@ interface RoundedTextFieldProps extends Omit<React.ComponentProps<typeof TextFie
   // Add any custom props here if needed
 }
 
-const RoundedTextField: React.FC<RoundedTextFieldProps> = ({ sx, InputLabelProps, ...props }) => {
+const RoundedTextField: React.FC<RoundedTextFieldProps> = ({ sx, InputLabelProps, InputProps, ...props }) => {
+  // Check if there's a start adornment
+  const hasStartAdornment = !!InputProps?.startAdornment;
+  
   return (
     <TextField
       variant="outlined"
       {...props}
+      InputProps={InputProps}
       InputLabelProps={{
+        shrink: true,
         ...InputLabelProps,
       }}
       sx={{
         '& .MuiOutlinedInput-root': {
           backgroundColor: '#FFF',
           borderRadius: '48px',
-          paddingLeft: '16px',
+          paddingLeft: hasStartAdornment ? '16px' : '24px',
           paddingRight: '16px',
           height: '48px',
           minHeight: '48px',

@@ -22,94 +22,228 @@
 
 #### 2.1.1. Lời chào cá nhân hóa
 - **Hiển thị**: `Xin chào, [Tên người dùng]`
-- **Nguồn dữ liệu**: Lấy từ thông tin user đã đăng nhập (User Profile)
+- **Nguồn dữ liệu**: 
+  - Ưu tiên lấy từ trường "Tên chủ hộ kinh doanh" hoặc "Tên chủ doanh nghiệp" đã khai báo trong quá trình onboarding
+  - Fallback: `displayName`, `fullName`, `firstName`, hoặc `email`
 - **Logic hiển thị tên**: 
-  - Ưu tiên hiển thị `displayName` hoặc `fullName`
-  - Nếu không có, hiển thị `firstName` hoặc `email`
-- **Style**: sử dụng style về màu sắc và font chữ như title của các màn onboarding
+  - **Định dạng tên**: Chỉ hiển thị tên gọi cuối cùng (First Name)
+  - Ví dụ: "Hoàng Thị Phương" → hiển thị "Phương"
+  - Implementation: Split full name và lấy phần tử cuối cùng
+  - Nếu tên quá dài thì cắt ký tự dạng ....
+- **Style**: Sử dụng style về màu sắc và font chữ như title của các màn onboarding
+- **Positioning**: Top-left của header
 
-#### 2.1.2. Badge thông tin goi sản phẩm của user
+#### 2.1.2. Badge gói dịch vụ (Service Plan Badge)
 - **Vị trí**: Bên cạnh tên người dùng
 - **Các loại badge**:
-  - default hiện tại hãy để "Miễn phí"
-- **iCon**: lấy từ web-app\src\assets\badget_icon_free_tier.png 
-- **Styling**: Pill-shaped badge với nền nhẹ, viền mỏng
-
-#### 2.1.3. Icon thông báo
+  - **Miễn phí** (Free) - mặc định khi mới bắt đầu
+  - **Starter**
+  - **Standard**
+  - **Enterprise**
+- **Icon**: Lấy từ `web-app/src/assets/badget_icon_free_tier.png`
+- **Styling**: 
+  - Pill-shaped badge với nền nhẹ, viền mỏng
+  - Background: `#FFF4F0` (hoặc tương ứng với màu gói)
+  - Border: 1px solid với màu primary nhạt
+  - Font size: 12px, font-weight: 500
+  - Padding: 4px 12px
+  - Border-radius: 9999px (full rounded)
+- **Nguồn dữ liệu**: Lấy từ `subscription.plan` hoặc `tenant.plan`
+  
+#### 2.1.3. Icon thông báo (Notification Bell)
 - **Vị trí**: Góc phải trên cùng của header
-- **Icon**: Bell/Chuông
-- **Badge số**: Hiển thị số lượng thông báo chưa đọc
-- **Hành động**: Click vào mở màn hình Notifications
-- **Loại thông báo**:
-  - Biến động số dư
-  - Đơn hàng mới
-  - Cảnh báo tồn kho
-  - Nhắc nhở công nợ
-  - Thông báo hệ thống
-- **Implement**: Tạm thời chỉ implement về UI, chưa cần tích hợp tính năng về noti
----
-#### 2.1.4. Background img
-Hiển thị img tuy theo giờ trong ngày
-- Ban ngày dùng img: web-app\src\assets\Header_day.png
-- Ban đêm dùng img: web-app\src\assets\Header_night.png
-#### 2.1.5. component hóa
-- Tách thành 1 component riêng để sau này tái sử dụng, có thể thay đổi được title thông tin tùy theo từng màn hình
+- **Icon**: Bell/Chuông (outline variant)
+- **Badge số**: 
+  - Hiển thị số lượng thông báo chưa đọc
+  - Position: absolute, top-right của icon
+  - Background: `#DC3545` (đỏ)
+  - Color: white
+  - Font size: 10px, font-weight: 600
+  - Min-width: 18px, height: 18px
+  - Border-radius: 50%
+- **Hành động**: 
+  - Click/Tap vào icon mở màn hình Notifications (`/notifications`)
+  - Sau khi mở, đánh dấu tất cả thông báo là "đã đọc", khi đó badge số biến mất
+- **Loại thông báo**: 
+  - Tin nhắn mới từ Kế toán dịch vụ
+  - Cảnh báo tồn kho thấp
+  - Thông báo hàng tháng (định kỳ) về công nợ nhà cung cấp, khách hàng hoặc các báo cáo định kỳ để user vào xem
+  - Thông báo nhắc nhở (Reminder) (Nhắc nộp tờ khai thuế GTGT, Nhắc nộp tờ khai thuế TNCN khấu trừ, Nhắc nộp báo cáo tình hình sử dụng hóa đơn (quý), Nhắc nộp lệ phí môn bài (năm), Nhắc nộp báo cáo tài chính năm (nếu có phát sinh), Nhắc gói dịch vụ sắp hết hạn)
+  - Thông báo hệ thống (cập nhật, bảo trì, thông báo bảo mật, tính năng mới) 
+  - Thông báo về luật (các thay đổi, cập nhật về luật ảnh hưởng đến hệ thống và doanh nghiệp)
+  - Thông báo khuyến mãi (giảm giá gói dịch vụ, tặng kèm gói/ tháng dùng thử, ưu đãi nâng cấp)
+- **Implement**: Tạm thời chỉ implement về UI, chưa cần tích hợp tính năng về notification
 
-### 2.2. Tìm kiếm và Quét mã
+#### 2.1.4. Background image theo thời gian
+- **Logic hiển thị**: Tự động thay đổi background dựa trên giờ trong ngày
+- **Ban ngày** (6:00 - 18:00): `web-app/src/assets/Header_day.png`
+- **Ban đêm** (18:00 - 6:00): `web-app/src/assets/Header_night.png`
+- **Implementation**: 
+  ```typescript
+  const hour = new Date().getHours();
+  const isDay = hour >= 6 && hour < 18;
+  const backgroundImg = isDay ? HeaderDayBg : HeaderNightBg;
+  ```
+- **Styling**: 
+  - Background-size: cover
+  - Background-position: center
+  - Background-repeat: no-repeat
 
-#### 2.2.1. Thanh tìm kiếm
+#### 2.1.5. Component hóa (Component Structure)
+- **Tách thành component riêng**: `DashboardHeader.tsx` (tái sử dụng được)
+- **Props interface**:
+  ```typescript
+  interface DashboardHeaderProps {
+    userName: string;
+    planBadge: 'free' | 'starter' | 'standard' | 'enterprise';
+    notificationCount: number;
+    onNotificationClick: () => void;
+    title?: string; // Tùy chọn thay đổi title cho từng màn hình
+  }
+  ```
+- **Usage**: Có thể sử dụng lại cho các màn hình khác với title khác nhau
+
+### 2.2. Công cụ Tìm kiếm và Quét mã (Search & Scan Tools)
+
+#### 2.2.1. Thanh tìm kiếm (Search Bar)
+- **Vị trí**: Dưới header, trên insight banner
 - **Placeholder**: `"Nhập sản phẩm cần tìm..."`
+- **Styling**:
+  - Height: 48px
+  - Background: white
+  - Border: 1px solid `#DEE2E6`
+  - Border-radius: 24px (pill-shaped)
+  - Padding: 0 16px
+  - Icon tìm kiếm (search icon) ở bên trái
+  - Margin: 16px (trái/phải)
 - **Chức năng tìm kiếm**:
-  - Tìm sản phẩm theo tên, mã SKU
-  - Tìm đơn hàng theo số đơn
-  - Tìm khách hàng theo tên, số điện thoại
-  - Tìm nhà cung cấp
-- **UX**:
+  - **Sản phẩm/Hàng hóa**: Tìm theo tên, mã sản phẩm, barcode 
+  - **Khách hàng**: Tìm theo tên, số điện thoại, email (phát triển sau)
+  - **Nhà cung cấp**: Tìm theo tên, mã số thuế (phát triển sau)
+  - **Đơn hàng**: Tìm theo mã đơn hàng
+- **UX Flow**:
   - Hiển thị kết quả gợi ý real-time khi gõ (debounce 300ms)
-  - Phân loại kết quả: Sản phẩm, Đơn hàng, Khách hàng
-  - Click vào kết quả điều hướng đến trang chi tiết tương ứng
-- **Implement**: Tạm thời chỉ implement về UI, chưa cần tích hợp tính năng
+  - Kết quả được phân loại rõ ràng theo nhóm: "Sản phẩm", "Đơn hàng", "Khách hàng", "Nhà cung cấp"
+  - Click vào kết quả → Điều hướng đến trang chi tiết tương ứng
+  - Empty state: "Không tìm thấy kết quả phù hợp"
+  - Show recent searches (tối đa 5 kết quả), có thể xoá được từng kết quả
+  - Click close tại chi tiết bản ghi -> Điều hướng quay lại Homepage
 
-#### 2.2.2. Icon quét mã QR/Barcode
-- **Vị trí**: Bên phải thanh tìm kiếm
-- **Icon**: Camera/Scanner icon màu cam (primary color)
-- **Hành động**: Mở camera để quét mã
+#### 2.2.2. Icon quét mã QR/Barcode (Scanner Button)
+- **Vị trí**: Bên phải thanh tìm kiếm, trong cùng một container
+- **Icon**: Barcode icon
+- **Styling**:
+  - Width: 40px, Height: 40px
+  - Background: `#FB7E00` (primary color - màu cam)
+  - Border-radius: 50% (tròn)
+  - Color: white
+  - Display: flex, align-items: center, justify-content: center
+  - Box-shadow: 0 2px 4px rgba(0,0,0,0.1)
+- **Hành động**: 
+  - Tap/Click → Mở camera để quét mã
+  - Request camera permission nếu chưa có
 - **Chức năng**:
-  - Quét Barcode sản phẩm → Mở trang chi tiết sản phẩm
-  - Quét QR code đơn hàng → Mở chi tiết đơn hàng
-  - Quét QR code thanh toán → Mở giao diện thanh toán
-- **Permission**: Yêu cầu quyền truy cập camera
-- **Implement**: Tạm thời chỉ implement về UI, chưa cần tích hợp tính năng
+  - **Quét Barcode sản phẩm** → Mở trang chi tiết sản phẩm
+ 
+- **Permission**: 
+  - Yêu cầu quyền truy cập camera (Camera Permission)
+  - Hiển thị dialog giải thích lý do nếu bị từ chối
+- **Error handling**:
+  - Camera không khả dụng → Show toast "Không thể mở camera"
+  - Mã không hợp lệ → Show toast "Không nhận diện được mã"
+- **Implement**: Tạm thời chỉ implement về UI, chưa cần tích hợp tính năng quét mã
 ---
 
 ### 2.3. Banner Báo cáo xu hướng (Insight Banner)
 
-#### 2.3.1. Thiết kế và nội dung
-- **Background**: Gradient từ xanh dương (#4F46E5) sang xanh lá/xanh lơ (#22D3EE)
-- **Icon**: Lịch/Calendar icon
-- **Tiêu đề**: Hiển thị insight động
-  - Ví dụ: `"Doanh thu bán hàng tăng 5.9% trong 01 tuần"`
-  - Ví dụ: `"Lợi nhuận giảm 2.3% so với tháng trước"`
-- **Nút hành động**: `"Xem báo cáo →"`
+#### 2.3.1. Card Banner
+- **Vị trí**: Dưới Search Bar, trên Time Filter;
+- **Design**: 
+  - Dạng carousel 3-4 banner, mỗi banner 1 thông tin
+  - Thay đổi khi chọn khoảng thời gian trên time filter
+  - Height: 120px
+  - Background: Gradient hoặc màu nền tùy theo insight type 
+    - **Doanh thu tăng**: Gradient xanh lá (từ `#28A745` → `#20C997`)
+    - **Doanh thu giảm**: Gradient đỏ (từ `#DC3545` → `#E57373`)
+    - **Sản phẩm bán chạy**: Gradient cam (từ `#FB7E00` → `#FFA726`)
+    - **Chi phí tăng**: Gradient vàng (từ `#FFC107` → `#FFD54F`)
+  - Border-radius: 16px
+  - Padding: 16px
+  - Margin: 16px (trái/phải), 12px (trên/dưới)
+  - Box-shadow: 0 2px 8px rgba(0,0,0,0.08)
+- **Cấu trúc nội dung**:
+  - **Icon**: Icon tương ứng với loại insight (trending_up, shopping_cart, warning, etc.)
+    - Size: 40x40px
+    - Position: Góc trái trên
+    - Color: white
+  - **Title (Headline)**: Font 16px, semi-bold, color: white
+    - Ví dụ: "Doanh thu tăng 23% tuần này"
+  - **Description (Sub-headline)**: Font 13px, regular, color: white opacity 90%
+    - Ví dụ: "Bạn đã bán được 145 đơn hàng trong tuần này, tăng 32 đơn so với tuần trước"
+  - **Button "Xem báo cáo"**: 
+    - Position: Góc phải dưới
+    - Background: white
+    - Color: Text màu theo insight type (green/red/orange/yellow)
+    - Padding: 8px 16px
+    - Border-radius: 20px
+    - Font: 13px, semi-bold
 - **Implement**: Tạm thời chỉ implement về UI, chưa cần tích hợp tính năng
 
-#### 2.3.2. Logic tính toán insight
-- **Dữ liệu so sánh**:
-  - Tuần này vs tuần trước
-  - Tháng này vs tháng trước
-  - Hoặc theo kỳ được chọn trong bộ lọc
-- **Các chỉ số có thể hiển thị**:
-  - Doanh thu bán hàng
-  - Lợi nhuận
-  - Số đơn hàng
-  - Số khách hàng mới
-- **Tự động rotation**: Xoay vòng hiển thị các insight khác nhau mỗi lần load (hoặc mỗi 10 giây)
+#### 2.3.2. Loại Insights và Logic tính toán
+**1. Doanh thu tăng/giảm**:
+- **Điều kiện hiển thị**: So sánh doanh thu kỳ hiện tại vs kỳ trước (tuần/tháng)
+- **Công thức**: `((revenue_current - revenue_previous) / revenue_previous) * 100`
+- **Message template**:
+  - Tăng: `"Doanh thu tăng {percent}% {period}"`
+  - Giảm: `"Doanh thu giảm {percent}% {period}"`
+- **Description template**: 
+  - Tăng: `"Bạn đã bán được {order_count} đơn hàng trong {period}, tăng {increase_count} đơn so với {previous_period}"`
+  - Giảm: `"Bạn chỉ bán được {order_count} đơn hàng trong {period}, giảm {decrease_count} đơn so với {previous_period}"`
+
+**2. Sản phẩm bán chạy**:
+- **Điều kiện**: Top 1 sản phẩm có số lượng bán nhiều nhất trong kỳ
+- **Message template**: `"Sản phẩm '{product_name}' đang bán chạy"`
+- **Description template**: `"Đã bán được {quantity} sản phẩm trong {period}, chiếm {percent}% tổng doanh thu"`
+
+**3. Chi phí tăng**:
+- **Điều kiện**: Chi phí tăng >= 15% so với kỳ trước
+- **Message template**: `"Chi phí tăng {percent}% {period}"`
+- **Description template**: `"Tổng chi phí đạt {total_expense} trong {period}, tăng {increase_amount} so với {previous_period}"`
+
+#### 2.3.3. Logic xoay vòng Insights
+- **Rotation**: Hiển thị dạng carousel 3 banners, có thể vuốt trái phải để xem, Carousel auto-play với interval 4 giây
+- **Priority**: Nếu có nhiều insights, ưu tiên theo thứ tự:  
+  1. Doanh thu tăng/giảm 
+  2. Chi phí tăng
+  3. Sản phẩm bán chạy
 - **Implement**: Tạm thời chỉ implement về UI, chưa cần tích hợp tính năng
 
-#### 2.3.3. Hành động
-- **Click vào banner**: Điều hướng đến màn hình Báo cáo (Reports)
-- **Deep link**: Mở trang báo cáo với bộ lọc tương ứng đã được set sẵn
+#### 2.3.4. Hành động "Xem báo cáo"
+- **Tap vào button** → Điều hướng đến:
+  - Insight doanh thu → Trang "Báo cáo Doanh thu" với filter tương ứng
+  - Insight sản phẩm → Trang "Báo cáo Sản phẩm" + highlight sản phẩm bán chạy
+  - Insight chi phí → Trang "Báo cáo Thu-Chi" với filter chi phí
+- **Tracking**: Log analytics event `"insight_banner_clicked"` với params: `insight_type`, `timestamp`
 - **Implement**: Tạm thời chỉ implement về UI, chưa cần tích hợp tính năng
+
+#### 2.3.5. Data Source
+```typescript
+interface InsightBanner {
+  id: string;
+  type: 'revenue_increase' | 'revenue_decrease' | 'product_trending' | 'expense_increase' | 'low_stock';
+  title: string;
+  description: string;
+  actionUrl: string; // Deep link URL
+  priority: number; // 1-5, 1 is highest
+  metadata: {
+    percent?: number; // For percentage changes
+    amount?: number; // For absolute values
+    productName?: string; // For product trending
+    count?: number; // For item counts
+    period: 'week' | 'month' | 'quarter';
+  };
+}
+```
 
 ---
 
@@ -117,98 +251,279 @@ Hiển thị img tuy theo giờ trong ngày
 - **Implement**: Tạm thời chỉ implement về UI, chưa cần tích hợp tính năng
 
 #### 2.4.1. Giao diện
-- **Kiểu hiển thị**: Selector với mũi tên trái/phải
+- **Kiểu hiển thị**: Horizontal selector với mũi tên trái/phải để chuyển kỳ
+- **Styling**:
+  - Font: 16px, semi-bold
+  - Color: Text màu đen (#212529)
+  - Background: Transparent hoặc white
+  - Arrows: Icon mũi tên < và > ở hai bên, màu primary (cam)
+  - Padding: 12px 16px
+  - Margin: 16px (trái/phải), 12px (trên/dưới)
 - **Giá trị mặc định**: `"Tháng này"`
 - **Vị trí**: Giữa màn hình, phía trên các thẻ tài chính
+- **Layout**: Flexbox horizontal với text ở giữa và arrows ở hai bên
 
 #### 2.4.2. Các lựa chọn thời gian
 - **Hôm nay**: Từ 00:00 đến 23:59 ngày hiện tại
-- **Tuần này**: Từ thứ 2 đến chủ nhật
+  - Format hiển thị: `"Hôm nay - {DD/MM/YYYY}"`
+- **Tuần này**: Từ thứ 2 đến chủ nhật (tuần bắt đầu từ thứ 2)
+  - Format hiển thị: `"Tuần này - {DD/MM} đến {DD/MM}"`
 - **Tháng này**: Từ ngày 1 đến cuối tháng hiện tại
+  - Format hiển thị: `"Tháng {MM/YYYY}"`
+  - Ví dụ: "Tháng 01/2025"
 - **Tháng trước**: Từ ngày 1 đến cuối tháng trước
+  - Format hiển thị: `"Tháng {MM/YYYY}"`
 - **Quý này**: Từ ngày đầu đến cuối quý hiện tại
+  - Format hiển thị: `"Quý {Q}/YYYY"`
+  - Ví dụ: "Quý 1/2025" (Q1: tháng 1-3, Q2: tháng 4-6, Q3: tháng 7-9, Q4: tháng 10-12)
 - **Năm này**: Từ 1/1 đến 31/12 năm hiện tại
+  - Format hiển thị: `"Năm {YYYY}"`
 - **Tùy chỉnh**: Cho phép chọn khoảng thời gian tùy ý
+  - Mở Date Range Picker để chọn startDate và endDate
+  - Format hiển thị: `"{DD/MM/YYYY} - {DD/MM/YYYY}"`
 
 #### 2.4.3. Hành động
-- **Thay đổi bộ lọc**: Tự động cập nhật các chỉ số tài chính bên dưới
+- **Thay đổi bộ lọc**: 
+  - Tự động cập nhật các chỉ số tài chính bên dưới (Financial Cards)
+  - Persist giá trị đã chọn (LocalStorage/SessionStorage) để giữ khi refresh
+- **Navigation với arrows**:
+  - Arrow trái (<): Chuyển sang kỳ trước (previous period)
+  - Arrow phải (>): Chuyển sang kỳ sau (next period)
+  - Ví dụ: Đang ở "Tháng 01/2025" → Click < → "Tháng 12/2024"
+- **Thay đổi kỳ**:
+  - Click vào option hiện tại (ví dụ: Tháng này) mở ra dropdown hoặc bottomsheet để chọn kỳ, bao gồm: Hôm nay, tuần này, tháng này, quý này, năm này, tuỳ chọn (mở datepicker chọn khoảng).
 - **API call**: Gọi lại API để lấy dữ liệu theo khoảng thời gian mới
-- **Loading state**: Hiển thị skeleton loader khi đang tải dữ liệu
+  ```
+  GET /api/analytics/financial-overview?startDate={}&endDate={}
+  ```
+- **Loading state**: 
+  - Hiển thị skeleton loader khi đang tải dữ liệu
+  - Disable arrows và không cho phép thay đổi trong lúc loading
+- **Empty state**: Nếu không có dữ liệu trong kỳ → Hiển thị "Chưa có giao dịch trong kỳ này"
 
 ---
 
 ### 2.5. Chỉ số tài chính (Financial Cards)
 - **Implement**: Tạm thời chỉ implement về UI, chưa cần tích hợp tính năng
 
-#### 2.5.1. Thẻ "Tổng đã thu"
-- **Icon**: Dollar/Money icon với vòng tròn
+#### 2.5.1. Bố cục chung
+- **Layout**: Grid 2 cột (hoặc 2 cards ngang)
+- **Spacing**: Gap 12px giữa 2 cards
+- **Margin**: 16px (trái/phải)
+- **Card Styling**:
+  - Background: White
+  - Border: 1px solid `#DEE2E6`
+  - Border-radius: 12px
+  - Padding: 16px
+  - Box-shadow: 0 1px 3px rgba(0,0,0,0.06)
+
+#### 2.5.2. Thẻ "Tổng đã thu" (Total Revenue)
+- **Icon**: 
+  - Icon: Dollar sign hoặc money receive (↓) trong vòng tròn
+  - Size: 36x36px
+  - Background: Light green (#D4EDDA)
+  - Icon color: Dark green (#28A745)
 - **Label**: `"Tổng đã thu"`
+  - Font: 13px, regular
+  - Color: #6C757D (text-muted)
 - **Giá trị chính**: 
   - Format: `700.24tr` (cho số tiền 700,240,000 VNĐ)
-  - Font size lớn, màu xanh lá (#28A745)
-  - Font-weight: Bold (700)
-- **Chỉ số thay đổi**:
+  - Logic format:
+    - >= 1 tỷ: `"1.24tỷ"` (billion)
+    - >= 1 triệu: `"700.24tr"` (million)
+    - < 1 triệu: `"450.5k"` (thousand)
+  - Font size: 24px, bold (700)
+  - Color: `#28A745` (green)
+- **Chỉ số thay đổi (Comparison Badge)**:
   - Format: `+2.3% so với tháng trước`
-  - Màu xanh lá, background xanh nhạt
-  - Icon mũi tên lên nếu tăng
+  - Display: Chip/Badge component
+  - **Styling cho tăng**:
+    - Background: `#D4EDDA` (light green)
+    - Text color: `#28A745` (green)
+    - Icon: Arrow up (↑)
+  - **Styling cho giảm**:
+    - Background: `#F8D7DA` (light red)
+    - Text color: `#DC3545` (red)
+    - Icon: Arrow down (↓)
+  - Font: 12px, semi-bold
+  - Padding: 4px 8px
+  - Border-radius: 12px
 - **Nguồn dữ liệu**:
   ```
   GET /api/analytics/revenue-collected?startDate={}&endDate={}
+  Response: {
+    total: 700240000,
+    formatted: "700.24tr",
+    comparison: {
+      percent: 2.3,
+      direction: "increase" | "decrease" | "stable",
+      previousPeriod: "tháng trước"
+    }
+  }
   ```
 
-#### 2.5.2. Thẻ "Tổng đã chi"
-- **Icon**: Dollar/Money icon với vòng tròn
+#### 2.5.3. Thẻ "Tổng đã chi" (Total Expense)
+- **Icon**: 
+  - Icon: Dollar sign hoặc money send (↑) trong vòng tròn
+  - Size: 36x36px
+  - Background: Light red (#F8D7DA)
+  - Icon color: Dark red (#DC3545)
 - **Label**: `"Tổng đã chi"`
+  - Font: 13px, regular
+  - Color: #6C757D (text-muted)
 - **Giá trị chính**: 
   - Format: `235.34tr` (cho số tiền 235,340,000 VNĐ)
-  - Font size lớn, màu đỏ (#DC3545)
-  - Font-weight: Bold (700)
-- **Chỉ số thay đổi**:
-  - Format: `-5.3% so với tháng trước`
-  - Màu đỏ, background đỏ nhạt
-  - Icon mũi tên xuống nếu giảm
-- **Nguồn dữ liệu**:....
-- **Implement**: Tạm thời chỉ implement về UI, chưa cần tích hợp tính năng
+  - Logic format: (giống như "Tổng đã thu")
+  - Font size: 24px, bold (700)
+  - Color: `#DC3545` (red)
+- **Chỉ số thay đổi (Comparison Badge)**:
+  - Format: `-5.3% so với tháng trước` (nếu giảm, là tốt)
+  - Display: Chip/Badge component
+  - **Styling cho giảm** (positive outcome for expense):
+    - Background: `#D4EDDA` (light green)
+    - Text color: `#28A745` (green)
+    - Icon: Arrow down (↓)
+  - **Styling cho tăng** (negative outcome for expense):
+    - Background: `#F8D7DA` (light red)
+    - Text color: `#DC3545` (red)
+    - Icon: Arrow up (↑)
+  - Font: 12px, semi-bold
+  - Padding: 4px 8px
+  - Border-radius: 12px
+- **Nguồn dữ liệu**:
+  ```
+  GET /api/analytics/expense-paid?startDate={}&endDate={}
+  Response: {
+    total: 235340000,
+    formatted: "235.34tr",
+    comparison: {
+      percent: -5.3,
+      direction: "decrease" | "increase" | "stable",
+      previousPeriod: "tháng trước"
+    }
+  }
+  ```
+
+#### 2.5.4. Hành động
+- **Tap vào card "Tổng đã thu"**: 
+  - Điều hướng đến `/reports/revenue` hoặc `/reports/cash-flow` với tab "Thu"
+  - Deep link với filter đã set sẵn theo Time Filter hiện tại
+- **Tap vào card "Tổng đã chi"**: 
+  - Điều hướng đến `/reports/expense` hoặc `/reports/cash-flow` với tab "Chi"
+  - Deep link với filter đã set sẵn theo Time Filter hiện tại
+- **Loading state**: 
+  - Hiển thị skeleton placeholder cho giá trị và comparison badge
+  - Giữ nguyên icon và label
+- **Error state**: 
+  - Hiển thị "---" thay vì giá trị
+  - Ẩn comparison badge
+  - Show toast error message nếu API call fail
+
+#### 2.5.5. Component Interface (TypeScript)
+```typescript
+interface FinancialCard {
+  type: 'revenue' | 'expense';
+  icon: string;
+  iconBgColor: string;
+  iconColor: string;
+  label: string;
+  value: number; // Raw value in VND
+  formatted: string; // Formatted display string
+  valueColor: string; // Text color for the value
+  comparison: {
+    percent: number;
+    direction: 'increase' | 'decrease' | 'stable';
+    previousPeriod: string; // e.g., "tháng trước"
+  } | null;
+  onPress: () => void; // Navigation handler
+}
+```
 
 ---
 
 ### 2.6. Truy cập nhanh (Quick Access)
 - **Implement**: Tạm thời chỉ implement về UI, chưa cần tích hợp tính năng
+
 #### 2.6.1. Bố cục
 - **Tiêu đề section**: `"Truy cập nhanh"`
-- **Layout**: Grid 4 cột (hoặc 4 items ngang)
-- **Spacing**: Khoảng cách đều giữa các item
+  - Font: 18px, semi-bold
+  - Color: `#212529`
+  - Margin: 16px (trái), 24px (trên), 16px (phải), 12px (dưới)
+- **Layout**: Grid 3 cột x 2 hàng (total 6 items)
+- **Spacing**: 
+  - Gap giữa các items: 16px (horizontal), 20px (vertical)
+  - Padding container: 16px (trái/phải)
+- **Item styling**:
+  - Display: flex-column
+  - Align-items: center
+  - Background: Transparent
+  - Each item có icon + label
 
-#### 2.6.2. Các tác vụ nhanh
+#### 2.6.2. Các tác vụ nhanh (theo thứ tự hiển thị)
 
-##### A. Bán hàng
-- **Icon**: Shopping cart / Giỏ hàng (màu xanh dương)
-- **Label**: `"Bán hàng"`
-- **Hành động**: Điều hướng đến `/sales/new` hoặc mở modal tạo đơn bán
-- **Permission**: `sales.create`
+##### A. Bán hàng (Create Invoice/Order)
+- **Icon**: `receipt_long` hoặc document icon
+  - Size: 40x40px
+  - Background: Circle với màu cam nhạt `#FFE8D6`
+  - Icon color: `#FB7E00` (primary color - cam)
+- **Label**: `"Lên đơn"`
+  - Font: 13px, medium
+  - Color: `#495057`
+  - Text-align: center
+  - Margin-top: 8px
+- **Hành động**: Điều hướng đến `/invoices/new` hoặc mở màn hình tạo đơn bán hàng mới
+- **Permission**: `invoices.create`
 
-##### B. Mua hàng
-- **Icon**: Shopping bag / Túi mua sắm (màu tím)
+##### B. Mua hàng (Create purchases)
+- **Icon**: `cart` hoặc box icon
+  - Size: 40x40px
+  - Background: Circle với màu xanh dương nhạt `#D6E9FF`
+  - Icon color: `#0D6EFD` (blue)
 - **Label**: `"Mua hàng"`
-- **Hành động**: Điều hướng đến `/purchases/new` hoặc mở modal tạo đơn mua
-- **Permission**: `purchases.create`
+  - Font: 13px, medium
+  - Color: `#495057`
+- **Hành động**: Điều hướng đến màn hình thêm mới đơn hàng mua 
+- **Permission**: `purchases.create` 
 
-##### C. Thu tiền
-- **Icon**: Money receive / Đồng tiền với mũi tên vào (màu xanh lá)
+##### C. Thu tiền (Receipts)
+- **Icon**: `money-receive` hoặc wallet icon
+  - Size: 40x40px
+  - Background: Circle với màu xanh lá nhạt `#D4EDDA`
+  - Icon color: `#28A745` (green)
 - **Label**: `"Thu tiền"`
-- **Hành động**: Điều hướng đến `/receipts/new` hoặc danh sách phiếu thu
-- **Permission**: `receipts.create`
-
-##### D. Chi tiền
-- **Icon**: Money send / Đồng tiền với mũi tên ra (màu cam)
+  - Font: 13px, medium
+  - Color: `#495057`
+- **Hành động**: Điều hướng đến màn hình thêm mới Phiếu thu tiền
+- **Permission**:`receipts.create`
+  
+##### D. Chi tiền (Payments)
+- **Icon**: `account_balance_wallet` hoặc wallet icon
+  - Size: 40x40px
+  - Background: Circle với màu xanh lá nhạt `#D4EDDA`
+  - Icon color: `#28A745` (green)
 - **Label**: `"Chi tiền"`
-- **Hành động**: Điều hướng đến `/payments/new` hoặc danh sách phiếu chi
-- **Permission**: `payments.create`
+  - Font: 13px, medium
+  - Color: `#495057`
+- **Hành động**: Điều hướng đến màn hình thêm mới Phiếu chi tiền
+- **Permission**:`payments.create`
 
 #### 2.6.3. Responsive behavior
-- **Mobile**: Hiển thị dạng grid 4 cột
-- **Tablet**: Hiển thị dạng grid 4 cột hoặc 2 hàng
-- **Desktop**: Có thể mở rộng thêm tác vụ nhanh khác
+- **Mobile Portrait**: Grid 4 cột x 1 hàng
+- **Mobile Landscape**: Grid 4 cột x 1 hàng
+- **Tablet**: Grid 4 cột x 1 hàng
+- **Desktop**: Grid 4 cột x 1 hàng
+
+#### 2.6.4. Interaction
+- **Tap effect**: 
+  - Scale down 0.95 khi press
+  - Opacity 0.7 khi press
+  - Haptic feedback (light impact)
+- **Loading state**: 
+  - Show loading spinner nếu action cần load data
+  - Disable tất cả items trong lúc loading
+- **Permission check**: 
+  - Nếu user không có permission → Ẩn item đó hoặc show disabled state
+  - Show toast message khi tap vào disabled item: "Bạn không có quyền truy cập tính năng này"
 
 ---
 
@@ -219,83 +534,137 @@ Hiển thị img tuy theo giờ trong ngày
   - Số trong ngoặc là số lượng lời nhắc đang active
 - **Nút "Xem tất cả"**: 
   - Vị trí: Bên phải tiêu đề
-  - Màu chữ: Primary color (cam)
-  - Hành động: Điều hướng đến `/reminders` hoặc `/tasks`
+  - Màu chữ: Secondary color (xanh dương)
+  - Hành động:Mở full danh sách lời nhắc
 
 #### 2.7.2. Loại lời nhắc
 - **Công nợ quá hạn**: Khách hàng/nhà cung cấp chưa thanh toán
 - **Tồn kho thấp**: Sản phẩm sắp hết hàng
 - **Đơn hàng chờ xử lý**: Đơn hàng mới cần xác nhận
-- **Hợp đồng sắp hết hạn**: Nhắc nhở gia hạn
-- **Lịch hẹn**: Cuộc họp, gặp khách hàng
+- **Gói dịch vụ sắp hết hạn**: Nhắc nhở gia hạn
 - **Báo cáo định kỳ**: Nhắc nộp báo cáo tháng/quý
+- **Nộp giấy tờ**: Nhắc nộp báo cáo, tờ khai thuế,...
 
 #### 2.7.3. Hiển thị preview (nếu có)
-- Hiển thị 2-3 lời nhắc gần nhất
+- Hiển thị dạng compact 1 lời nhắc, click Xem tất cả sẽ mở các lời nhắc còn lại ra
 - Mỗi item gồm:
-  - Icon tương ứng loại lời nhắc
+  - Tiêu đề
   - Nội dung ngắn gọn
   - Thời gian (ví dụ: "2 giờ trước", "Hôm nay 14:00")
+  - Button: Kiểm tra ngay/Xem ngay
 - Click vào từng item mở chi tiết task/reminder
 
 #### 2.7.4. Nguồn dữ liệu
-....
+.... 
 
-### 2.8. Thanh điều hướng dưới (Bottom Navigation)
+### 2.8 Công việc (Tasks)
+- **Implement**: Tạm thời chỉ implement về UI, chưa cần tích hợp tính năng
+#### 2.8.1. Header section
+- **Tiêu đề**: `"Công việc cần làm (7)"`
+  - Số trong ngoặc là số lượng công việc đang active, chưa hoàn thành
+- **Nút "Xem tất cả"**: 
+  - Vị trí: Bên phải tiêu đề
+  - Màu chữ: Secondary color (Xanh dương)
+  - Hành động: Mở full danh sách công việc hoặc điều hướng đến màn hình Công việc cần làm
 
-#### 2.8.1. Cấu trúc 5 tab chính
+#### 2.8.2. Loại công việc
+  - Dựa vào tiêu đề và mô tả cũng như các sub-tasks được tạo trong mục Công việc (phát triển sau)
+
+#### 2.8.3. Hiển thị preview (nếu có)
+- Hiển thị dạng compact 1 công việc, click vào task sẽ điều hướng tới Công việc cần làm
+- Mỗi item gồm:
+  - Tiêu đề
+  - Nội dung ngắn gọn
+  - Deadline (cụ thể ngày giờ dạng DD/MM/YYYY HH:mm), nếu quá hạn hiển thị deadline màu đỏ
+  - Subtask completion status (ví dụ 1/3 có nghĩa là có 3 subtasks, đã hoàn thành 1 subtask)
+  - Checkbox để đánh dấu đã hoàn thành task (user click vào checkbox để đánh dấu đã hoàn thành cả task đó, còn nếu muốn click hoàn thành từng subtasks thì cần mở chi tiết task lên xem). Sau khi tick checkbox chuyển dạng checked màu cam.
+- Click vào từng item mở chi tiết task
+
+### 2.9. Thanh điều hướng dưới (Bottom Navigation)
+
+#### 2.9.1. Cấu trúc 5 tab chính
 
 ##### Tab 1: Tổng quan (Home) - **Active State**
-- **Icon**: Home / Nhà
+- **Icon**: `home`
+  - Size: 24px
+  - Active color: `#FB7E00` (primary - cam)
+  - Inactive color: `#6C757D` (gray)
 - **Label**: `"Tổng quan"`
-- **Route**: `/dashboard` hoặc `/home`
-- **Active state**: Icon và text màu cam (primary), có indicator bar ở trên
+  - Font: 12px, medium
+  - Active color: `#FB7E00`
+  - Inactive color: `#6C757D`
+- **Route**: `/home`
+- **Chức năng**: Màn hình Home hiện tại (default screen)
+- **Active indicator**: 
+  - Top bar: Height 2-3px, color `#FB7E00`
+  - Label hiển thị semi-bold khi active
 
-##### Tab 2: Đơn hàng
-- **Icon**: Document / Giấy tờ
-- **Label**: `"Phiếu"`
-- **Route**: `/transactions`
-- **Chức năng**: Xem danh sách tất cả phiếu thu/chi/điều chuyển
-
-##### Tab 3: Kho hàng (Inventory)
-- **Icon**: Package / Thùng hàng
-- **Label**: `"Kho hàng"`
-- **Route**: `/inventory`
-- **Chức năng**: Quản lý tồn kho, nhập/xuất kho
+##### Tab 2: Đơn hàng (Orders)
+- **Icon**: `receipt_long` hoặc document icon
+  - Size: 24px
+- **Label**: `"Đơn hàng"`
+  - Font: 12px
+- **Route**: `/orders` hoặc `/invoices`
+- **Chức năng**: Quản lý đơn hàng bán (quản lý danh sách đơn hàng bán, thêm mới đơn hàng bán )
+##### Tab 3: Sản phẩm (Products)
+- **Icon**: `inventory_2` hoặc box icon
+  - Size: 24px
+- **Label**: `"Sản phẩm"`
+  - Font: 12px
+- **Route**: `/products`
+- **Chức năng**: Quản lý hàng hóa, dịch vụ (quản lý danh sách hàng hoá, dịch vụ, thêm mới hàng hoá, dịch vụ)
 
 ##### Tab 4: Báo cáo (Reports)
-- **Icon**: Chart / Biểu đồ
+- **Icon**: `bar_chart` hoặc analytics icon
+  - Size: 24px
 - **Label**: `"Báo cáo"`
+  - Font: 12px
 - **Route**: `/reports`
-- **Chức năng**: Xem các báo cáo tài chính, kinh doanh
+- **Chức năng**: Xem các báo cáo tài chính, doanh thu, chi phí
 
-##### Tab 5: Menu (More)
-- **Icon**: Hamburger menu hoặc Grid (3 dấu gạch ngang)
-- **Label**: `"Thêm"` hoặc không có label
-- **Route**: `/menu` hoặc mở menu overlay
-- **Chức năng**: Cài đặt, hồ sơ, đăng xuất, các tính năng bổ sung
+##### Tab 5: Thêm (More/Menu)
+- **Icon**: `more_horiz` hoặc grid icon (3x3)
+  - Size: 24px
+- **Label**: `"Thêm"`
+  - Font: 12px
+- **Route**: `/menu` hoặc show modal menu
+- **Chức năng**: Cài đặt, hồ sơ doanh nghiệp, đăng xuất
 
 #### 2.8.2. Styling
-- **Background**: Trắng với shadow nhẹ ở trên
-- **Height**: 56px - 64px
-- **Icon size**: 24px
-- **Label font size**: 12px
-- **Spacing**: Đều giữa các tab
-- **Label logic**: Chỉ khi focus mới hiển thị label tên của menu điều hướng
+- **Background**: White (`#FFFFFF`)
+- **Top border**: 1px solid `#DEE2E6`
+- **Box-shadow**: `0 -2px 8px rgba(0,0,0,0.06)`
+- **Height**: 64px
+- **Safe area**: Padding bottom cho iOS notch/home indicator
+- **Z-index**: 1000
+
+#### 2.8.3. Interaction
+- **Tap effect**: Scale icon 0.9, ripple effect
+- **Inactive state**:
+  - Các option không được chọn chỉ hiển thị icon, ẩn label, icon màu đen 80% opacity, khi chọn chuyển sang active state
+- **Active state**:
+  - Smooth color transition 200ms
+  - Tab đó chuyển thành pill-shaped container màu primary (cam)
+  - Icon chuyển sang màu trắng, dạng bold thay vì outline
+  - Text chuyển sang màu trắng, in đậm 600
+- **Badge notification**: Badge đỏ (`#DC3545`) ở góc trên phải icon
 
 ---
 
 ### 2.9. Floating Action Button (FAB)
-
 #### 2.9.1. Thiết kế
 - **Vị trí**: Góc dưới bên phải, nổi trên bottom navigation
-- **Icon**: Plus (+)
-- **Màu nền**: Gradient cam (primary color) hoặc cam đậm
-- **Kích thước**: 56x56px
-- **Shadow**: Elevation cao để tạo cảm giác nổi
-- **Animation**: Bounce khi hover/press
+  - Right: 16px
+  - Bottom: 80px
+- **Icon**: `add` (dấu +)
+  - Size: 28px
+  - Color: White
+- **Kích thước**: 56x56px, border-radius 50%
+- **Màu nền**: `#FB7E00` hoặc gradient
+- **Shadow**: `0 4px 12px rgba(251, 126, 0, 0.4)`
+- **Animation**: Bounce + scale effect
 
-#### 2.9.2. Chức năng
+#### 2.9.2. Chức năng - Speed Dial Menu
 Click vào FAB mở menu tạo nhanh với các tùy chọn:
 1. **Tạo đơn hàng** → `/sales/new`
 2. **Thêm khách hàng** → `/customers/new`
@@ -303,10 +672,61 @@ Click vào FAB mở menu tạo nhanh với các tùy chọn:
 4. **Tạo phiếu thu** → `/receipts/new`
 5. **Tạo phiếu chi** → `/payments/new`
 
-#### 2.9.3. Menu overlay
-- **Hiển thị**: Speed dial menu hoặc modal bottom sheet
-- **Animation**: Slide up và fade in
-- **Dismiss**: Click outside hoặc nút close
+#### 2.9.3. Speed Dial UI (tạm thời chưa làm)
+- **Layout**: Vertical stack, mở từ dưới lên
+- **Item styling**: White bg, pill shape, icon + label
+- **Backdrop**: `rgba(0,0,0,0.5)`
+- **Animation**: Slide up + fade in, stagger 50ms
+- **Close**: Tap backdrop, tap FAB (rotate 45°)
+- **Implement**: Tại màn trang chủ mà click FAB thì auto điều hướng đến màn hình thêm mới đơn hàng bán.
+---
+
+### 2.10. Modal Hướng dẫn thiết lập ban đầu (Setup Guide Modal)
+
+#### 2.10.1. Trigger
+- Hiển thị sau Advanced Setup screen, khi vào Home lần đầu
+- Check flag: `hasSeenSetupGuideModal` trong localStorage
+- Delay: 500ms sau khi Home render
+
+#### 2.10.2. Thiết kế
+- **Kiểu**: Modal with blanket
+- **Size**: 60-70% viewport (mobile), max-width 480px (desktop)
+- **Background**: White, border-radius 16px (top)
+- **Backdrop**: `rgba(0,0,0,0.6)`, không cho click outside
+
+#### 2.10.3. Nội dung
+
+**Header**:
+- **Container**: Cao 314px, rộng 327px, background màu trắng, border radius 20px, padding 24px 16px
+- **Title**: `"Bắt đầu sử dụng"` - 24px bold
+- **Subtitle**: `"Để bắt đầu sử dụng, bạn hãy hoàn thành các bước dưới đây!"` - 14px
+
+**Bước 1: Khai báo danh mục**
+- Box màu xám #F9F9F9, border radius 8px, cao 52px, padding 12px 16px
+- Badge màu cam hình tròn, bên trong là số 1
+- Title: `"Khai báo danh mục"` - 16px semi-bold
+- Arrow-right ở flex-end
+- Action: Navigate to category setup
+
+**Bước 2: Khai báo số dư ban đầu**
+- Box màu xám #F9F9F9, border radius 8px, cao 52px, padding 12px 16px
+- Badge màu cam hình tròn, bên trong là số 2
+- Title: `"Bước 2: Khai báo số dư ban đầu"` - 16px semi-bold
+- Arrow-right ở flex-end
+- Action: Navigate to initial balance setup
+
+**Footer**:
+- **Button**: `"Bỏ qua"` - dạng text button no background, 40px height
+  - Action: Close modal, set flag
+
+#### 2.10.4. Logic
+- LocalStorage key: `onboarding_setup_guide_completed`
+- Value: `{ seen: boolean, step1_completed: boolean, step2_completed: boolean }`
+- Re-display từ menu "Cài đặt" > "Hướng dẫn thiết lập"
+
+#### 2.10.5. Animation
+- Modal: Slide up 300ms, backdrop fade 200ms
+- Icon: Bounce effect (scale 0 → 1.1 → 1), delay 150ms
 
 ---
 
@@ -327,7 +747,6 @@ Click vào FAB mở menu tạo nhanh với các tùy chọn:
 ### 4.3. Gestures & Interactions
 - **Swipe**: Vuốt trái/phải để chuyển time filter
 - **Pull to refresh**: Kéo xuống để refresh toàn bộ dashboard
-- **Long press**: Long press trên financial card để xem breakdown chi tiết
 - **Haptic feedback**: Rung nhẹ khi thực hiện hành động quan trọng
 
 ### 4.4. Accessibility
@@ -340,7 +759,7 @@ Click vào FAB mở menu tạo nhanh với các tùy chọn:
 
 ## 5. YÊU CẦU GIAO DIỆN (UI REQUIREMENTS)
 
-### 5.1. Hệ thống màu sắc (Color Palette)
+### 5.1. Hệ thống màu sắc (Color Palette) - tự động cập nhật khi thay đổi color palette của theme
 
 #### Màu chủ đạo (Primary)
 - **Primary**: `#FF6B35` (Cam chủ đạo)
@@ -348,6 +767,8 @@ Click vào FAB mở menu tạo nhanh với các tùy chọn:
 - **Primary Dark**: `#E65A2E`
 - **Primary Background**: `#FFF4F0` (Nền nhạt cho các highlight)
 
+#### Màu cấp 2 (Secondary)
+- **Secondary**: `#007DFB` (Xanh dương)
 #### Màu trạng thái (Status Colors)
 - **Success**: `#28A745` (Xanh lá - Tăng trưởng dương)
 - **Success Light**: `#D4EDDA` (Background cho badge tăng)

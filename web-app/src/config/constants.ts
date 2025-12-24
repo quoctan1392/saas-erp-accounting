@@ -24,6 +24,13 @@ export const ROUTES = {
   ONBOARDING_BUSINESS_SECTOR: '/onboarding/business-sector',
   ONBOARDING_ACCOUNTING_SETUP: '/onboarding/accounting-setup',
   ONBOARDING_ADVANCED_SETUP: '/onboarding/advanced-setup',
+  // Declaration routes
+  DECLARATION_CATEGORIES: '/declaration/categories',
+  DECLARATION_CUSTOMERS: '/declaration/customers',
+  DECLARATION_SUPPLIERS: '/declaration/suppliers',
+  DECLARATION_WAREHOUSES: '/declaration/warehouses',
+  DECLARATION_PRODUCTS: '/declaration/products',
+  DECLARATION_INITIAL_BALANCE: '/declaration/initial-balance',
 };
 
 export const STORAGE_KEYS = {

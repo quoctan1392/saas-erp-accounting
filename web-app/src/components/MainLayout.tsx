@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { Box } from '@mui/material';
 import BottomNavigationBar from './BottomNavigationBar';
+import { UiProvider, useUi } from '../context/UiContext';
 
 /**
  * MainLayout wraps routes that should have a persistent bottom navigation.
@@ -20,14 +21,23 @@ const MainLayout = () => {
     return 'home';
   };
 
+  const Inner = () => {
+    const { showBottomNav } = useUi();
+    return (
+      <Box sx={{ minHeight: '100vh' }}>
+        {/* Child routes render here */}
+        <Outlet />
+
+        {/* Persistent bottom navigation - doesn't reload on route changes */}
+        {showBottomNav && <BottomNavigationBar activeTab={getActiveTab()} />}
+      </Box>
+    );
+  };
+
   return (
-    <Box sx={{ minHeight: '100vh' }}>
-      {/* Child routes render here */}
-      <Outlet />
-      
-      {/* Persistent bottom navigation - doesn't reload on route changes */}
-      <BottomNavigationBar activeTab={getActiveTab()} />
-    </Box>
+    <UiProvider>
+      <Inner />
+    </UiProvider>
   );
 };
 
