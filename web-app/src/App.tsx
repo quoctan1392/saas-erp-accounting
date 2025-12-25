@@ -4,7 +4,6 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './context/AuthContext';
 import { OnboardingProvider } from './context/OnboardingContextSafe';
 import { GOOGLE_CONFIG } from './config/constants';
-import SplashScreen from './pages/SplashScreen';
 import LoginDemoScreenSimple from './pages/LoginDemoScreenSimple';
 import LoginScreen from './pages/LoginScreen';
 import SignupScreen from './pages/SignupScreen';
@@ -25,7 +24,6 @@ import AccountingSetupScreen from './pages/onboarding/AccountingSetupScreen';
 import AdvancedSetupScreen from './pages/onboarding/AdvancedSetupScreen';
 import CategoryDeclarationScreen from './pages/declaration/CategoryDeclarationScreen';
 import CustomerFormScreen from './pages/declaration/CustomerFormScreen';
-import SelectBankScreen from './pages/declaration/SelectBankScreen';
 import SupplierFormScreen from './pages/declaration/SupplierFormScreen';
 import WarehouseFormScreen from './pages/declaration/WarehouseFormScreen';
 import ProductFormScreen from './pages/declaration/ProductFormScreen';
@@ -76,10 +74,11 @@ function App() {
               {/* Declaration routes */}
               <Route path="/declaration/categories" element={<CategoryDeclarationScreen />} />
               <Route path="/declaration/customers" element={<CustomerFormScreen />} />
-              <Route path="/declaration/select-bank" element={<SelectBankScreen />} />
               <Route path="/declaration/suppliers" element={<SupplierFormScreen />} />
               <Route path="/declaration/warehouses" element={<WarehouseFormScreen />} />
               <Route path="/declaration/products" element={<ProductFormScreen />} />
+              <Route path="/declaration/products/new" element={<ProductFormScreen />} />
+              <Route path="/declaration/products/:id/edit" element={<ProductFormScreen />} />
               
               {/* Routes with persistent bottom navigation */}
               <Route element={<MainLayout />}>

@@ -382,12 +382,7 @@ const HomeScreen = () => {
     setShowSetupModal(false);
   };
 
-  const handleStartSetup = () => {
-    localStorage.setItem('hasSeenSetupGuideModal', 'true');
-    setShowSetupModal(false);
-    // Navigate to category declaration
-    navigate(ROUTES.DECLARATION_CATEGORIES);
-  };
+  
 
   // Extract first name (last word) from full name per requirements
   const getFirstName = (fullName: string): string => {

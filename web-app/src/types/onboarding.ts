@@ -59,6 +59,7 @@ export interface OnboardingStatus {
   currentStep: number;
   totalSteps: number;
   businessType: BusinessType | null;
+  businessInfo?: BusinessInfoForm | null;
   startedAt: Date | null;
   completedAt: Date | null;
 }

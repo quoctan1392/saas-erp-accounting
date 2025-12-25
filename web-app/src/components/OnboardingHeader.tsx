@@ -7,7 +7,7 @@ interface OnboardingHeaderProps {
   step?: string; // e.g., "1/3"
 }
 
-const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({ onBack, progress, step }) => {
+const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({ onBack, progress }) => {
   return (
     <Box
       sx={{

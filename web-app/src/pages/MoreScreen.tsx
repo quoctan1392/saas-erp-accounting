@@ -23,7 +23,6 @@ import { ROUTES } from '../config/constants';
 const MoreScreen = () => {
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [activeTab] = useState('more');
 
   // Get user data from localStorage
   const user = JSON.parse(localStorage.getItem('user') || '{}');

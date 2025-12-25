@@ -1,6 +1,7 @@
 export const API_CONFIG = {
   AUTH_SERVICE_URL: import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:3001',
   TENANT_SERVICE_URL: import.meta.env.VITE_TENANT_SERVICE_URL || 'http://localhost:3002',
+  CORE_SERVICE_URL: import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:3003',
 };
 
 export const GOOGLE_CONFIG = {
@@ -31,7 +32,6 @@ export const ROUTES = {
   DECLARATION_WAREHOUSES: '/declaration/warehouses',
   DECLARATION_PRODUCTS: '/declaration/products',
   DECLARATION_INITIAL_BALANCE: '/declaration/initial-balance',
-  DECLARATION_SELECT_BANK: '/declaration/select-bank',
 };
 
 export const STORAGE_KEYS = {

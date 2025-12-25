@@ -107,6 +107,37 @@ services:
       - ./services/tenant-service:/app
       - /app/node_modules
 
+  # Core Service
+  core-service:
+    build:
+      context: .
+      dockerfile: ./services/core-service/Dockerfile
+    container_name: erp-core-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3003
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: erp_admin
+      DB_PASSWORD: erp_password_123
+      DB_DATABASE: core_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      RABBITMQ_URL: amqp://erp_admin:erp_password_123@rabbitmq:5672
+    ports:
+      - "3003:3003"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    networks:
+      - erp-network
+    volumes:
+      - ./services/core-service:/workspace/services/core-service
+      - /workspace/services/core-service/node_modules
+
 networks:
   erp-network:
     driver: bridge

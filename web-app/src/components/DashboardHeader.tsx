@@ -38,7 +38,7 @@ const DashboardHeader = ({
   const [shouldAnimate, setShouldAnimate] = useState(false);
   const [translatePx, setTranslatePx] = useState(0);
   const [animDuration, setAnimDuration] = useState(8);
-  const [isOverlapping, setIsOverlapping] = useState(false);
+  const [, setIsOverlapping] = useState(false);
 
   // Determine if it's day or night (6am - 6pm = day, else = night)
   const isDayTime = () => {
@@ -120,19 +120,18 @@ const DashboardHeader = ({
     <AppBar
       position="sticky"
       elevation={0}
-      sx={(theme) => ({
+      sx={{
         bgcolor: 'white',
         backgroundImage: `url(${backgroundImage})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         borderBottom: 'none',
-        // On mobile and iPad-ish widths make header fixed at top so it stays while scrolling
         position: { xs: 'fixed', sm: 'fixed', md: 'sticky' },
         top: { xs: 0, sm: 0, md: 'auto' },
         left: { xs: 0, sm: 0, md: 'auto' },
         right: { xs: 0, sm: 0, md: 'auto' },
-        zIndex: (theme.zIndex?.appBar ?? 1100) + 10,
-      })}
+        zIndex: 1110,
+      }}
     >
       <Toolbar sx={{ minHeight: '100px !important', px: 2, py: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
@@ -198,7 +197,7 @@ const DashboardHeader = ({
             {/* Free Tier Badge */}
             <Box
               ref={badgeRef}
-                sx={(theme) => ({
+                sx={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 0.5,
@@ -209,10 +208,9 @@ const DashboardHeader = ({
                   mr: 0.5,
                   border: '1px solid rgba(255, 107, 53, 0.2)',
                   flex: '0 0 auto',
-                  // Keep badge in flow so it doesn't overlap the greeting text
                   position: 'static',
                   pointerEvents: 'auto',
-                })}
+                }}
             >
               <img
                 src={badgeIconFreeTier}

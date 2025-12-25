@@ -4,6 +4,7 @@ import { API_CONFIG, STORAGE_KEYS } from '../config/constants';
 class ApiService {
   private authApi: AxiosInstance;
   private tenantApi: AxiosInstance;
+  private coreApi: AxiosInstance;
 
   constructor() {
     this.authApi = axios.create({
@@ -15,6 +16,13 @@ class ApiService {
 
     this.tenantApi = axios.create({
       baseURL: `${API_CONFIG.TENANT_SERVICE_URL}/api/v1`,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    this.coreApi = axios.create({
+      baseURL: `${API_CONFIG.CORE_SERVICE_URL}`,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -54,6 +62,18 @@ class ApiService {
         config.headers.Authorization = `Bearer ${token}`;
       } else {
         console.warn('[TenantAPI] No token available for request:', config.url);
+      }
+
+      return config;
+    });
+
+    this.coreApi.interceptors.request.use((config) => {
+      const token =
+        localStorage.getItem('tenantAccessToken') ||
+        localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
       }
 
       return config;
@@ -142,6 +162,27 @@ class ApiService {
     const response = await this.tenantApi.post(`/tenants/${tenantId}/onboarding/complete`);
     return response.data;
   }
+
+  // Accounting Objects (customers/vendors/employees)
+  async createAccountingObject(data: any) {
+    const response = await this.coreApi.post('/api/objects', data);
+    return response.data;
+  }
+
+  async getAccountingObjects(query: Record<string, any> = {}) {
+    const params = new URLSearchParams(query as Record<string, string>).toString();
+    const url = params ? `/api/objects?${params}` : '/api/objects';
+    const response = await this.coreApi.get(url);
+    return response.data;
+  }
+
+  // Warehouses
+  async createWarehouse(data: any) {
+    const response = await this.coreApi.post('/api/warehouses', data);
+    return response.data;
+  }
 }
 
 export const apiService = new ApiService();
+
+export default apiService;

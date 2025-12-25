@@ -1,22 +1,27 @@
-FROM node:20-alpine AS builder
+FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /workspace
 
-COPY package*.json ./
-RUN npm ci
+# Install pnpm globally
+RUN npm install -g pnpm
 
-COPY . .
-RUN npm run build
+# Copy workspace config
+COPY pnpm-workspace.yaml ./
+COPY package.json ./
+COPY pnpm-lock.yaml ./
 
-FROM node:20-alpine AS production
+# Copy all packages (for workspace dependencies)
+COPY packages ./packages
+COPY services ./services
 
-WORKDIR /app
+# Install all workspace dependencies
+RUN pnpm install
 
-COPY package*.json ./
-RUN npm ci --only=production
+# Set working directory to core-service
+WORKDIR /workspace/services/core-service
 
-COPY --from=builder /app/dist ./dist
-
+# Expose port
 EXPOSE 3003
 
-CMD ["node", "dist/main"]
+# Start in development mode
+CMD ["pnpm", "run", "start:dev"]

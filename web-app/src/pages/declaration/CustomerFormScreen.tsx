@@ -11,10 +11,11 @@ import {
   InputAdornment,
   IconButton,
 } from '@mui/material';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 import { ArrowBack } from '@mui/icons-material';
 import RoundedTextField from '../../components/RoundedTextField';
+import { apiService } from '../../services/api';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import headerDay from '../../assets/Header_day.png';
 import * as Iconsax from 'iconsax-react';
@@ -57,19 +58,12 @@ const CustomerFormScreen = () => {
   const [bankName, setBankName] = useState('');
   const [bankBranch, setBankBranch] = useState('');
 
+  
+
   // Expandable sections
   const [isContactExpanded, setIsContactExpanded] = useState(false);
   const [isEInvoiceExpanded, setIsEInvoiceExpanded] = useState(false);
   const [isBankExpanded, setIsBankExpanded] = useState(false);
-  const location = useLocation();
-
-  // If navigated back from SelectBankScreen with selectedBank, fill bank name
-  useEffect(() => {
-    const sel = (location as any).state?.selectedBank;
-    if (sel && sel.short) {
-      setBankName(sel.short + (sel.code ? ` (${sel.code})` : ''));
-    }
-  }, [location]);
 
   // Auto-generate customer code on mount
   useEffect(() => {
@@ -112,54 +106,25 @@ const CustomerFormScreen = () => {
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      const customerData = {
-        type: customerType,
-        code,
-        ...(customerType === 'organization' ? { taxCode } : { idNumber }),
-        name,
+      // Map form fields to core-service CreateAccountingObjectDto
+      const accountingObjectData: any = {
+        accountObjectCode: code,
+        accountObjectName: name,
         address,
         phone,
-        isDualRole,
-        // Contact information
-        ...(contactName || contactPhone || contactEmail ? {
-          contact: {
-            name: contactName,
-            phone: contactPhone,
-            email: contactEmail,
-          }
-        } : {}),
-        // E-invoice recipient (organization only)
-        ...(customerType === 'organization' && (eInvoiceName || eInvoicePhone || eInvoiceEmail) ? {
-          eInvoiceRecipient: {
-            name: eInvoiceName,
-            phone: eInvoicePhone,
-            email: eInvoiceEmail,
-          }
-        } : {}),
-        // Bank account (organization only)
-        ...(customerType === 'organization' && (bankAccountNumber || bankName || bankBranch) ? {
-          bankAccount: {
-            accountNumber: bankAccountNumber,
-            bankName,
-            branch: bankBranch,
-          }
-        } : {}),
+        isCustomer: true,
+        isVendor: false,
+        isEmployee: false,
+        contactName: contactName || undefined,
+        contactPhone: contactPhone || undefined,
+        contactEmail: contactEmail || undefined,
+        companyTaxCode: customerType === 'organization' ? taxCode || undefined : undefined,
+        taxCode: customerType === 'organization' ? taxCode || undefined : undefined,
+        identityNumber: customerType === 'individual' ? idNumber || undefined : undefined,
+        listBankAccountIds: bankAccountNumber ? [bankAccountNumber] : undefined,
       };
 
-      // Call API to save customer
-      const response = await fetch('/api/customers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(customerData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save customer');
-      }
-
-      const result = await response.json();
+      const result = await apiService.createAccountingObject(accountingObjectData);
       console.log('Customer saved successfully:', result);
 
       setHasChanges(false);
@@ -176,54 +141,25 @@ const CustomerFormScreen = () => {
   const handleSaveAndAddNew = async () => {
     setIsLoading(true);
     try {
-      const customerData = {
-        type: customerType,
-        code,
-        ...(customerType === 'organization' ? { taxCode } : { idNumber }),
-        name,
+      // Map form fields to core-service CreateAccountingObjectDto (for "Save and add new")
+      const accountingObjectData: any = {
+        accountObjectCode: code,
+        accountObjectName: name,
         address,
         phone,
-        isDualRole,
-        // Contact information
-        ...(contactName || contactPhone || contactEmail ? {
-          contact: {
-            name: contactName,
-            phone: contactPhone,
-            email: contactEmail,
-          }
-        } : {}),
-        // E-invoice recipient (organization only)
-        ...(customerType === 'organization' && (eInvoiceName || eInvoicePhone || eInvoiceEmail) ? {
-          eInvoiceRecipient: {
-            name: eInvoiceName,
-            phone: eInvoicePhone,
-            email: eInvoiceEmail,
-          }
-        } : {}),
-        // Bank account (organization only)
-        ...(customerType === 'organization' && (bankAccountNumber || bankName || bankBranch) ? {
-          bankAccount: {
-            accountNumber: bankAccountNumber,
-            bankName,
-            branch: bankBranch,
-          }
-        } : {}),
+        isCustomer: true,
+        isVendor: false,
+        isEmployee: false,
+        contactName: contactName || undefined,
+        contactPhone: contactPhone || undefined,
+        contactEmail: contactEmail || undefined,
+        companyTaxCode: customerType === 'organization' ? taxCode || undefined : undefined,
+        taxCode: customerType === 'organization' ? taxCode || undefined : undefined,
+        identityNumber: customerType === 'individual' ? idNumber || undefined : undefined,
+        listBankAccountIds: bankAccountNumber ? [bankAccountNumber] : undefined,
       };
 
-      // Call API to save customer
-      const response = await fetch('/api/customers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(customerData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save customer');
-      }
-
-      const result = await response.json();
+      const result = await apiService.createAccountingObject(accountingObjectData);
       console.log('Customer saved successfully:', result);
 
       // Save the customer number to localStorage for sequential numbering
@@ -601,28 +537,16 @@ const CustomerFormScreen = () => {
                     <RoundedTextField
                       fullWidth
                       label="Tên ngân hàng"
-                      placeholder="Chọn ngân hàng"
+                      placeholder="Nhập tên ngân hàng"
                       value={bankName}
-                      // clicking the field navigates to SelectBankScreen
-                      onClick={() => navigate('/declaration/select-bank')}
-                      InputProps={{
-                        readOnly: true,
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <IconButton size="small" onClick={() => navigate('/declaration/select-bank')}>
-                              <Icon name="ArrowDown2" size={20} color="#6C757D" variant="Outline" />
-                            </IconButton>
-                          </InputAdornment>
-                        ),
-                      }}
+                      onChange={(e) => handleFieldChange(setBankName)(e.target.value)}
                     />
                     <RoundedTextField
                       fullWidth
                       label="Chi nhánh"
-                      placeholder="Nhập tên chi nhánh"
+                      placeholder="Nhập chi nhánh"
                       value={bankBranch}
                       onChange={(e) => handleFieldChange(setBankBranch)(e.target.value)}
-                      inputProps={{ maxLength: 255 }}
                     />
                   </Box>
                 )}
@@ -639,7 +563,7 @@ const CustomerFormScreen = () => {
               sx={{
                 borderRadius: '12px',
                 textTransform: 'none',
-                fontWeight: 600,
+                fontWeight: 500,
                 borderColor: '#FB7E00',
                 color: '#FB7E00',
                 px: 4,
@@ -696,7 +620,7 @@ const CustomerFormScreen = () => {
           right: 0,
           bottom: 0,
           zIndex: 1400,
-          gap: 2,
+          gap: 1.5,
           px: 2,
           py: 2,
           pb: 'calc(16px + env(safe-area-inset-bottom, 0px))',
@@ -714,12 +638,14 @@ const CustomerFormScreen = () => {
             borderRadius: '100px',
             textTransform: 'none',
             fontWeight: 500,
-            borderColor: '#FB7E00',
-            color: '#FB7E00',
+            fontSize: '16px',
+            borderColor: '#C5C5C5',
+            bgcolor: '#F5F5F5',
+            color: '#090909',
             height: 56,
             '&:hover': {
               borderColor: '#E65A2E',
-              bgcolor: '#FFF4E6',
+              bgcolor: '#FFF',
             },
           }}
         >
@@ -733,14 +659,15 @@ const CustomerFormScreen = () => {
           sx={{
             flex: 1,
             borderRadius: '100px',
+            fontSize: '16px',
             textTransform: 'none',
-            fontWeight: 600,
-            bgcolor: '#007DFB',
+            fontWeight: 500,
+            bgcolor: '#FB7E00',
             color: 'white',
             height: 56,
             boxShadow: 'none',
             '&:hover': {
-              bgcolor: '#0056b3',
+              bgcolor: '#FB7E00',
               boxShadow: 'none',
             },
           }}

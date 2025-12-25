@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Box, Typography, IconButton, Button, Radio, RadioGroup, Divider, Link } from '@mui/material';
+import { Box, Typography, Button, Radio, RadioGroup, Divider, Link } from '@mui/material';
 import BottomSheet from './BottomSheet';
 import Icon from './Icon';
 import { formatDate } from '../utils/dashboardUtils';
@@ -30,9 +30,9 @@ const TimeFilterSheet: React.FC<Props> = ({
   onClose,
   tempTimeFilter,
   setTempTimeFilter,
-  selectedTimeFilter,
+  selectedTimeFilter: _selectedTimeFilter,
   setSelectedTimeFilter,
-  currentRange,
+  currentRange: _currentRange,
   setCurrentRange,
   customStart,
   customEnd,
@@ -47,7 +47,6 @@ const TimeFilterSheet: React.FC<Props> = ({
 }) => {
   const dragStartYRef = useRef<number | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
-  const [showCustomPicker] = useState(false);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     dragStartYRef.current = e.touches[0].clientY;
