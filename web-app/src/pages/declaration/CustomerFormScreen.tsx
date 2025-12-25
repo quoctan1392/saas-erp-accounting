@@ -11,7 +11,7 @@ import {
   InputAdornment,
   IconButton,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 import { ArrowBack } from '@mui/icons-material';
 import RoundedTextField from '../../components/RoundedTextField';
@@ -61,6 +61,15 @@ const CustomerFormScreen = () => {
   const [isContactExpanded, setIsContactExpanded] = useState(false);
   const [isEInvoiceExpanded, setIsEInvoiceExpanded] = useState(false);
   const [isBankExpanded, setIsBankExpanded] = useState(false);
+  const location = useLocation();
+
+  // If navigated back from SelectBankScreen with selectedBank, fill bank name
+  useEffect(() => {
+    const sel = (location as any).state?.selectedBank;
+    if (sel && sel.short) {
+      setBankName(sel.short + (sel.code ? ` (${sel.code})` : ''));
+    }
+  }, [location]);
 
   // Auto-generate customer code on mount
   useEffect(() => {
@@ -463,7 +472,7 @@ const CustomerFormScreen = () => {
                   variant="Outline"
                 />
                 <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#212529' }}>
-                  Người liên hệ{customerType === 'individual' ? '' : ' chính'}
+                  Người liên hệ
                 </Typography>
               </Box>
 
@@ -525,9 +534,6 @@ const CustomerFormScreen = () => {
 
                 {isEInvoiceExpanded && (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
-                    <Typography sx={{ fontSize: '14px', color: '#6C757D', mb: -2 }}>
-                      Email nhận hoá đơn tự động khi phát hành
-                    </Typography>
                     <RoundedTextField
                       fullWidth
                       label="Họ tên"
@@ -577,7 +583,6 @@ const CustomerFormScreen = () => {
                     color="#6C757D"
                     variant="Outline"
                   />
-                  <Icon name="Bank" size={20} color="#6C757D" variant="Outline" />
                   <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#212529' }}>
                     Tài khoản ngân hàng
                   </Typography>
@@ -598,11 +603,13 @@ const CustomerFormScreen = () => {
                       label="Tên ngân hàng"
                       placeholder="Chọn ngân hàng"
                       value={bankName}
-                      onChange={(e) => handleFieldChange(setBankName)(e.target.value)}
+                      // clicking the field navigates to SelectBankScreen
+                      onClick={() => navigate('/declaration/select-bank')}
                       InputProps={{
+                        readOnly: true,
                         endAdornment: (
                           <InputAdornment position="end">
-                            <IconButton size="small">
+                            <IconButton size="small" onClick={() => navigate('/declaration/select-bank')}>
                               <Icon name="ArrowDown2" size={20} color="#6C757D" variant="Outline" />
                             </IconButton>
                           </InputAdornment>
@@ -706,7 +713,7 @@ const CustomerFormScreen = () => {
             flex: 1,
             borderRadius: '100px',
             textTransform: 'none',
-            fontWeight: 600,
+            fontWeight: 500,
             borderColor: '#FB7E00',
             color: '#FB7E00',
             height: 56,
