@@ -24,6 +24,8 @@ interface CategoryStatus {
 const CategoryDeclarationScreen = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [exiting, setExiting] = useState(false);
+  const ANIM_MS = 280;
   
   // Mock data - trong thực tế sẽ load từ API
   const [categories] = useState<CategoryStatus[]>([
@@ -49,12 +51,10 @@ const CategoryDeclarationScreen = () => {
   }, []);
 
   const handleBack = () => {
-    navigate(ROUTES.HOME);
+    setExiting(true);
+    setTimeout(() => navigate(ROUTES.HOME), ANIM_MS);
   };
 
-  const handleCategoryClick = (route: string) => {
-    navigate(route);
-  };
 
   const handleInitialBalance = () => {
     // TODO: Navigate to initial balance screen
@@ -78,6 +78,8 @@ const CategoryDeclarationScreen = () => {
         backgroundColor: '#FFFFFF',
         position: 'relative',
         pt: 0,
+        transform: exiting ? 'translateX(100%)' : 'translateX(0)',
+        transition: `transform ${ANIM_MS}ms ease`,
       }}
     >
       {/* Top decorative image */}
@@ -161,7 +163,18 @@ const CategoryDeclarationScreen = () => {
             {categories.map((category) => (
               <Box
                 key={category.id}
-                onClick={() => handleCategoryClick(category.route)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  // navigate in next tick to avoid click carry-over to newly mounted inputs
+                  setTimeout(() => {
+                    if (category.id === 'products') {
+                      navigate(`${ROUTES.DECLARATION_PRODUCTS}/new`);
+                      return;
+                    }
+                    navigate(category.route);
+                  }, 0);
+                }}
                 sx={{
                   display: 'flex',
                   height: 60,

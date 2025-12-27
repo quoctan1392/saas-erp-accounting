@@ -34,7 +34,9 @@ export class ItemsService {
     },
   ): Promise<PaginationResponseDto<Item>> {
     const { page, limit, search, sortBy, sortOrder } = paginationDto;
-    const skip = (page - 1) * limit;
+    const p = page ?? 1;
+    const l = limit ?? 20;
+    const skip = (p - 1) * l;
 
     const where: FindOptionsWhere<Item> = {
       tenantId,
@@ -71,14 +73,14 @@ export class ItemsService {
     const [items, total] = await queryBuilder
       .leftJoinAndSelect('item.unit', 'unit')
       .skip(skip)
-      .take(limit)
+      .take(l)
       .orderBy(
         sortBy ? `item.${sortBy}` : 'item.createdAt',
         sortOrder || 'DESC',
       )
       .getManyAndCount();
 
-    return new PaginationResponseDto(items, total, page, limit);
+    return new PaginationResponseDto(items, total, p, l);
   }
 
   async findOneItem(id: string, tenantId: string): Promise<Item> {

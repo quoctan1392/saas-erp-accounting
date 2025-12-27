@@ -1,16 +1,18 @@
 import React from 'react';
-import { TextField } from '@mui/material';
+import { TextField, Box } from '@mui/material';
 
 interface RoundedTextFieldProps extends Omit<React.ComponentProps<typeof TextField>, 'variant'> {
   // Keep an optional picker prop for backward-compatibility with screens
   picker?: any;
 }
 
-const RoundedTextField: React.FC<RoundedTextFieldProps> = ({ sx, InputLabelProps, InputProps, ...props }) => {
+const RoundedTextField: React.FC<RoundedTextFieldProps> = ({ sx, InputLabelProps, InputProps, onClick, ...props }) => {
   const hasStartAdornment = !!InputProps?.startAdornment;
 
   return (
-    <>
+    <Box onClick={(e: any) => {
+      if (onClick) onClick(e);
+    }}>
       <TextField
         variant="outlined"
         {...props}
@@ -75,7 +77,7 @@ const RoundedTextField: React.FC<RoundedTextFieldProps> = ({ sx, InputLabelProps
             ...sx,
           }}
         />
-    </>
+    </Box>
   );
 };
 

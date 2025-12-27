@@ -76,6 +76,7 @@ function App() {
               <Route path="/declaration/customers" element={<CustomerFormScreen />} />
               <Route path="/declaration/suppliers" element={<SupplierFormScreen />} />
               <Route path="/declaration/warehouses" element={<WarehouseFormScreen />} />
+              {/* Warehouse create now uses inline overlay pattern */}
               <Route path="/declaration/products" element={<ProductFormScreen />} />
               <Route path="/declaration/products/new" element={<ProductFormScreen />} />
               <Route path="/declaration/products/:id/edit" element={<ProductFormScreen />} />

@@ -364,17 +364,21 @@ const HomeScreen = () => {
   useEffect(() => {
     const hasSeenModal = localStorage.getItem('hasSeenSetupGuideModal');
     const justCompletedOnboarding = localStorage.getItem('justCompletedOnboarding');
-    
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
     // Show modal for first-time users who just completed onboarding
     if (!hasSeenModal && justCompletedOnboarding === 'true') {
       // Show modal after 500ms delay
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         setShowSetupModal(true);
         // Clear the flag after showing modal
         localStorage.removeItem('justCompletedOnboarding');
       }, 500);
-      return () => clearTimeout(timer);
     }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   const handleSkipSetup = () => {
