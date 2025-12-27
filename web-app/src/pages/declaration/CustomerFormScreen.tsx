@@ -32,6 +32,8 @@ const CustomerFormScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [exiting, setExiting] = useState(false);
+  const ANIM_MS = 280;
 
   // Form state
   const [customerType, setCustomerType] = useState<'organization' | 'individual'>('organization');
@@ -89,13 +91,15 @@ const CustomerFormScreen = () => {
     if (hasChanges) {
       setShowConfirmDialog(true);
     } else {
-      navigate(ROUTES.DECLARATION_CATEGORIES);
+      setExiting(true);
+      setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), ANIM_MS);
     }
   };
 
   const handleConfirmLeave = () => {
     setShowConfirmDialog(false);
-    navigate(ROUTES.DECLARATION_CATEGORIES);
+    setExiting(true);
+    setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), ANIM_MS);
   };
 
   const handleTaxLookup = async () => {
@@ -221,6 +225,8 @@ const CustomerFormScreen = () => {
         backgroundColor: '#FFFFFF',
         position: 'relative',
         pt: 0,
+        transform: exiting ? 'translateX(100%)' : 'translateX(0)',
+        transition: `transform ${ANIM_MS}ms ease`,
       }}
     >
       {/* Top decorative image */}

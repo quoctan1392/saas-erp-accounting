@@ -1,15 +1,26 @@
-import { Box, Container, Typography, Button, Switch, IconButton } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { Box, Container, Typography, Button, IconButton } from '@mui/material';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowBack } from '@mui/icons-material';
 import { ROUTES } from '../../config/constants';
 import { useEffect, useState } from 'react';
-import RoundedTextField from '../../components/RoundedTextField';
+import WarehouseForm from './WarehouseForm';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { apiService } from '../../services/api';
 import headerDay from '../../assets/Header_day.png';
 
 const WarehouseFormScreen = () => {
   const navigate = useNavigate();
+  const location: any = useLocation();
+  const returnTo: string | null = (location && location.state && location.state.returnTo) || null;
+
+  const [visible, setVisible] = useState(false);
+  const ANIM_MS = 280;
+
+  useEffect(() => {
+    // slide-in on mount
+    const t = setTimeout(() => setVisible(true), 20);
+    return () => clearTimeout(t);
+  }, []);
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -38,9 +49,17 @@ const WarehouseFormScreen = () => {
   const handleBack = () => {
     if (hasChanges) {
       setShowConfirmDialog(true);
-    } else {
-      navigate(ROUTES.DECLARATION_CATEGORIES);
+      return;
     }
+    // slide-out then navigate back to caller (returnTo) or categories
+    setVisible(false);
+    setTimeout(() => {
+      if (returnTo) {
+        navigate(returnTo, { state: { openWarehouseSelection: true } });
+      } else {
+        navigate(ROUTES.DECLARATION_CATEGORIES);
+      }
+    }, ANIM_MS);
   };
 
   const handleConfirmLeave = () => {
@@ -62,10 +81,16 @@ const WarehouseFormScreen = () => {
         isActive,
       };
 
-      await apiService.createWarehouse(payload);
+      const res = await apiService.createWarehouse(payload);
+      // infer created warehouse name
+      const createdName = res?.data?.warehouseName || res?.warehouseName || name;
 
       setHasChanges(false);
-      navigate(ROUTES.DECLARATION_CATEGORIES);
+      if (returnTo) {
+        navigate(returnTo, { state: { selectedWarehouse: createdName } });
+      } else {
+        navigate(ROUTES.DECLARATION_CATEGORIES);
+      }
     } catch (error) {
       // Minimal user feedback for now
       // eslint-disable-next-line no-alert
@@ -97,6 +122,7 @@ const WarehouseFormScreen = () => {
       setAddress('');
       setIsActive(true);
       setHasChanges(false);
+      // if opened from selection, after save-and-add-new we stay on the same screen
     } catch (error) {
       // eslint-disable-next-line no-alert
       alert('Không thể lưu kho. Vui lòng thử lại.');
@@ -112,6 +138,8 @@ const WarehouseFormScreen = () => {
         backgroundColor: '#FFFFFF',
         position: 'relative',
         pt: 0,
+        transform: visible ? 'translateX(0)' : 'translateX(100%)',
+        transition: `transform ${ANIM_MS}ms ease`,
       }}
     >
       {/* Top decorative image */}
@@ -156,52 +184,16 @@ const WarehouseFormScreen = () => {
         >
           {/* Form Fields */}
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <RoundedTextField
-              fullWidth
-              required
-              label="Mã kho"
-              placeholder="Nhập mã kho"
-              value={code}
-              onChange={(e) => handleFieldChange(setCode)(e.target.value)}
-            />
-
-            <RoundedTextField
-              fullWidth
-              required
-              label="Tên kho"
-              placeholder="Nhập tên kho"
-              value={name}
-              onChange={(e) => handleFieldChange(setName)(e.target.value)}
-            />
-
-            <RoundedTextField
-              fullWidth
-              label="Địa chỉ kho"
-              placeholder="Nhập địa chỉ kho"
-              value={address}
-              onChange={(e) => handleFieldChange(setAddress)(e.target.value)}
-              inputProps={{ maxLength: 255 }}
-            />
-
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0 }}>
-              <Typography sx={{ fontSize: '16px', fontWeight: 500, color: '#212529' }}>
-                Đang sử dụng
-              </Typography>
-              <Switch
-                checked={isActive}
-                onChange={(e) => handleFieldChange(setIsActive)(e.target.checked)}
-                sx={{
-                  '& .MuiSwitch-switchBase.Mui-checked': {
-                    color: '#FB7E00',
-                  },
-                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                    backgroundColor: '#FB7E00',
-                  },
-                }}
-              />
-            </Box>
-          </Box>
+          <WarehouseForm
+            code={code}
+            setCode={(v: string) => handleFieldChange(setCode)(v)}
+            name={name}
+            setName={(v: string) => handleFieldChange(setName)(v)}
+            address={address}
+            setAddress={(v: string) => handleFieldChange(setAddress)(v)}
+            isActive={isActive}
+            setIsActive={(v: boolean) => handleFieldChange(setIsActive)(v)}
+          />
 
           {/* Desktop buttons */}
           <Box sx={{ display: { xs: 'none', sm: 'flex' }, gap: 2, mt: 4, justifyContent: 'flex-end' }}>

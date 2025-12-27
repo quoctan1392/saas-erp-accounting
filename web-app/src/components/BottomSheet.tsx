@@ -7,6 +7,8 @@ interface BottomSheetProps {
   onClose: () => void;
   /** Optional icon name to use for the close button (defaults to "Close") */
   closeIconName?: string;
+  /** Hide the close icon button when true */
+  hideClose?: boolean;
   title?: string;
   children: ReactNode;
   maxHeight?: string;
@@ -16,7 +18,8 @@ interface BottomSheetProps {
 const BottomSheet = ({
   open,
   onClose,
-  closeIconName = 'Close',
+  closeIconName: _closeIconName = 'Close',
+  hideClose = false,
   title,
   children,
   maxHeight = '70vh',
@@ -91,9 +94,11 @@ const BottomSheet = ({
             <Box />
           )}
 
-          <IconButton onClick={onClose} aria-label="close">
-            <Icon name="CloseCircle" size={20} color="#6C757D" variant="Outline" />
-          </IconButton>
+          {!hideClose && (
+            <IconButton onClick={onClose} aria-label="close">
+              <Icon name="CloseCircle" size={20} color="#6C757D" variant="Outline" />
+            </IconButton>
+          )}
         </Box>
 
         {/* Content */}
