@@ -2,7 +2,7 @@ import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { SubjectGroup } from './subject-group.entity';
 
-@Entity('object')
+@Entity('accounting_object')
 @Index(['tenantId', 'accountObjectCode'], { unique: true })
 export class AccountingObject extends BaseEntity {
   @Column({ name: 'account_object_code' })
@@ -60,7 +60,7 @@ export class AccountingObject extends BaseEntity {
   @Column({ name: 'contact_email', nullable: true })
   contactEmail?: string;
 
-  @Column({ name: 'list_bank_account_ids', type: 'simple-array', nullable: true })
+  @Column({ name: 'list_bank_account_ids', type: 'uuid', array: true, nullable: true })
   listBankAccountIds?: string[];
 
   @Column({ name: 'identity_number', nullable: true })

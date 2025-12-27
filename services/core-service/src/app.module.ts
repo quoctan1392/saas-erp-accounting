@@ -16,6 +16,9 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { JwtStrategy } from './common/strategies/jwt.strategy';
 
+// Entities
+import * as entities from './entities';
+
 // Modules
 import { BusinessProfileModule } from './modules/business-profile/business-profile.module';
 import { ChartOfAccountsModule } from './modules/chart-of-accounts/chart-of-accounts.module';
@@ -46,8 +49,8 @@ import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module
         username: configService.get('DB_USERNAME'),
         password: configService.get('DB_PASSWORD'),
         database: configService.get('DB_DATABASE'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: configService.get('NODE_ENV') === 'development',
+        entities: Object.values(entities),
+        synchronize: false, // ALWAYS use migrations, never synchronize
         logging: configService.get('NODE_ENV') === 'development',
         ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
       }),

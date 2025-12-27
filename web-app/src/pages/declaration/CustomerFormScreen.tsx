@@ -17,6 +17,7 @@ import { ArrowBack } from '@mui/icons-material';
 import RoundedTextField from '../../components/RoundedTextField';
 import { apiService } from '../../services/api';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import ErrorDialog from '../../components/ErrorDialog';
 import headerDay from '../../assets/Header_day.png';
 import * as Iconsax from 'iconsax-react';
 
@@ -58,26 +59,54 @@ const CustomerFormScreen = () => {
   const [bankName, setBankName] = useState('');
   const [bankBranch, setBankBranch] = useState('');
 
-  
-
   // Expandable sections
   const [isContactExpanded, setIsContactExpanded] = useState(false);
   const [isEInvoiceExpanded, setIsEInvoiceExpanded] = useState(false);
   const [isBankExpanded, setIsBankExpanded] = useState(false);
+  // Error dialog state
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [errorDialogMessage, setErrorDialogMessage] = useState('');
 
   // Auto-generate customer code on mount
   useEffect(() => {
-    // TODO: Call API to get next customer code
-    // For now, generate sequential code in format KH00001, KH00002, etc.
-    const generateCustomerCode = () => {
-      // In production, this should call API: GET /api/customers/next-code
-      // For now, use localStorage to track the last customer number
-      const lastCustomerNumber = parseInt(localStorage.getItem('lastCustomerNumber') || '0', 10);
-      const nextNumber = lastCustomerNumber + 1;
-      return `KH${nextNumber.toString().padStart(5, '0')}`;
+    const fetchNextCustomerCode = async () => {
+      try {
+        console.log('[CustomerForm] Fetching next customer code...');
+        const nextCode = await apiService.getNextObjectCode('customer');
+        console.log(
+          '[CustomerForm] Received next code from API:',
+          nextCode,
+          'Type:',
+          typeof nextCode,
+        );
+
+        if (typeof nextCode === 'string' && nextCode.trim().length > 0) {
+          console.log('[CustomerForm] Setting code to:', nextCode);
+          setCode(nextCode);
+        } else {
+          console.warn('getNextObjectCode returned empty/invalid value:', nextCode);
+          // Fallback to local generation
+          const lastCustomerNumber = parseInt(
+            localStorage.getItem('lastCustomerNumber') || '0',
+            10,
+          );
+          const nextNumber = lastCustomerNumber + 1;
+          const fallbackCode = `KH${nextNumber.toString().padStart(4, '0')}`;
+          console.log('[CustomerForm] Using fallback code:', fallbackCode);
+          setCode(fallbackCode);
+        }
+      } catch (error) {
+        console.error('Error fetching next customer code:', error);
+        // Fallback to local generation if API fails
+        const lastCustomerNumber = parseInt(localStorage.getItem('lastCustomerNumber') || '0', 10);
+        const nextNumber = lastCustomerNumber + 1;
+        const fallbackCode = `KH${nextNumber.toString().padStart(4, '0')}`;
+        console.log('[CustomerForm] Error fallback code:', fallbackCode);
+        setCode(fallbackCode);
+      }
     };
 
-    setCode(generateCustomerCode());
+    fetchNextCustomerCode();
   }, []);
 
   const handleFieldChange = (setter: any) => (value: any) => {
@@ -129,10 +158,15 @@ const CustomerFormScreen = () => {
 
       setHasChanges(false);
       navigate(ROUTES.DECLARATION_CATEGORIES);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving customer:', error);
-      // TODO: Show error notification to user
-      alert('Không thể lưu khách hàng. Vui lòng thử lại.');
+      // Use MUI dialog to show error
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Không thể lưu khách hàng. Vui lòng thử lại.';
+      setErrorDialogMessage(message);
+      setErrorDialogOpen(true);
     } finally {
       setIsLoading(false);
     }
@@ -162,18 +196,37 @@ const CustomerFormScreen = () => {
       const result = await apiService.createAccountingObject(accountingObjectData);
       console.log('Customer saved successfully:', result);
 
-      // Save the customer number to localStorage for sequential numbering
-      const currentNumber = parseInt(code.replace('KH', ''), 10);
-      localStorage.setItem('lastCustomerNumber', currentNumber.toString());
+      // Fetch next customer code from API
+      try {
+        const nextCode = await apiService.getNextObjectCode('customer');
+        if (typeof nextCode === 'string' && nextCode.trim().length > 0) {
+          setCode(nextCode);
+        } else {
+          console.warn('getNextObjectCode returned empty/invalid value on save-and-add:', nextCode);
+          // Fallback: increment current code or localStorage
+          const parsed =
+            parseInt(
+              String(code || localStorage.getItem('lastCustomerNumber') || '0').replace(/\D/g, ''),
+              10,
+            ) || 0;
+          const nextNumber = parsed + 1;
+          const paddingLength = nextNumber > 9999 ? nextNumber.toString().length : 4;
+          setCode(`KH${nextNumber.toString().padStart(paddingLength, '0')}`);
+        }
+      } catch (error) {
+        console.error('Error fetching next customer code:', error);
+        // Fallback: increment current code
+        const currentNumber =
+          parseInt(
+            String(code || localStorage.getItem('lastCustomerNumber') || '0').replace(/\D/g, ''),
+            10,
+          ) || 0;
+        const nextNumber = currentNumber + 1;
+        const paddingLength = nextNumber > 9999 ? nextNumber.toString().length : 4;
+        setCode(`KH${nextNumber.toString().padStart(paddingLength, '0')}`);
+      }
 
-      // Reset form and generate new customer code
-      const generateCustomerCode = () => {
-        const lastCustomerNumber = parseInt(localStorage.getItem('lastCustomerNumber') || '0', 10);
-        const nextNumber = lastCustomerNumber + 1;
-        return `KH${nextNumber.toString().padStart(5, '0')}`;
-      };
-
-      setCode(generateCustomerCode());
+      // Reset form
       setTaxCode('');
       setIdNumber('');
       setName('');
@@ -197,10 +250,14 @@ const CustomerFormScreen = () => {
       setIsEInvoiceExpanded(false);
       setIsBankExpanded(false);
       setHasChanges(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving customer:', error);
-      // TODO: Show error notification to user
-      alert('Không thể lưu khách hàng. Vui lòng thử lại.');
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Không thể lưu khách hàng. Vui lòng thử lại.';
+      setErrorDialogMessage(message);
+      setErrorDialogOpen(true);
     } finally {
       setIsLoading(false);
     }
@@ -224,25 +281,73 @@ const CustomerFormScreen = () => {
       }}
     >
       {/* Top decorative image */}
-      <Box sx={{ height: { xs: 160, sm: 120 }, width: '100%', backgroundImage: `url(${headerDay})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+      <Box
+        sx={{
+          height: { xs: 160, sm: 120 },
+          width: '100%',
+          backgroundImage: `url(${headerDay})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      />
 
       {/* Fixed header (matches CategoryDeclarationScreen style) */}
       <Box sx={{ position: 'fixed', top: 36, left: 0, right: 0, zIndex: 20, px: { xs: 2, sm: 3 } }}>
-        <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: 'sm', mx: 'auto', py: 0.5 }}>
+        <Box
+          sx={{
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            maxWidth: 'sm',
+            mx: 'auto',
+            py: 0.5,
+          }}
+        >
           <IconButton
             onClick={handleBack}
-            sx={{ position: 'absolute', left: 0, top: 6, width: 40, height: 40, backgroundColor: '#fff', '&:hover': { backgroundColor: '#f5f5f5' } }}
+            sx={{
+              position: 'absolute',
+              left: 0,
+              top: 6,
+              width: 40,
+              height: 40,
+              backgroundColor: '#fff',
+              '&:hover': { backgroundColor: '#f5f5f5' },
+            }}
           >
             <ArrowBack />
           </IconButton>
 
-          <Box sx={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', px: 2 }}>
-            <Typography sx={{ color: 'var(--Greyscale-900, #0D0D12)', textAlign: 'center', fontFamily: '"Bricolage Grotesque"', fontSize: '20px', fontStyle: 'normal', fontWeight: 500 }}>Thêm khách hàng</Typography>
+          <Box
+            sx={{
+              height: 40,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              px: 2,
+            }}
+          >
+            <Typography
+              sx={{
+                color: 'var(--Greyscale-900, #0D0D12)',
+                textAlign: 'center',
+                fontFamily: '"Bricolage Grotesque"',
+                fontSize: '20px',
+                fontStyle: 'normal',
+                fontWeight: 500,
+              }}
+            >
+              Thêm khách hàng
+            </Typography>
           </Box>
         </Box>
       </Box>
 
-      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1, pt: { xs: '120px', sm: '96px' }, pb: 2 }}>
+      <Container
+        maxWidth="sm"
+        sx={{ position: 'relative', zIndex: 1, pt: { xs: '120px', sm: '96px' }, pb: 2 }}
+      >
         <Box
           sx={{
             borderRadius: {
@@ -306,8 +411,7 @@ const CustomerFormScreen = () => {
               placeholder="Nhập mã khách hàng"
               value={code}
               onChange={(e) => handleFieldChange(setCode)(e.target.value)}
-              InputProps={{
-              }}
+              InputProps={{}}
             />
 
             {/* Tax Code or ID Number */}
@@ -359,8 +463,7 @@ const CustomerFormScreen = () => {
               placeholder="Nhập tên khách hàng"
               value={name}
               onChange={(e) => handleFieldChange(setName)(e.target.value)}
-              InputProps={{
-              }}
+              InputProps={{}}
             />
 
             {/* Address (required for organization) */}
@@ -372,8 +475,7 @@ const CustomerFormScreen = () => {
                 placeholder="Nhập địa chỉ"
                 value={address}
                 onChange={(e) => handleFieldChange(setAddress)(e.target.value)}
-                InputProps={{
-                }}
+                InputProps={{}}
               />
             )}
 
@@ -385,8 +487,7 @@ const CustomerFormScreen = () => {
               value={phone}
               onChange={(e) => handleFieldChange(setPhone)(e.target.value)}
               inputProps={{ inputMode: 'tel' }}
-              InputProps={{
-              }}
+              InputProps={{}}
             />
 
             {/* Contact Information Section */}
@@ -555,7 +656,9 @@ const CustomerFormScreen = () => {
           </Box>
 
           {/* Desktop buttons */}
-          <Box sx={{ display: { xs: 'none', sm: 'flex' }, gap: 2, mt: 4, justifyContent: 'flex-end' }}>
+          <Box
+            sx={{ display: { xs: 'none', sm: 'flex' }, gap: 2, mt: 4, justifyContent: 'flex-end' }}
+          >
             <Button
               variant="outlined"
               onClick={handleSave}
@@ -610,6 +713,13 @@ const CustomerFormScreen = () => {
           </Box>
         </Box>
       </Container>
+
+      {/* Error dialog */}
+      <ErrorDialog
+        open={errorDialogOpen}
+        message={errorDialogMessage}
+        onClose={() => setErrorDialogOpen(false)}
+      />
 
       {/* Mobile sticky footer */}
       <Box

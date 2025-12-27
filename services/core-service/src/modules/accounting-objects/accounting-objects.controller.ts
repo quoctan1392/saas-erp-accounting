@@ -1,14 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { AccountingObjectsService } from './accounting-objects.service';
 import { CreateAccountingObjectDto } from './dto/create-accounting-object.dto';
 import { UpdateAccountingObjectDto } from './dto/update-accounting-object.dto';
@@ -33,6 +23,15 @@ export class AccountingObjectsController {
       type,
       isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
     });
+  }
+
+  @Get('next-code')
+  async getNextCode(
+    @TenantId() tenantId: string,
+    @Query('type') type: 'customer' | 'vendor' | 'employee' = 'customer',
+  ) {
+    const code = await this.accountingObjectsService.getNextObjectCode(tenantId, type);
+    return { code };
   }
 
   @Get(':id')
@@ -60,11 +59,7 @@ export class AccountingObjectsController {
   }
 
   @Delete(':id')
-  delete(
-    @Param('id') id: string,
-    @TenantId() tenantId: string,
-    @UserId() userId: string,
-  ) {
+  delete(@Param('id') id: string, @TenantId() tenantId: string, @UserId() userId: string) {
     return this.accountingObjectsService.delete(id, tenantId, userId);
   }
 }
@@ -99,11 +94,7 @@ export class SubjectGroupsController {
   }
 
   @Delete(':id')
-  delete(
-    @Param('id') id: string,
-    @TenantId() tenantId: string,
-    @UserId() userId: string,
-  ) {
+  delete(@Param('id') id: string, @TenantId() tenantId: string, @UserId() userId: string) {
     return this.accountingObjectsService.deleteGroup(id, tenantId, userId);
   }
 }
