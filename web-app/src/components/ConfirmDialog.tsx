@@ -49,7 +49,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           textAlign: 'center',
           fontWeight: 700,
           fontSize: '24px',
-          fontFamily: '"Bricolage Grotesque", sans-serif',
+          fontFamily: '"Inter", sans-serif',
           pb: 1,
           pr: 0,
           pl: 0
@@ -59,25 +59,24 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       </DialogTitle>
 
       <DialogContent sx={{ textAlign: 'center', pt: 0 , pl: 0, pr: 0}}>
-        <DialogContentText sx={{ color: 'rgba(0,0,0,0.8)', fontSize: '15px' }}>
+        <DialogContentText sx={{ color: 'rgba(0,0,0,0.8)', fontSize: '16px' }}>
           {description}
         </DialogContentText>
       </DialogContent>
 
       <DialogActions sx={{ justifyContent: 'center', gap: 2, pt: 2 }}>
-        <Box sx={{ display: 'flex', gap: 2, width: '100%', justifyContent: 'center', px: 1 }}>
+        <Box sx={{ display: 'flex', gap: 2, width: '100%', px: 1 }}>
           <Button
             variant="outlined"
             onClick={onCancel}
             sx={{
+              flex: 1,
               borderRadius: '999px',
               borderColor: '#E0E0E0',
               color: 'rgba(0,0,0,0.8)',
               backgroundColor: '#F5F5F5',
               textTransform: 'none',
-              px: 4,
               py: 1,
-              minWidth: 120,
               boxShadow: 'none',
               '&:hover': { backgroundColor: '#fbfbfb', borderColor: '#dcdcdc' }
             }}
@@ -89,13 +88,12 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             variant="contained"
             onClick={onConfirm}
             sx={{
+              flex: 1,
               borderRadius: '999px',
               backgroundColor: '#FB7E00',
               color: '#fff',
               textTransform: 'none',
-              px: 4,
               py: 1,
-              minWidth: 120,
               boxShadow: 'none',
               '&:hover': { backgroundColor: (theme) => theme.palette.mode === 'dark' ? confirmColor : undefined }
             }}

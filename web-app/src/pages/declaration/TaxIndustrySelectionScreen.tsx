@@ -1,9 +1,9 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Box, Typography, IconButton, Divider, Radio, RadioGroup, FormControlLabel, Button, InputAdornment } from '@mui/material';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Box, Typography, IconButton, Radio, RadioGroup, FormControlLabel } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import taxIndustryGroups, { type TaxIndustryGroup } from '../../data/taxIndustryGroups';
 import headerDay from '../../assets/Header_day.png';
-import Icon from '../../components/Icon';
+// Icon removed; not used in this screen
 
 interface Props {
   open: boolean;

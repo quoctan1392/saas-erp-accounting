@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, FindOptionsWhere } from 'typeorm';
+import { Repository, FindOptionsWhere } from 'typeorm';
 import { AccountingObject } from './entities/accounting-object.entity';
 import { SubjectGroup } from './entities/subject-group.entity';
 import { CreateAccountingObjectDto } from './dto/create-accounting-object.dto';
@@ -26,7 +26,9 @@ export class AccountingObjectsService {
     },
   ): Promise<PaginationResponseDto<AccountingObject>> {
     const { page, limit, search, sortBy, sortOrder } = paginationDto;
-    const skip = (page - 1) * limit;
+    const p = page ?? 1;
+    const l = limit ?? 20;
+    const skip = (p - 1) * l;
 
     const where: FindOptionsWhere<AccountingObject> = {
       tenantId,
@@ -59,14 +61,14 @@ export class AccountingObjectsService {
     const [objects, total] = await queryBuilder
       .leftJoinAndSelect('object.subjectGroup', 'subjectGroup')
       .skip(skip)
-      .take(limit)
+      .take(l)
       .orderBy(
         sortBy ? `object.${sortBy}` : 'object.createdAt',
         sortOrder || 'DESC',
       )
       .getManyAndCount();
 
-    return new PaginationResponseDto(objects, total, page, limit);
+    return new PaginationResponseDto(objects, total, p, l);
   }
 
   async findOne(id: string, tenantId: string): Promise<AccountingObject> {

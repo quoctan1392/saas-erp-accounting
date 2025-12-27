@@ -10,7 +10,6 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
-  UseGuards,
   Request,
 } from '@nestjs/common';
 import {
@@ -240,19 +239,10 @@ export class InvoiceController {
     description: 'Invoice not found',
   })
   async exportPdf(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Request() req: any,
+    @Param('id', ParseUUIDPipe) _id: string,
+    @Request() _req: any,
   ): Promise<any> {
-    // TODO: Extract from JWT token when auth is ready
-    const tenantId = req.tenantId || 'default-tenant-id';
-
-    const pdfBuffer = await this.invoiceService.exportPdf(tenantId, id);
-
-    // TODO: Return PDF with proper headers
-    // res.setHeader('Content-Type', 'application/pdf');
-    // res.setHeader('Content-Disposition', `attachment; filename=invoice-${id}.pdf`);
-    // return pdfBuffer;
-
+    // TODO: implement PDF export; placeholder for now
     return { message: 'PDF export not implemented yet' };
   }
 

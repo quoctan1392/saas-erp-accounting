@@ -2,10 +2,9 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 import { InvoiceDetail } from '../entities/invoice-detail.entity';
 import { CreateInvoiceDto } from '../dto/create-invoice.dto';
@@ -324,9 +323,7 @@ export class InvoiceService {
   /**
    * Xuất hóa đơn thành PDF (placeholder)
    */
-  async exportPdf(tenantId: string, id: string): Promise<Buffer> {
-    const invoice = await this.findOne(tenantId, id);
-
+  async exportPdf(_tenantId: string, _id: string): Promise<Buffer> {
     // TODO: Implement PDF generation using a library like pdfkit or puppeteer
     // For now, return a placeholder
     throw new BadRequestException('PDF export not implemented yet');
@@ -338,9 +335,9 @@ export class InvoiceService {
   async sendEmail(
     tenantId: string,
     id: string,
-    toEmail: string,
-    subject?: string,
-    message?: string,
+    _toEmail: string,
+    _subject?: string,
+    _message?: string,
   ): Promise<void> {
     const invoice = await this.findOne(tenantId, id);
 

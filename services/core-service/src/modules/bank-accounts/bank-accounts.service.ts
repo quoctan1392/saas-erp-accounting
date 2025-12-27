@@ -27,7 +27,9 @@ export class BankAccountsService {
     },
   ): Promise<PaginationResponseDto<BankAccount>> {
     const { page, limit, search, sortBy, sortOrder } = paginationDto;
-    const skip = (page - 1) * limit;
+    const p = page ?? 1;
+    const l = limit ?? 20;
+    const skip = (p - 1) * l;
 
     const where: FindOptionsWhere<BankAccount> = {
       tenantId,
@@ -51,7 +53,7 @@ export class BankAccountsService {
 
     const [items, total] = await queryBuilder
       .skip(skip)
-      .take(limit)
+      .take(l)
       .orderBy(
         sortBy ? `bankAccount.${sortBy}` : 'bankAccount.createdAt',
         sortOrder || 'DESC',
@@ -61,9 +63,9 @@ export class BankAccountsService {
     return {
       data: items,
       total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      page: p,
+      limit: l,
+      totalPages: Math.ceil(total / l),
     };
   }
 
@@ -227,11 +229,14 @@ export class BankAccountsService {
     // TODO: Query từ bảng bank_transactions hoặc accounting_entries
     // WHERE account_id = bankAccount.accountId
 
+    const p = paginationDto.page ?? 1;
+    const l = paginationDto.limit ?? 20;
+
     return {
       data: [],
       total: 0,
-      page: paginationDto.page,
-      limit: paginationDto.limit,
+      page: p,
+      limit: l,
       totalPages: 0,
     };
   }
@@ -252,7 +257,6 @@ export class BankAccountsService {
     bookBalance: number;
     difference: number;
   }> {
-    const bankAccount = await this.findOne(id, tenantId);
     const bookBalance = await this.getCurrentBalance(id, tenantId);
 
     return {

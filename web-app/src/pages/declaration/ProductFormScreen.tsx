@@ -78,6 +78,7 @@ const ProductFormScreen = () => {
   const [initialStock, setInitialStock] = useState('0');
   const [allowNegative, setAllowNegative] = useState(false);
   const [snackNegativeOpen, setSnackNegativeOpen] = useState(false);
+  const [snackImageSizeOpen, setSnackImageSizeOpen] = useState(false);
   
   // Tax fields
   const [purchaseVAT, setPurchaseVAT] = useState('');
@@ -85,6 +86,7 @@ const ProductFormScreen = () => {
   const [businessType, setBusinessType] = useState<keyof typeof BusinessType>(BusinessType.HOUSEHOLD_BUSINESS);
   const [taxIndustry, setTaxIndustry] = useState('');
   const [taxIndustryScreenOpen, setTaxIndustryScreenOpen] = useState(false);
+  const [imageSelectionSheetOpen, setImageSelectionSheetOpen] = useState(false);
   const taxIndustryLabel = useMemo(() => {
     if (!taxIndustry) return '';
     const found = taxIndustryGroups.find((g) => g.code === taxIndustry);
@@ -179,7 +181,7 @@ const ProductFormScreen = () => {
     const file = event.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        alert('Kích thước ảnh không được vượt quá 5MB');
+        setSnackImageSizeOpen(true);
         return;
       }
       setImageFile(file);
@@ -385,7 +387,7 @@ const ProductFormScreen = () => {
                   justifyContent: 'center',
                   cursor: 'pointer',
                   position: 'relative',
-                  overflow: 'hidden',
+                  overflow: 'visible',
                   bgcolor: '#F8F9FA',
                   '&:hover': {
                     borderColor: '#FB7E00',
@@ -394,47 +396,36 @@ const ProductFormScreen = () => {
                 onClick={() => !imagePreview && document.getElementById('image-upload')?.click()}
               >
                 {imagePreview ? (
-                  <>
-                    <img src={imagePreview} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: 4,
-                        right: 4,
-                        display: 'flex',
-                        gap: 0.5,
-                      }}
-                    >
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          document.getElementById('image-upload')?.click();
-                        }}
-                        sx={{ bgcolor: 'rgba(255,255,255,0.9)', '&:hover': { bgcolor: '#fff' } }}
-                      >
-                        <Icon name="Edit" size={16} color="#FB7E00" />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveImage();
-                        }}
-                        sx={{ bgcolor: 'rgba(255,255,255,0.9)', '&:hover': { bgcolor: '#fff' } }}
-                      >
-                        <Icon name="Trash" size={16} color="#DC3545" />
-                      </IconButton>
-                    </Box>
-                  </>
+                  <img src={imagePreview} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }} />
                 ) : (
                   <Icon name="Gallery" size={32} color="#ADB5BD" variant="Outline" />
                 )}
+                <IconButton
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setImageSelectionSheetOpen(true);
+                  }}
+                  sx={{
+                    position: 'absolute',
+                    bottom: -16,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 40,
+                    height: 40,
+                    bgcolor: '#FB7E00',
+                    color: '#fff',
+                    '&:hover': {
+                      bgcolor: '#E65A2E',
+                    },
+                  }}
+                >
+                  <Icon name="Camera" size={20} color="#fff" variant="Outline" />
+                </IconButton>
               </Box>
               <input
                 id="image-upload"
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/*"
                 style={{ display: 'none' }}
                 onChange={handleImageUpload}
               />
@@ -732,8 +723,8 @@ const ProductFormScreen = () => {
             </Box>
           </Box>
 
-          {/* Desktop buttons */}
-          <Box sx={{ display: { xs: 'none', sm: 'flex' }, gap: 2, mt: 4, justifyContent: 'flex-end' }}>
+          {/* Desktop buttons (hidden because sticky footer is used for all sizes) */}
+          <Box sx={{ display: { xs: 'none', sm: 'none' }, gap: 2, mt: 4, justifyContent: 'flex-end' }}>
             <Button
               variant="outlined"
               onClick={handleSave}
@@ -792,7 +783,7 @@ const ProductFormScreen = () => {
       {/* Mobile sticky footer */}
       <Box
         sx={{
-          display: { xs: productTypeSheetOpen || productGroupScreenOpen || unitScreenOpen || warehouseScreenOpen || taxIndustryScreenOpen ? 'none' : 'flex', sm: 'none' },
+          display: productTypeSheetOpen || productGroupScreenOpen || unitScreenOpen || warehouseScreenOpen || taxIndustryScreenOpen || imageSelectionSheetOpen ? 'none' : { xs: 'flex', sm: 'none' },
           position: 'fixed',
           left: 0,
           right: 0,
@@ -856,6 +847,17 @@ const ProductFormScreen = () => {
 
       {/* Product Type BottomSheet (radio list + confirm) */}
       <Snackbar
+        open={snackImageSizeOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackImageSizeOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{ mb: '84px' }}
+      >
+        <Alert severity="error" onClose={() => setSnackImageSizeOpen(false)} sx={{ borderRadius: '12px' }}>
+          Kích thước ảnh không được vượt quá 5MB
+        </Alert>
+      </Snackbar>
+      <Snackbar
         open={snackNegativeOpen}
         autoHideDuration={2400}
         onClose={() => setSnackNegativeOpen(false)}
@@ -873,7 +875,7 @@ const ProductFormScreen = () => {
           setProductTypeSheetOpen(false);
         }}
         title="Chọn tính chất"
-        zIndexBase={1200}
+        zIndexBase={9999}
         hideClose
       >
         <Box onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} sx={{ px: 0 }}>
@@ -934,11 +936,149 @@ const ProductFormScreen = () => {
           setTaxIndustryScreenOpen(false);
         }}
       />
+      <BottomSheet
+        open={imageSelectionSheetOpen}
+        onClose={() => setImageSelectionSheetOpen(false)}
+        title="Chọn ảnh sản phẩm"
+        zIndexBase={9999}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          <Box
+            onClick={() => {
+              setImageSelectionSheetOpen(false);
+              // Trigger camera (on mobile devices, this will open camera if available)
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = 'image/*';
+              input.capture = 'environment';
+              input.onchange = (e: any) => {
+                const file = e.target?.files?.[0];
+                if (file) {
+                  if (file.size > 5 * 1024 * 1024) {
+                    setSnackImageSizeOpen(true);
+                    return;
+                  }
+                  setImageFile(file);
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    setImagePreview(reader.result as string);
+                  };
+                  reader.readAsDataURL(file);
+                  setHasChanges(true);
+                }
+              };
+              input.click();
+            }}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              py: 2,
+              px: 0,
+              cursor: 'pointer',
+              '&:hover': {
+                bgcolor: '#F8F9FA',
+              },
+            }}
+          >
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: '8px',
+                bgcolor: '#FFF4E6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon name="Camera" size={20} color="#FB7E00" variant="Outline" />
+            </Box>
+            <Typography sx={{ fontSize: 16, fontWeight: 500, color: '#212529' }}>
+              Chụp ảnh
+            </Typography>
+          </Box>
+          <Divider sx={{ borderColor: '#F1F3F5' }} />
+          <Box
+            onClick={() => {
+              setImageSelectionSheetOpen(false);
+              document.getElementById('image-upload')?.click();
+            }}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              py: 2,
+              px: 0,
+              cursor: 'pointer',
+              '&:hover': {
+                bgcolor: '#F8F9FA',
+              },
+            }}
+          >
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: '8px',
+                bgcolor: '#E7F5FF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon name="Gallery" size={20} color="#007DFB" variant="Outline" />
+            </Box>
+            <Typography sx={{ fontSize: 16, fontWeight: 500, color: '#212529' }}>
+              Chọn ảnh từ thư viện
+            </Typography>
+          </Box>
+          {imagePreview && (
+            <>
+              <Divider sx={{ borderColor: '#F1F3F5' }} />
+              <Box
+                onClick={() => {
+                  handleRemoveImage();
+                  setImageSelectionSheetOpen(false);
+                }}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  py: 2,
+                  px: 0,
+                  cursor: 'pointer',
+                  '&:hover': {
+                    bgcolor: '#FFF5F5',
+                  },
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: '8px',
+                    bgcolor: '#FFE5E5',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon name="Trash" size={20} color="#DC3545" variant="Outline" />
+                </Box>
+                <Typography sx={{ fontSize: 16, fontWeight: 500, color: '#DC3545' }}>
+                  Xoá ảnh
+                </Typography>
+              </Box>
+            </>
+          )}
+        </Box>
+      </BottomSheet>
       <ConfirmDialog
         open={showConfirmDialog}
         title="Thay đổi chưa được lưu"
         description="Bạn có muốn lưu thay đổi trước khi rời khỏi trang?"
-        cancelText="Hủy bỏ thay đổi"
+        cancelText="Hủy thay đổi"
         confirmText="Lưu"
         onCancel={handleConfirmLeave}
         onConfirm={async () => {
