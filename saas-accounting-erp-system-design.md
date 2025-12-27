@@ -26,9 +26,30 @@ Xây dựng nền tảng SaaS ERP tập trung vào kế toán cho doanh nghiệp
 | **Fault Isolation**          | Circuit Breaker, Retry           | ✅     |
 | **Service Discovery**        | Consul/Kubernetes                | ✅     |
 | **API Gateway**              | Kong Gateway                     | ✅     |
-| **Event-Driven**             | RabbitMQ/Kafka                   | ✅     |
+| **Event-Driven**             | RabbitMQ                         | ✅     |
 
-**9 Core Microservices**: Auth • Tenant • Accounting • Sales • Inventory • Purchase • HR • Notification • Reporting
+**Microservices Architecture**:
+
+1. **Auth Service** (3001) - Authentication & Authorization
+2. **Tenant Service** (3002) - Multi-tenant Management
+3. **Core Service** (3003) - Main ERP Logic (Accounting, Sales, Inventory, Purchase)
+4. **Notification Service** (3005) - Email, Push, In-app Notifications
+5. **HR Service** (Future) - Human Resources Management
+6. **Reporting Service** (Future) - Advanced Analytics & BI
+
+**Core Service Modules**:
+
+- Business Profile (Hồ sơ doanh nghiệp)
+- Chart of Accounts (Hệ thống tài khoản kế toán)
+- Accounting Objects (Khách hàng, Nhà cung cấp, Nhân viên)
+- Items (Hàng hóa dịch vụ)
+- Warehouses (Quản lý kho)
+- Sales (Bán hàng, Phiếu xuất, Phiếu thu)
+- Purchases (Mua hàng)
+- Inventory (Xuất nhập tồn)
+- Invoices (Hóa đơn điện tử)
+- Reports (Báo cáo kế toán, bán hàng, kho)
+- Bank Accounts (Tài khoản ngân hàng)
 
 ---
 
@@ -156,24 +177,26 @@ frontend/
 │  - Response Aggregation  - Circuit Breaker                     │
 └────────────────────────┬──────────────────────────────────────┘
                          │
-    ┌────────────────────┼────────────────┬───────────────┬─────────┐
-    │                    │                │               │         │
-    ↓                    ↓                ↓               ↓         ↓
-┌──────────┐      ┌──────────┐      ┌──────────┐   ┌──────────┐  ┌────┐
-│   Auth   │      │  Tenant  │      │Accounting│   │  Sales   │  │... │
-│ Service  │      │ Service  │      │ Service  │   │ Service  │  │    │
-│          │      │          │      │          │   │          │  │    │
-│ :3001    │      │ :3002    │      │ :3003    │   │ :3004    │  │    │
-└────┬─────┘      └────┬─────┘      └────┬─────┘   └────┬─────┘  └─┬──┘
-     │                 │                 │              │           │
-     │  ┌──────────────┴─────────────────┴──────────────┴───────────┘
+    ┌────────────────────┼────────────────┬───────────────┐
+    │                    │                │               │
+    ↓                    ↓                ↓               ↓
+┌──────────┐      ┌──────────┐      ┌──────────┐   ┌──────────┐
+│   Auth   │      │  Tenant  │      │   Core   │   │  Notif   │
+│ Service  │      │ Service  │      │ Service  │   │ Service  │
+│          │      │          │      │          │   │          │
+│ :3001    │      │ :3002    │      │ :3003    │   │ :3005    │
+└────┬─────┘      └────┬─────┘      └────┬─────┘   └────┬─────┘
+     │                 │                 │              │
+     │  ┌──────────────┴─────────────────┴──────────────┘
      │  │
      ↓  ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │                      Message Bus Layer                           │
-│            RabbitMQ / Apache Kafka (Event-Driven)               │
-│  - order.created      - invoice.paid                            │
-│  - payment.completed  - inventory.updated                       │
+│            RabbitMQ (Event-Driven Architecture)                 │
+│  Events:                                                         │
+│  - sale.created          - invoice.published                    │
+│  - payment.received      - inventory.out                        │
+│  - low.stock.alert       - user.created                         │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
                     ┌─────────┴─────────┐
@@ -459,16 +482,11 @@ export class OrderCreationSaga {
 export class CircuitBreakerService {
   private circuits = new Map<string, CircuitBreaker>();
 
-  async execute<T>(
-    serviceName: string,
-    operation: () => Promise<T>
-  ): Promise<T> {
+  async execute<T>(serviceName: string, operation: () => Promise<T>): Promise<T> {
     const circuit = this.getCircuit(serviceName);
 
     if (circuit.isOpen()) {
-      throw new CircuitBreakerOpenException(
-        `Circuit breaker is open for ${serviceName}`
-      );
+      throw new CircuitBreakerOpenException(`Circuit breaker is open for ${serviceName}`);
     }
 
     try {
@@ -486,7 +504,7 @@ export class CircuitBreakerService {
 async function retryWithBackoff<T>(
   operation: () => Promise<T>,
   maxRetries: number = 3,
-  baseDelay: number = 1000
+  baseDelay: number = 1000,
 ): Promise<T> {
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -501,15 +519,10 @@ async function retryWithBackoff<T>(
 }
 
 // Timeout Pattern
-async function withTimeout<T>(
-  operation: () => Promise<T>,
-  timeoutMs: number = 5000
-): Promise<T> {
+async function withTimeout<T>(operation: () => Promise<T>, timeoutMs: number = 5000): Promise<T> {
   return Promise.race([
     operation(),
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new TimeoutException()), timeoutMs)
-    ),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new TimeoutException()), timeoutMs)),
   ]);
 }
 
@@ -521,7 +534,7 @@ export class BulkheadService {
   async execute<T>(
     poolName: string,
     operation: () => Promise<T>,
-    maxConcurrent: number = 10
+    maxConcurrent: number = 10,
   ): Promise<T> {
     const semaphore = this.getSemaphore(poolName, maxConcurrent);
 
@@ -718,24 +731,24 @@ Services với Database riêng:
 
 ```typescript
 // OpenTelemetry for Distributed Tracing
-import { trace, SpanStatusCode } from "@opentelemetry/api";
+import { trace, SpanStatusCode } from '@opentelemetry/api';
 
 @Injectable()
 export class SalesOrderService {
-  private tracer = trace.getTracer("sales-service");
+  private tracer = trace.getTracer('sales-service');
 
   async createOrder(dto: CreateOrderDto): Promise<Order> {
-    const span = this.tracer.startSpan("createOrder", {
+    const span = this.tracer.startSpan('createOrder', {
       attributes: {
-        "tenant.id": dto.tenantId,
-        "user.id": dto.userId,
-        "order.total": dto.totalAmount,
+        'tenant.id': dto.tenantId,
+        'user.id': dto.userId,
+        'order.total': dto.totalAmount,
       },
     });
 
     try {
       // Step 1: Validate
-      const validationSpan = this.tracer.startSpan("validateOrder", {
+      const validationSpan = this.tracer.startSpan('validateOrder', {
         parent: span,
       });
       await this.validateOrder(dto);
@@ -745,10 +758,10 @@ export class SalesOrderService {
       const order = await this.orderRepository.save(dto);
 
       // Step 3: Call other services
-      const inventorySpan = this.tracer.startSpan("checkInventory", {
+      const inventorySpan = this.tracer.startSpan('checkInventory', {
         parent: span,
         attributes: {
-          service: "inventory-service",
+          service: 'inventory-service',
         },
       });
       await this.inventoryClient.checkStock(order.items);
@@ -800,7 +813,7 @@ services:
               hour: 1000
           - name: cors
             config:
-              origins: ["*"]
+              origins: ['*']
 
   - name: accounting-service
     url: http://accounting-service:3003
@@ -836,7 +849,7 @@ services:
           - name: jwt
           - name: acl
             config:
-              whitelist: ["admin", "sales"]
+              whitelist: ['admin', 'sales']
 ```
 
 #### Core Services
@@ -876,6 +889,10 @@ POST   /auth/mfa/verify
 ##### 3.2 Tenant Management Service
 
 ```typescript
+Port: 3002
+Database: tenant_db (PostgreSQL)
+Cache: Redis
+
 Chức năng:
 - Tenant registration & provisioning
 - Subscription management
@@ -901,7 +918,668 @@ GET    /tenants/:id/subscription   # Get subscription
 POST   /tenants/:id/provision      # Provision resources
 ```
 
-##### 3.3 Accounting Service (Core)
+##### 3.3 Core Service (Main ERP Business Logic)
+
+```typescript
+Port: 3003
+Database: core_db (PostgreSQL)
+Cache: Redis
+Queue: RabbitMQ
+
+**Mục đích**: Service trung tâm xử lý toàn bộ nghiệp vụ ERP bao gồm kế toán,
+bán hàng, kho, mua hàng. Là service quan trọng nhất của hệ thống.
+
+Tech Stack:
+- NestJS (framework)
+- TypeScript (language)
+- PostgreSQL 16+ (database với Row Level Security)
+- Redis (caching & session)
+- RabbitMQ (event publishing)
+- Bull/BullMQ (job queue cho background tasks)
+
+Database Schema:
+Tham khảo chi tiết tại: ./core-service-db-design.md
+Các bảng chính:
+- business_profile (Hồ sơ doanh nghiệp)
+- chart_of_accounts_general, chart_of_accounts_custom (Hệ thống tài khoản)
+- object, subject_group (Đối tượng kế toán: khách hàng, NCC, nhân viên)
+- item, item_category, unit (Hàng hóa dịch vụ)
+- warehouse, inventory_transactions (Quản lý kho)
+- sale_voucher, sale_voucher_detail (Chứng từ bán hàng)
+- outward_voucher, outward_voucher_detail (Phiếu xuất kho)
+- receipt_voucher, receipt_voucher_detail (Phiếu thu tiền)
+- invoice, invoice_detail (Hóa đơn)
+- bank_account, einvoice_provider (Ngân hàng & hóa đơn điện tử)
+
+Module Structure:
+├── business-profile/          # Quản lý hồ sơ doanh nghiệp
+├── chart-of-accounts/         # Hệ thống tài khoản kế toán
+├── accounting-objects/        # Đối tượng kế toán (khách, NCC, NV)
+├── items/                     # Hàng hóa dịch vụ
+├── warehouses/                # Quản lý kho
+├── sales/                     # Bán hàng
+├── purchases/                 # Mua hàng
+├── inventory/                 # Xuất nhập tồn kho
+├── invoices/                  # Hóa đơn
+├── vouchers/                  # Chứng từ (thu/chi/nhập/xuất)
+├── reports/                   # Báo cáo
+├── bank-accounts/             # Tài khoản ngân hàng
+└── einvoice/                  # Hóa đơn điện tử
+
+═══════════════════════════════════════════════════════════════════
+MODULE 1: BUSINESS PROFILE - Quản lý hồ sơ doanh nghiệp
+═══════════════════════════════════════════════════════════════════
+
+Endpoints:
+POST   /business-profile                    # Tạo hồ sơ doanh nghiệp (onboarding)
+GET    /business-profile                    # Lấy thông tin hồ sơ
+PUT    /business-profile                    # Cập nhật hồ sơ
+GET    /business-profile/settings           # Lấy cấu hình hệ thống
+
+POST   /business-profile/einvoice-providers # Thêm nhà cung cấp hóa đơn điện tử
+GET    /business-profile/einvoice-providers # Danh sách NCC hóa đơn điện tử
+PUT    /business-profile/einvoice-providers/:id # Cập nhật NCC
+DELETE /business-profile/einvoice-providers/:id # Xóa NCC
+
+Data Model:
+{
+  type: 'business' | 'household',           // Loại hình
+  taxNumber: string,                         // Mã số thuế
+  name: string,                              // Tên doanh nghiệp
+  address: string,                           // Địa chỉ
+  ownerName: string,                         // Chủ doanh nghiệp
+  identityNumber: string,                    // CMND/CCCD
+  fieldsOfOperation: string,                 // Lĩnh vực
+  sector: string[],                          // Ngành nghề
+  accountingRegime: 'simple' | 'standard',   // Chế độ kế toán
+  startDataDate: Date,                       // Ngày bắt đầu dữ liệu
+  taxCalculationMethod: 'deduction' | 'direct', // Phương pháp tính thuế
+  accountingCurrency: 'VND' | 'USD',         // Tiền tệ
+  taxFrequency: 'monthly' | 'quarterly',     // Tần suất kê khai thuế
+  useInvoiceMachine: boolean,                // Sử dụng máy tính tiền
+  inventoryMethod: 'fifo' | 'lifo' | 'average', // Phương pháp tính giá xuất kho
+  initialCashOnHand: number,                 // Tiền mặt ban đầu
+  initialBankBalance: number                 // Số dư ngân hàng ban đầu
+}
+
+═══════════════════════════════════════════════════════════════════
+MODULE 2: CHART OF ACCOUNTS - Hệ thống tài khoản kế toán
+═══════════════════════════════════════════════════════════════════
+
+Endpoints:
+GET    /chart-of-accounts/general           # Danh sách tài khoản chuẩn (theo chế độ)
+GET    /chart-of-accounts/custom            # Danh sách tài khoản tùy chỉnh của tenant
+POST   /chart-of-accounts/custom            # Tạo tài khoản tùy chỉnh
+PUT    /chart-of-accounts/custom/:id        # Cập nhật tài khoản
+DELETE /chart-of-accounts/custom/:id        # Xóa tài khoản (nếu chưa phát sinh)
+POST   /chart-of-accounts/initialize        # Khởi tạo tài khoản từ general
+
+Data Model:
+{
+  accountNumber: string,                     // Số tài khoản (VD: 111, 112, 1121)
+  accountName: string,                       // Tên tài khoản
+  accountNature: 'debit' | 'credit' | 'both', // Tính chất
+  accountLevel: number,                      // Cấp độ (1, 2, 3)
+  parentId: string,                          // ID tài khoản cha
+  active: boolean,                           // Hoạt động
+  source: 'general' | 'custom',              // Nguồn
+  characteristics: string                    // Đặc điểm (for custom)
+}
+
+Business Rules:
+- Tài khoản từ general không thể xóa/sửa
+- Tài khoản custom phải tuân theo cấu trúc cây (parent-child)
+- Không xóa tài khoản đã phát sinh nghiệp vụ
+- Số tài khoản phải unique trong tenant
+
+═══════════════════════════════════════════════════════════════════
+MODULE 3: ACCOUNTING OBJECTS - Đối tượng kế toán
+═══════════════════════════════════════════════════════════════════
+
+Endpoints:
+# Đối tượng (Khách hàng, Nhà cung cấp, Nhân viên)
+GET    /objects                             # Danh sách đối tượng (filter, search, pagination)
+POST   /objects                             # Tạo đối tượng mới
+GET    /objects/next-code                   # Lấy mã đối tượng tiếp theo (auto-increment)
+GET    /objects/:id                         # Chi tiết đối tượng
+PUT    /objects/:id                         # Cập nhật đối tượng
+DELETE /objects/:id                         # Xóa đối tượng
+
+# Nhóm đối tượng
+GET    /subject-groups                      # Danh sách nhóm
+POST   /subject-groups                      # Tạo nhóm
+PUT    /subject-groups/:id                  # Cập nhật nhóm
+DELETE /subject-groups/:id                  # Xóa nhóm
+
+Query Params (GET /objects):
+?type=customer|vendor|employee               # Lọc theo loại
+?isActive=true                               # Lọc hoạt động
+?search=keyword                              # Tìm kiếm
+?page=1&limit=20                             # Phân trang
+
+Query Params (GET /objects/next-code):
+?type=customer|vendor|employee               # Loại đối tượng (mặc định: customer)
+                                             # Trả về: "KH0001" (customer), "NCC0001" (vendor), "NV0001" (employee)
+
+Data Model:
+{
+  accountObjectCode: string,                 // Mã đối tượng
+  accountObjectName: string,                 // Tên đối tượng
+  address: string,                           // Địa chỉ
+  phone: string,                             // Điện thoại
+  isCustomer: boolean,                       // Là khách hàng
+  isVendor: boolean,                         // Là nhà cung cấp
+  isEmployee: boolean,                       // Là nhân viên
+  isLocalObject: boolean,                    // Đối tượng cục bộ
+  isActive: boolean,                         // Hoạt động
+  subjectGroupId: string,                    // ID nhóm
+  legalRepresentative: string,               // Người đại diện
+  companyTaxCode: string,                    // MST công ty
+  payAccountId: string,                      // TK công nợ phải trả
+  receiveAccountId: string,                  // TK công nợ phải thu
+  contactName: string,                       // Tên liên hệ
+  contactPhone: string,                      // SĐT liên hệ
+  contactEmail: string,                      // Email liên hệ
+  listBankAccountIds: string[],              // Danh sách TK ngân hàng
+  identityNumber: string,                    // CMND/CCCD
+  note: string                               // Ghi chú
+}
+
+Business Rules:
+- Mã đối tượng (accountObjectCode) phải unique trong tenant
+- Tự động sinh mã theo pattern:
+  + Khách hàng: KH0001, KH0002, ..., KH9999, KH10000 (tăng dần, padding 4 chữ số đến 9999)
+  + Nhà cung cấp: NCC0001, NCC0002, ..., NCC9999, NCC10000
+  + Nhân viên: NV0001, NV0002, ..., NV9999, NV10000
+- Khi tạo đối tượng, validate code không trùng lặp (ConflictException nếu trùng)
+- Frontend tự động fetch next code khi mở form tạo mới
+- Khi "Lưu và thêm mới", tự động fetch next code cho record tiếp theo
+
+═══════════════════════════════════════════════════════════════════
+MODULE 4: ITEMS - Hàng hóa dịch vụ
+═══════════════════════════════════════════════════════════════════
+
+Endpoints:
+# Hàng hóa
+GET    /items                               # Danh sách hàng hóa
+POST   /items                               # Tạo hàng hóa mới
+GET    /items/:id                           # Chi tiết hàng hóa
+PUT    /items/:id                           # Cập nhật hàng hóa
+DELETE /items/:id                           # Xóa hàng hóa
+
+# Nhóm hàng hóa
+GET    /item-categories                     # Danh sách nhóm
+POST   /item-categories                     # Tạo nhóm
+PUT    /item-categories/:id                 # Cập nhật nhóm
+DELETE /item-categories/:id                 # Xóa nhóm
+
+# Đơn vị tính
+GET    /units                               # Danh sách đơn vị tính
+POST   /units                               # Tạo đơn vị tính
+PUT    /units/:id                           # Cập nhật đơn vị tính
+DELETE /units/:id                           # Xóa đơn vị tính
+
+Query Params:
+?type=goods|service|material                 # Lọc theo loại
+?categoryId=xxx                              # Lọc theo nhóm
+?isActive=true                               # Lọc hoạt động
+?search=keyword                              # Tìm kiếm
+
+Data Model:
+{
+  code: string,                              // Mã hàng hóa
+  name: string,                              // Tên hàng hóa
+  type: 'goods' | 'service' | 'material' | 'finished_goods' | 'tool_and_equipment',
+  listItemCategoryId: string[],              // Danh sách nhóm
+  minimumStock: number,                      // Tồn kho tối thiểu
+  maximumStock: number,                      // Tồn kho tối đa
+  isActive: boolean,                         // Hoạt động
+  unitId: string,                            // Đơn vị tính
+  sellPrice: number,                         // Giá bán
+  importTaxRate: number,                     // Thuế nhập khẩu
+  exportTaxRate: number,                     // Thuế xuất khẩu
+  vatRate: number,                           // Thuế GTGT
+  specialConsumptionTaxRate: number,         // Thuế TTĐB
+  discountAccountId: string,                 // TK chiết khấu
+  saleOffAccountId: string,                  // TK giảm giá
+  inventoryAccountId: string,                // TK kho
+  revenueAccountId: string,                  // TK doanh thu
+  cogsAccountId: string,                     // TK giá vốn
+  purchaseDescription: string,               // Mô tả mua
+  saleDescription: string,                   // Mô tả bán
+  listImageUrl: string[],                    // Hình ảnh
+  defaultImageUrl: string                    // Hình ảnh mặc định
+}
+
+═══════════════════════════════════════════════════════════════════
+MODULE 5: WAREHOUSES - Quản lý kho
+═══════════════════════════════════════════════════════════════════
+
+Endpoints:
+GET    /warehouses                          # Danh sách kho
+POST   /warehouses                          # Tạo kho
+GET    /warehouses/:id                      # Chi tiết kho
+PUT    /warehouses/:id                      # Cập nhật kho
+DELETE /warehouses/:id                      # Xóa kho
+
+GET    /warehouses/:id/inventory            # Tồn kho theo kho
+GET    /warehouses/:id/transactions         # Lịch sử xuất nhập kho
+
+Data Model:
+{
+  code: string,                              // Mã kho
+  name: string,                              // Tên kho
+  address: string,                           // Địa chỉ
+  isActive: boolean,                         // Hoạt động
+  inventoryAccountId: string                 // TK kho (15x)
+}
+
+═══════════════════════════════════════════════════════════════════
+MODULE 6: SALES - Bán hàng
+═══════════════════════════════════════════════════════════════════
+
+Endpoints:
+# Chứng từ bán hàng
+GET    /sales/vouchers                      # Danh sách chứng từ bán
+POST   /sales/vouchers                      # Tạo chứng từ bán
+GET    /sales/vouchers/:id                  # Chi tiết chứng từ
+PUT    /sales/vouchers/:id                  # Cập nhật chứng từ
+DELETE /sales/vouchers/:id                  # Xóa chứng từ (nếu chưa ghi sổ)
+POST   /sales/vouchers/:id/post             # Ghi sổ
+
+# Phiếu xuất kho
+GET    /sales/outward-vouchers              # Danh sách phiếu xuất
+POST   /sales/outward-vouchers              # Tạo phiếu xuất
+GET    /sales/outward-vouchers/:id          # Chi tiết phiếu xuất
+PUT    /sales/outward-vouchers/:id          # Cập nhật
+DELETE /sales/outward-vouchers/:id          # Xóa
+POST   /sales/outward-vouchers/:id/post     # Ghi sổ
+
+# Phiếu thu tiền
+GET    /sales/receipt-vouchers              # Danh sách phiếu thu
+POST   /sales/receipt-vouchers              # Tạo phiếu thu
+GET    /sales/receipt-vouchers/:id          # Chi tiết
+PUT    /sales/receipt-vouchers/:id          # Cập nhật
+DELETE /sales/receipt-vouchers/:id          # Xóa
+POST   /sales/receipt-vouchers/:id/post     # Ghi sổ
+
+Query Params:
+?status=draft|posted                         # Lọc theo trạng thái
+?fromDate=2024-01-01&toDate=2024-12-31      # Lọc theo ngày
+?objectId=xxx                                # Lọc theo khách hàng
+?page=1&limit=20                             # Phân trang
+
+Data Model - Sale Voucher:
+{
+  code: string,                              // Mã chứng từ
+  transactionNo: string,                     // Số chứng từ
+  transactionDate: Date,                     // Ngày giao dịch
+  postedDate: Date,                          // Ngày ghi sổ
+  transactionCode: string,                   // Mã nghiệp vụ
+  paymentType: 'pay_later' | 'pay_now',      // Loại thanh toán
+  paymentMethod: 'cash' | 'bank_transfer',   // Phương thức
+  isSaleWithOutward: boolean,                // Lập phiếu xuất
+  isSaleWithInvoice: boolean,                // Lập hóa đơn
+  accountObjectId: string,                   // Khách hàng
+  accountObjectName: string,
+  accountObjectAddress: string,
+  accountObjectTaxCode: string,
+  currencyId: string,                        // Loại tiền
+  exchangeRate: number,                      // Tỷ giá
+  totalSaleAmountOc: number,                 // Tổng tiền nguyên tệ
+  totalSaleAmount: number,                   // Tổng tiền nội tệ
+  totalAmount: number,                       // Tổng thanh toán
+  totalDiscountAmount: number,               // Tổng chiết khấu
+  discountType: 'not_discount' | 'by_item' | 'by_invoice_amount' | 'by_percent',
+  totalVatAmount: number,                    // Tổng thuế GTGT
+  totalExportTaxAmount: number,              // Tổng thuế xuất khẩu
+  employeeId: string,                        // Nhân viên bán
+  discountRate: number,                      // Tỷ lệ CK
+  attachedFileIds: string[],                 // File đính kèm
+  details: [                                 // Chi tiết
+    {
+      itemId: string,
+      itemName: string,
+      itemCode: string,
+      quantity: number,
+      unitPrice: number,
+      amount: number,
+      discountRate: number,
+      discountAmount: number,
+      vatAmount: number,
+      exportTaxAmount: number,
+      description: string
+    }
+  ]
+}
+
+Data Model - Outward Voucher:
+{
+  code: string,
+  saleVoucherRefId: string,                  // Link chứng từ bán
+  transactionNo: string,
+  transactionDate: Date,
+  postedDate: Date,
+  accountObjectId: string,
+  employeeId: string,
+  description: string,
+  details: [
+    {
+      itemId: string,
+      quantity: number,
+      cogsUnitPrice: number,                 // Giá vốn
+      cogsAmount: number,                    // Tiền vốn
+      warehouseId: string,                   // Kho xuất
+      description: string
+    }
+  ]
+}
+
+Data Model - Receipt Voucher:
+{
+  saleVoucherRefId: string,
+  transactionNo: string,
+  transactionDate: Date,
+  postedDate: Date,
+  accountObjectId: string,
+  employeeId: string,
+  description: string,
+  details: [
+    {
+      debitAccountId: string,                // TK Nợ (111/112)
+      creditAccountId: string,               // TK Có (131)
+      accountBankId: string,                 // TK ngân hàng (nếu CK)
+      amount: number,
+      description: string
+    }
+  ]
+}
+
+Business Rules:
+- Chỉ xóa chứng từ ở trạng thái draft
+- Khi ghi sổ (post): tạo bút toán kế toán tự động
+- Nếu isSaleWithOutward=true: tự động tạo phiếu xuất kho
+- Nếu isSaleWithInvoice=true: tự động tạo hóa đơn
+- Phiếu xuất kho trừ tồn kho
+- Phiếu thu tiền giảm công nợ khách hàng
+
+═══════════════════════════════════════════════════════════════════
+MODULE 7: INVOICES - Hóa đơn
+═══════════════════════════════════════════════════════════════════
+
+Endpoints:
+GET    /invoices                            # Danh sách hóa đơn
+POST   /invoices                            # Tạo hóa đơn
+GET    /invoices/:id                        # Chi tiết hóa đơn
+PUT    /invoices/:id                        # Cập nhật hóa đơn
+DELETE /invoices/:id                        # Xóa hóa đơn
+POST   /invoices/:id/publish                # Phát hành hóa đơn
+POST   /invoices/:id/cancel                 # Hủy hóa đơn
+GET    /invoices/:id/pdf                    # Xuất PDF
+POST   /invoices/:id/send-email             # Gửi email
+
+Query Params:
+?status=draft|published|cancelled
+?fromDate=xxx&toDate=xxx
+?objectId=xxx
+
+Data Model:
+{
+  invoiceForm: string,                       // Mẫu số
+  invoiceSign: string,                       // Ký hiệu
+  invoiceNumber: string,                     // Số hóa đơn
+  invoiceDate: Date,                         // Ngày hóa đơn
+  status: 'draft' | 'published' | 'cancelled',
+  refId: string,                             // ID chứng từ liên quan
+  refType: 'sale_voucher',                   // Loại chứng từ
+  accountObjectId: string,
+  accountObjectName: string,
+  accountObjectAddress: string,
+  accountObjectTaxCode: string,
+  identityNumber: string,                    // CMND (nếu cá nhân)
+  phoneNumber: string,
+  paymentMethod: 'cash' | 'bank_transfer' | 'both',
+  currencyId: string,
+  exchangeRate: number,
+  totalAmount: number,
+  totalDiscountAmount: number,
+  totalVatAmount: number,
+  details: [
+    {
+      itemId: string,
+      itemName: string,
+      quantity: number,
+      unitPrice: number,
+      amount: number,
+      discountAmount: number,
+      vatAmount: number
+    }
+  ]
+}
+
+Business Rules:
+- Hóa đơn draft có thể sửa/xóa
+- Hóa đơn published không thể sửa/xóa, chỉ cancel
+- Khi publish: gọi API nhà cung cấp hóa đơn điện tử
+- Tự động sinh số hóa đơn khi publish
+
+═══════════════════════════════════════════════════════════════════
+MODULE 8: INVENTORY - Xuất nhập tồn kho
+═══════════════════════════════════════════════════════════════════
+
+Endpoints:
+GET    /inventory/transactions               # Lịch sử xuất nhập kho
+POST   /inventory/transactions               # Tạo giao dịch thủ công
+GET    /inventory/stock-levels               # Tồn kho hiện tại
+GET    /inventory/stock-levels/:itemId       # Tồn kho của 1 hàng hóa
+GET    /inventory/low-stock                  # Hàng hóa sắp hết
+POST   /inventory/adjust                     # Điều chỉnh tồn kho
+POST   /inventory/transfer                   # Chuyển kho
+
+Query Params:
+?warehouseId=xxx                             # Lọc theo kho
+?itemId=xxx                                  # Lọc theo hàng hóa
+?transactionType=in|out|transfer             # Lọc theo loại
+?fromDate=xxx&toDate=xxx                     # Lọc theo ngày
+
+Data Model - Inventory Transaction:
+{
+  itemId: string,
+  warehouseId: string,
+  transactionType: 'in' | 'out' | 'transfer',
+  transactionNo: string,
+  transactionDate: Date,
+  postedDate: Date,
+  quantity: number,
+  unitPrice: number,
+  amount: number,
+  description: string
+}
+
+Data Model - Stock Level:
+{
+  itemId: string,
+  itemCode: string,
+  itemName: string,
+  warehouseId: string,
+  warehouseName: string,
+  quantityOnHand: number,                    // Tồn kho
+  quantityReserved: number,                  // Đã đặt hàng
+  quantityAvailable: number,                 // Khả dụng
+  averageUnitPrice: number,                  // Giá vốn bình quân
+  totalValue: number                         // Giá trị tồn kho
+}
+
+Business Rules:
+- Tính tồn kho real-time từ inventory_transactions
+- Áp dụng phương pháp FIFO/LIFO/Average (theo config)
+- Không cho xuất kho vượt quá tồn
+- Low stock alert khi quantity < minimumStock
+
+═══════════════════════════════════════════════════════════════════
+MODULE 9: BANK ACCOUNTS - Tài khoản ngân hàng
+═══════════════════════════════════════════════════════════════════
+
+Endpoints:
+GET    /bank-accounts                       # Danh sách TK ngân hàng
+POST   /bank-accounts                       # Thêm TK ngân hàng
+GET    /bank-accounts/:id                   # Chi tiết
+PUT    /bank-accounts/:id                   # Cập nhật
+DELETE /bank-accounts/:id                   # Xóa
+GET    /bank-accounts/:id/transactions      # Sao kê giao dịch
+POST   /bank-accounts/:id/reconcile         # Đối soát
+
+Data Model:
+{
+  bankName: string,                          // Tên ngân hàng
+  accountNumber: string,                     // Số tài khoản
+  initialBalance: number,                    // Số dư ban đầu
+  accountId: string,                         // Link TK kế toán (112x)
+  currentBalance: number                     // Số dư hiện tại (calculated)
+}
+
+Business Rules:
+- Khi tạo bank account: tự động tạo account trong chart_of_accounts_custom
+- Số dư hiện tại = initial + sum(transactions)
+
+═══════════════════════════════════════════════════════════════════
+MODULE 10: REPORTS - Báo cáo (Làm sau này, chưa implement)
+═══════════════════════════════════════════════════════════════════
+
+Endpoints:
+# Báo cáo kế toán
+GET    /reports/balance-sheet               # Bảng cân đối kế toán
+GET    /reports/income-statement            # Báo cáo kết quả kinh doanh
+GET    /reports/cash-flow                   # Báo cáo lưu chuyển tiền tệ
+GET    /reports/general-ledger              # Sổ cái
+GET    /reports/subsidiary-ledger           # Sổ chi tiết
+
+# Báo cáo bán hàng
+GET    /reports/sales-by-customer           # Doanh thu theo khách hàng
+GET    /reports/sales-by-item               # Doanh thu theo hàng hóa
+GET    /reports/sales-by-period             # Doanh thu theo thời gian
+
+# Báo cáo kho
+GET    /reports/inventory-by-warehouse      # Tồn kho theo kho
+GET    /reports/inventory-movement          # Báo cáo xuất nhập tồn
+GET    /reports/inventory-valuation         # Báo cáo giá trị tồn kho
+
+# Báo cáo thuế
+GET    /reports/vat-report                  # Báo cáo thuế GTGT
+GET    /reports/tax-declaration             # Tờ khai thuế
+
+Query Params:
+?fromDate=2024-01-01&toDate=2024-12-31      # Kỳ báo cáo
+?warehouseId=xxx                             # Theo kho
+?format=json|pdf|excel                       # Định dạng xuất
+
+Business Rules:
+- Tính toán real-time từ dữ liệu gốc
+- Cache báo cáo phức tạp
+- Hỗ trợ export PDF/Excel
+- Phân quyền xem báo cáo
+
+═══════════════════════════════════════════════════════════════════
+EVENT PUBLISHING - Tích hợp với các services khác
+═══════════════════════════════════════════════════════════════════
+
+Events Published:
+- sale.created                               # Khi tạo đơn bán hàng
+- sale.posted                                # Khi ghi sổ đơn bán
+- invoice.created                            # Khi tạo hóa đơn
+- invoice.published                          # Khi phát hành hóa đơn
+- inventory.out                              # Khi xuất kho
+- inventory.in                               # Khi nhập kho
+- payment.received                           # Khi thu tiền
+- low.stock.alert                            # Cảnh báo tồn kho thấp
+
+Events Subscribed:
+- tenant.created                             # Từ Tenant Service
+- user.created                               # Từ Auth Service
+
+═══════════════════════════════════════════════════════════════════
+CACHING STRATEGY
+═══════════════════════════════════════════════════════════════════
+
+Redis Cache Keys:
+- tenant:{tenantId}:business-profile         # Hồ sơ doanh nghiệp
+- tenant:{tenantId}:chart-of-accounts        # Hệ thống tài khoản
+- tenant:{tenantId}:item:{itemId}            # Thông tin hàng hóa
+- tenant:{tenantId}:stock:{itemId}:{warehouseId} # Tồn kho
+- tenant:{tenantId}:object:{objectId}        # Đối tượng kế toán
+
+TTL:
+- Business profile: 1 hour
+- Chart of accounts: 30 minutes
+- Stock levels: 5 minutes (high frequency)
+- Reports: 10 minutes
+
+Cache Invalidation:
+- Khi cập nhật dữ liệu → xóa cache tương ứng
+- Event-driven: subscribe events để invalidate cache
+
+═══════════════════════════════════════════════════════════════════
+SECURITY & VALIDATION
+═══════════════════════════════════════════════════════════════════
+
+Validation Rules:
+- Tenant isolation: Mọi query phải có tenant_id
+- Row Level Security: PostgreSQL RLS policies
+- Date validation: transactionDate không được trước startDataDate
+- Amount validation: Số tiền không âm
+- Quantity validation: Không xuất kho vượt tồn
+- Account validation: Tài khoản phải tồn tại và active
+
+Authorization:
+- JWT token với tenant_id và user roles
+- Permission-based: read, create, update, delete, post
+- Các chức năng "ghi sổ" (post) cần quyền cao hơn
+
+Audit Log:
+- Log tất cả thao tác create/update/delete
+- Lưu user, timestamp, changes
+- Không cho phép xóa audit logs
+
+═══════════════════════════════════════════════════════════════════
+BACKGROUND JOBS (Bull/BullMQ)
+═══════════════════════════════════════════════════════════════════
+
+Jobs:
+1. calculate-stock-levels                    # Tính tồn kho (mỗi 5 phút)
+2. low-stock-alert                          # Kiểm tra tồn kho thấp (mỗi giờ)
+3. auto-post-vouchers                       # Tự động ghi sổ (scheduled)
+4. generate-reports                         # Tạo báo cáo định kỳ
+5. sync-einvoice                            # Đồng bộ hóa đơn điện tử
+6. cleanup-old-data                         # Dọn dẹp dữ liệu cũ (mỗi ngày)
+
+═══════════════════════════════════════════════════════════════════
+PERFORMANCE OPTIMIZATION
+═══════════════════════════════════════════════════════════════════
+
+Database:
+- Indexes: tenant_id, posted_date, transaction_no
+- Partitioning: Partition by tenant_id hoặc date
+- Connection pooling: PgBouncer
+- Read replicas: Cho reports
+
+Application:
+- Response pagination: Default 20 items/page
+- Lazy loading: Load details on demand
+- Batch operations: Bulk create/update
+- Query optimization: N+1 prevention
+
+Caching:
+- Redis for frequently accessed data
+- Cache aside pattern
+- Invalidation on write
+```
+
+##### 3.4 Accounting Service (Legacy - Deprecated)
+
+> **Note**: Chức năng kế toán đã được tích hợp vào Core Service.
+> Service này giữ lại cho tương lai nếu cần tách riêng.
+
+````typescript
 
 ```typescript
 Modules:
@@ -926,82 +1604,46 @@ POST   /accounting/journal-entries # Create journal entry
 GET    /accounting/reports/balance-sheet
 GET    /accounting/reports/income-statement
 GET    /accounting/reports/cash-flow
-```
+````
 
-##### 3.4 Inventory Service
+##### 3.4 HR Service (Future Development)
 
-```typescript
-Chức năng:
-- Product management
-- Stock tracking
-- Warehouse management
-- Batch & serial number tracking
-- Stock movements
-- Low stock alerts
-
-Endpoints:
-POST   /inventory/products
-GET    /inventory/products
-POST   /inventory/stock-movements
-GET    /inventory/stock-levels
-```
-
-##### 3.5 Sales Service
+> **Note**: Service này sẽ được phát triển trong Phase 3.
+> Hiện tại chức năng HR cơ bản được quản lý trong Core Service (module employees trong object).
 
 ```typescript
-Chức năng:
-- Quotations
-- Sales Orders
-- Invoices
-- Delivery Notes
-- Customer management
-- Pricing rules
+Port: 3004
+Database: hr_db (PostgreSQL)
 
-Endpoints:
-POST   /sales/orders
-GET    /sales/orders
-POST   /sales/invoices
-GET    /sales/customers
-```
-
-##### 3.6 Purchase Service
-
-```typescript
-Chức năng:
-- Purchase Requests
-- Purchase Orders
-- Vendor management
-- Goods Receipt
-- Purchase Invoices
-
-Endpoints:
-POST   /purchase/orders
-GET    /purchase/orders
-POST   /purchase/receipts
-GET    /purchase/vendors
-```
-
-##### 3.7 HR Service
-
-```typescript
-Chức năng:
-- Employee management
+Chức năng (Future):
+- Employee management (hiện tại trong Core Service)
 - Payroll processing
 - Attendance tracking
 - Leave management
 - Expense claims
+- Performance reviews
+- Recruitment
 
-Endpoints:
+Endpoints (Planned):
 POST   /hr/employees
 GET    /hr/employees
 POST   /hr/payroll/process
-GET    /hr/attendance
+GET    /hr/payroll/history
+POST   /hr/attendance/checkin
+POST   /hr/attendance/checkout
+GET    /hr/attendance/report
+POST   /hr/leave/request
+GET    /hr/leave/balance
+POST   /hr/expenses/submit
+GET    /hr/expenses/approve
 ```
 
-##### 3.8 Notification Service
+##### 3.5 Notification Service
+
+##### 3.5 Notification Service
 
 ```typescript
-Port: 3008
+Port: 3005
 Queue: RabbitMQ
 Cache: Redis
 
@@ -1018,13 +1660,101 @@ Tech Stack:
 - Firebase Cloud Messaging (push)
 - WebSocket (real-time)
 
-Event Subscriptions:
-- order.created → Send order confirmation email
-- invoice.paid → Send payment receipt
-- stock.low → Alert warehouse manager
+Event Subscriptions (từ Core Service):
+- sale.created → Send order confirmation email
+- invoice.published → Send invoice to customer
+- payment.received → Send payment receipt
+- low.stock.alert → Alert warehouse manager
+- invoice.cancelled → Notify customer
+
+Event Subscriptions (từ Auth Service):
+- user.created → Send welcome email
+- password.reset → Send password reset email
+
+Endpoints:
+POST   /notifications/send-email            # Gửi email
+POST   /notifications/send-push             # Gửi push notification
+GET    /notifications/inbox                 # Lấy thông báo trong app
+PUT    /notifications/:id/read              # Đánh dấu đã đọc
+DELETE /notifications/:id                   # Xóa thông báo
 ```
 
-#### 3.10 Microservices Deployment Architecture
+##### 3.6 Reporting Service (Optional - Advanced Analytics)
+
+> **Note**: Báo cáo cơ bản đã có trong Core Service.
+> Service này dành cho analytics nâng cao, BI dashboard.
+
+```typescript
+Port: 3006
+Database: reporting_db (PostgreSQL - Read Replica)
+Tech: Apache Superset / Metabase
+
+Chức năng:
+- Custom report builder
+- Scheduled reports
+- Export (PDF, Excel, CSV)
+- Data visualization
+- Dashboard analytics
+- Predictive analytics (ML)
+
+Tech Stack:
+- Apache Superset (BI platform)
+- PostgreSQL Read Replica
+- Redis (cache)
+- Pandas (data processing)
+- Celery (scheduled jobs)
+
+Endpoints:
+GET    /reports/dashboards                  # Danh sách dashboard
+GET    /reports/dashboards/:id              # Chi tiết dashboard
+POST   /reports/custom                      # Tạo báo cáo tùy chỉnh
+GET    /reports/custom/:id/execute          # Chạy báo cáo
+POST   /reports/schedule                    # Lập lịch báo cáo
+GET    /reports/export/:id                  # Export báo cáo
+```
+
+#### 3.7 Service Communication Architecture
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                     API Gateway (Kong)                          │
+│              http://localhost:8000/api/*                        │
+└─────────────────────┬──────────────────────────────────────────┘
+                      │
+      ┌───────────────┼───────────────┬────────────┐
+      │               │               │            │
+      ↓               ↓               ↓            ↓
+┌──────────┐    ┌──────────┐   ┌──────────┐  ┌──────────┐
+│   Auth   │    │  Tenant  │   │   Core   │  │  Notif   │
+│ :3001    │    │  :3002   │   │  :3003   │  │  :3005   │
+└────┬─────┘    └────┬─────┘   └────┬─────┘  └────┬─────┘
+     │               │              │             │
+     └───────────────┴──────────────┴─────────────┘
+                     │
+              ┌──────┴──────┐
+              │  RabbitMQ   │
+              │   Events    │
+              └─────────────┘
+```
+
+**Communication Patterns**:
+
+1. **Synchronous (REST/gRPC)**:
+   - Frontend → API Gateway → Services
+   - Core Service → Auth Service (validate token)
+   - Core Service → Tenant Service (get tenant config)
+
+2. **Asynchronous (Events)**:
+   - Core Service publishes: sale.created, invoice.published, etc.
+   - Notification Service subscribes to all events
+   - Auth Service publishes: user.created
+   - Tenant Service publishes: tenant.created
+
+3. **Data Access**:
+   - ❌ NO direct database access between services
+   - ✅ Use APIs or Events for cross-service data
+
+#### 3.8 Updated Microservices Deployment Architecture
 
 ```yaml
 # Docker Compose (Development)
@@ -1048,16 +1778,18 @@ services:
 
   # Authentication Service
   auth-service:
-    build: ./services/auth
+    build: ./services/auth-service
     ports:
       - "3001:3001"
     environment:
-      DATABASE_URL: postgresql://auth_user:password@postgres:5432/auth_db
+      DATABASE_URL: postgresql://erp_admin:erp_password_123@postgres:5432/auth_db
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET: ${JWT_SECRET}
+      RABBITMQ_URL: amqp://erp_admin:erp_password_123@rabbitmq:5672
     depends_on:
       - postgres
       - redis
+      - rabbitmq
     networks:
       - erp-network
     deploy:
@@ -1069,83 +1801,92 @@ services:
 
   # Tenant Service
   tenant-service:
-    build: ./services/tenant
+    build: ./services/tenant-service
     ports:
       - "3002:3002"
     environment:
-      DATABASE_URL: postgresql://tenant_user:password@postgres:5432/tenant_db
+      DATABASE_URL: postgresql://erp_admin:erp_password_123@postgres:5432/tenant_db
       REDIS_URL: redis://redis:6379/1
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - erp-network
-
-  # Accounting Service (Stateless, Scalable)
-  accounting-service:
-    build: ./services/accounting
-    ports:
-      - "3003:3003"
-    environment:
-      DATABASE_URL: postgresql://accounting_user:password@postgres:5432/accounting_db
-      REDIS_URL: redis://redis:6379/2
-      RABBITMQ_URL: amqp://rabbitmq:5672
-      ELASTICSEARCH_URL: http://elasticsearch:9200
+      RABBITMQ_URL: amqp://erp_admin:erp_password_123@rabbitmq:5672
     depends_on:
       - postgres
       - redis
       - rabbitmq
-      - elasticsearch
+    networks:
+      - erp-network
+
+  # Core Service (Main ERP Logic - Accounting, Sales, Inventory, Purchase)
+  core-service:
+    build: ./services/core-service
+    ports:
+      - "3003:3003"
+    environment:
+      DATABASE_URL: postgresql://erp_admin:erp_password_123@postgres:5432/core_db
+      REDIS_URL: redis://redis:6379/2
+      RABBITMQ_URL: amqp://erp_admin:erp_password_123@rabbitmq:5672
+      AUTH_SERVICE_URL: http://auth-service:3001
+      TENANT_SERVICE_URL: http://tenant-service:3002
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
     networks:
       - erp-network
     deploy:
       replicas: 3
       resources:
         limits:
-          cpus: "1.0"
-          memory: 1024M
+          cpus: "1.5"
+          memory: 2048M
 
-  # Sales Service
-  sales-service:
-    build: ./services/sales
-    ports:
-      - "3004:3004"
-    environment:
-      DATABASE_URL: postgresql://sales_user:password@postgres:5432/sales_db
-      RABBITMQ_URL: amqp://rabbitmq:5672
-    networks:
-      - erp-network
-
-  # Inventory Service
-  inventory-service:
-    build: ./services/inventory
+  # Notification Service
+  notification-service:
+    build: ./services/notification-service
     ports:
       - "3005:3005"
     environment:
-      DATABASE_URL: postgresql://inventory_user:password@postgres:5432/inventory_db
-      RABBITMQ_URL: amqp://rabbitmq:5672
+      REDIS_URL: redis://redis:6379/4
+      RABBITMQ_URL: amqp://erp_admin:erp_password_123@rabbitmq:5672
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      FCM_SERVER_KEY: ${FCM_SERVER_KEY}
+    depends_on:
+      - redis
+      - rabbitmq
     networks:
       - erp-network
 
   # Infrastructure Services
   postgres:
-    image: postgres:15
+    image: postgres:16-alpine
     environment:
-      POSTGRES_PASSWORD: rootpassword
+      POSTGRES_USER: erp_admin
+      POSTGRES_PASSWORD: erp_password_123
+      POSTGRES_DB: erp_db
+    ports:
+      - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - erp-network
 
   redis:
     image: redis:7-alpine
+    ports:
+      - "6379:6379"
     volumes:
       - redis-data:/data
     networks:
       - erp-network
 
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: erp_admin
+      RABBITMQ_DEFAULT_PASS: erp_password_123
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -1237,17 +1978,17 @@ spec:
             periodSeconds: 5
 
 ---
-# Accounting Service - Horizontal Pod Autoscaler
+# Core Service - Horizontal Pod Autoscaler
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: accounting-service-hpa
+  name: core-service-hpa
   namespace: erp-production
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: accounting-service
+    name: core-service
   minReplicas: 3
   maxReplicas: 10
   metrics:
@@ -1265,15 +2006,15 @@ spec:
           averageUtilization: 80
 
 ---
-# Accounting Service - Service
+# Core Service - Service
 apiVersion: v1
 kind: Service
 metadata:
-  name: accounting-service
+  name: core-service
   namespace: erp-production
 spec:
   selector:
-    app: accounting-service
+    app: core-service
   ports:
     - protocol: TCP
       port: 80
@@ -1285,6 +2026,11 @@ spec:
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
+  name: core-service-canary
+  namespace: erp-production
+spec:
+  hosts:
+    - core-service
   name: accounting-service-canary
   namespace: erp-production
 spec:
@@ -1329,33 +2075,117 @@ spec:
 │ HR           │ gRPC  │  Event │   Event   │   -   │    -     │   -    │
 └──────────────┴───────┴────────┴───────────┴───────┴──────────┴────────┘
 
-Legend:
-- REST: Synchronous HTTP REST API
-- gRPC: High-performance RPC (Auth/Authorization checks)
-- Event: Asynchronous via RabbitMQ/Kafka
+#### 3.11 Inter-Service Communication Matrix
+
 ```
 
-##### 3.9 Reporting Service
+┌──────────────┬───────┬────────┬───────┬────────────┬────────┐
+│ Service │ Auth │ Tenant │ Core │Notification│ API │
+│ │ │ │ │ │Gateway │
+├──────────────┼───────┼────────┼───────┼────────────┼────────┤
+│ Auth │ - │ REST │ gRPC │ Event │ REST │
+├──────────────┼───────┼────────┼───────┼────────────┼────────┤
+│ Tenant │ REST │ - │ Event │ Event │ REST │
+├──────────────┼───────┼────────┼───────┼────────────┼────────┤
+│ Core │ gRPC │ REST │ - │ Event │ REST │
+├──────────────┼───────┼────────┼───────┼────────────┼────────┤
+│ Notification │ - │ - │ - │ - │ REST │
+├──────────────┼───────┼────────┼───────┼────────────┼────────┤
+│ API Gateway │ ALL │ ALL │ ALL │ ALL │ - │
+└──────────────┴───────┴────────┴───────┴────────────┴────────┘
 
-```typescript
-Chức năng:
-- Custom report builder
-- Scheduled reports
-- Export (PDF, Excel, CSV)
-- Data visualization
-- Dashboard analytics
+Legend:
 
-Tech Stack:
-- Apache Superset / Metabase
-- PostgreSQL (data warehouse)
-- Redis (cache)
+- REST: Synchronous HTTP REST API
+- gRPC: High-performance RPC (Auth/Authorization checks)
+- Event: Asynchronous via RabbitMQ
+- ALL: Routes to all services
+
+Communication Details:
+
+1. Auth ↔ Core: gRPC for token validation (high frequency)
+2. Tenant ↔ Core: REST for tenant config lookup
+3. Core → Notification: Events (sale.created, invoice.published, etc.)
+4. Auth → Notification: Events (user.created, password.reset)
+5. Frontend → API Gateway → All Services: REST API
+
 ```
 
 ---
 
 ### 4. Database Architecture
 
-#### 4.1 Multi-Tenant Strategy
+#### 4.1 Database per Service
+
+```
+
+┌─────────────────────────────────────────────────────────────┐
+│ PostgreSQL 16 │
+├─────────────────┬──────────────┬──────────────┬─────────────┤
+│ auth_db │ tenant_db │ core_db │ (future) │
+│ │ │ │ │
+│ - users │ - tenants │ - business │ - hr_db │
+│ - roles │ - subs │ - accounts │ - report_db │
+│ - permissions │ - features │ - items │ │
+│ - sessions │ - billing │ - sales │ │
+│ │ │ - inventory │ │
+│ │ │ - invoices │ │
+│ │ │ - etc... │ │
+└─────────────────┴──────────────┴──────────────┴─────────────┘
+
+````
+
+**Database Isolation Strategy**:
+- Each service has its own database/schema
+- ❌ NO cross-database queries
+- ✅ Use APIs or Events for cross-service data
+- Row-Level Security (RLS) for tenant isolation in core_db
+
+#### 4.2 Core Service Database Schema
+
+**Tham khảo**: [core-service-db-design.md](./core-service-db-design.md)
+
+**Key Tables**:
+- business_profile (1 per tenant)
+- chart_of_accounts_general (shared, read-only)
+- chart_of_accounts_custom (per tenant)
+- object (customers, vendors, employees)
+- item (products/services)
+- warehouse, inventory_transactions
+- sale_voucher, outward_voucher, receipt_voucher
+- invoice
+- bank_account
+
+**Multi-Tenant Approach**: Shared schema with tenant_id
+
+```sql
+-- Tất cả bảng có tenant_id
+CREATE TABLE sale_voucher (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    code VARCHAR(50) NOT NULL,
+    transaction_no VARCHAR(50),
+    transaction_date DATE NOT NULL,
+    posted_date DATE,
+    -- ... other fields
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tenant_id, code)
+);
+
+-- Row Level Security
+ALTER TABLE sale_voucher ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation_policy ON sale_voucher
+    USING (tenant_id = current_setting('app.current_tenant')::UUID);
+
+-- Indexes for performance
+CREATE INDEX idx_sale_voucher_tenant_id ON sale_voucher(tenant_id);
+CREATE INDEX idx_sale_voucher_posted_date ON sale_voucher(tenant_id, posted_date);
+CREATE INDEX idx_sale_voucher_object ON sale_voucher(tenant_id, account_object_id);
+````
+
+#### 4.3 Multi-Tenant Strategy
 
 **Approach: Hybrid Model**
 
@@ -1498,24 +2328,23 @@ CREATE UNIQUE INDEX ON mv_account_balances(tenant_id, account_id);
 // Backend for Frontend (BFF) Pattern
 // API Gateway aggregates multiple microservices
 
-import { Injectable } from "@nestjs/common";
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class DashboardBFFService {
   constructor(
     private accountingService: AccountingService,
     private salesService: SalesService,
-    private inventoryService: InventoryService
+    private inventoryService: InventoryService,
   ) {}
 
   async getDashboardData(tenantId: string, userId: string) {
     // Parallel calls to multiple services
-    const [accountingSummary, salesSummary, inventorySummary] =
-      await Promise.all([
-        this.accountingService.getSummary(tenantId),
-        this.salesService.getSummary(tenantId),
-        this.inventoryService.getSummary(tenantId),
-      ]);
+    const [accountingSummary, salesSummary, inventorySummary] = await Promise.all([
+      this.accountingService.getSummary(tenantId),
+      this.salesService.getSummary(tenantId),
+      this.inventoryService.getSummary(tenantId),
+    ]);
 
     return {
       accounting: accountingSummary,
@@ -1608,15 +2437,15 @@ Load Balancing:
 ```typescript
 // Multi-layer caching
 const cache = {
-  L1: "Browser Cache (Service Worker)",
-  L2: "CDN Cache (Static assets)",
-  L3: "Redis Cache (API responses)",
-  L4: "Database Query Cache",
+  L1: 'Browser Cache (Service Worker)',
+  L2: 'CDN Cache (Static assets)',
+  L3: 'Redis Cache (API responses)',
+  L4: 'Database Query Cache',
 };
 
 // Cache invalidation
 // Event-driven approach
-eventBus.on("invoice.updated", async (event) => {
+eventBus.on('invoice.updated', async (event) => {
   await cache.invalidate(`invoice:${event.invoiceId}`);
   await cache.invalidate(`customer:${event.customerId}:invoices`);
 });
@@ -1741,7 +2570,7 @@ Accessibility:
 
 ```typescript
 // Base components (Shadcn/ui)
--Button,
+(-Button,
   Input,
   Select,
   Checkbox,
@@ -1762,7 +2591,7 @@ Accessibility:
     FinancialDashboard -
     ReportViewer -
     ChartOfAccountsTree -
-    TransactionList;
+    TransactionList);
 ```
 
 #### 9.3 Responsive Breakpoints
@@ -1840,13 +2669,13 @@ interface Plugin {
 
 // Example: Custom report plugin
 const customReportPlugin: Plugin = {
-  name: "custom-report-plugin",
-  version: "1.0.0",
+  name: 'custom-report-plugin',
+  version: '1.0.0',
   initialize: (app) => {
-    app.registerRoute("/reports/custom", CustomReportHandler);
+    app.registerRoute('/reports/custom', CustomReportHandler);
   },
   hooks: {
-    "invoice.created": async (invoice) => {
+    'invoice.created': async (invoice) => {
       // Custom logic
     },
   },
@@ -2031,14 +2860,23 @@ Security Standards:
 - **Runtime**: Node.js + TypeScript
 - **Framework**: NestJS
 - **Architecture**: Microservices
-- **API**: REST + GraphQL (optional)
+  - Auth Service (3001)
+  - Tenant Service (3002)
+  - Core Service (3003) - Main ERP Business Logic
+  - Notification Service (3005)
+- **API**: REST + gRPC (internal)
+- **Communication**: Sync (REST/gRPC) + Async (RabbitMQ Events)
 
 ### Database
 
-- **Primary**: PostgreSQL (with RLS)
+- **Primary**: PostgreSQL 16+ (with RLS)
+- **Databases**:
+  - auth_db (Auth Service)
+  - tenant_db (Tenant Service)
+  - core_db (Core Service - see core-service-db-design.md)
 - **Cache**: Redis
-- **Search**: Elasticsearch
 - **Message Queue**: RabbitMQ
+- **Background Jobs**: Bull/BullMQ
 
 ### Infrastructure
 

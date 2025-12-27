@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
-import {
-  BusinessType,
+import { BusinessType } from '../types/onboarding';
+import type {
   OnboardingStatus,
   BusinessInfoForm,
   TaxInfoResult,

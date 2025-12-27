@@ -12,7 +12,7 @@ import {
   IconButton,
   Alert,
   Divider,
-  Grid,
+  
 } from '@mui/material';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
@@ -91,8 +91,8 @@ export const SignupScreenSimple: React.FC = () => {
           )}
 
           <Box component="form" onSubmit={handleSubmit}>
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+              <Box>
                 <TextField
                   fullWidth
                   label="Họ"
@@ -100,8 +100,8 @@ export const SignupScreenSimple: React.FC = () => {
                   onChange={handleChange('lastName')}
                   autoComplete="family-name"
                 />
-              </Grid>
-              <Grid item xs={6}>
+              </Box>
+              <Box>
                 <TextField
                   fullWidth
                   label="Tên"
@@ -109,8 +109,8 @@ export const SignupScreenSimple: React.FC = () => {
                   onChange={handleChange('firstName')}
                   autoComplete="given-name"
                 />
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
 
             <TextField
               fullWidth

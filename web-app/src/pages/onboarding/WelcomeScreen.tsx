@@ -2,6 +2,7 @@ import { Box, Container, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 import mascotImage from '../../assets/Mascot 1.png';
+import welcomeBg from '../../assets/Welcome screen.png';
 import PrimaryButton from '../../components/PrimaryButton';
 
 const WelcomeScreen = () => {
@@ -18,29 +19,36 @@ const WelcomeScreen = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#F5EBE0',
+        backgroundColor: '#F5EBE0',
+        backgroundImage: `url(${welcomeBg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
         position: 'relative',
       }}
     >
       <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1 }}>
-        <Box 
+          <Box 
           sx={{ 
-            background: '#fff',
             borderRadius: { 
               xs: '16px 16px 0 0',
               sm: '16px',
             },
-            px: { xs: 3, sm: 4 }, 
+            px: 2,
             py: { xs: 4, sm: 6 },
             position: { xs: 'fixed', sm: 'relative' },
-            top: { xs: '280px', sm: 'auto' },
+            /* moved up by 80px to free space above fixed CTA */
+            top: { xs: '200px', sm: 'auto' },
             bottom: { xs: 0, sm: 'auto' },
             left: { xs: '12px', sm: 'auto' },
             right: { xs: '12px', sm: 'auto' },
             maxWidth: { xs: 'calc(100% - 24px)', sm: '100%' },
             display: 'flex',
             flexDirection: 'column',
-            minHeight: { xs: 'calc(100vh - 280px)', sm: 'auto' },
+            /* increase visible white panel height by 60px */
+            minHeight: { xs: 'calc(100vh - 220px)', sm: 'auto' },
+            /* add extra bottom padding so sticky footer won't overlap content */
+            pb: { xs: `calc(94px + env(safe-area-inset-bottom, 0px) + 16px)`, sm: 'auto' },
           }}
         >
           {/* Mascot image */}
@@ -51,7 +59,7 @@ const WelcomeScreen = () => {
             sx={{
               width: { xs: 200, sm: 240 },
               height: 'auto',
-              mb: 3,
+              mb: 1,
               alignSelf: 'flex-start',
             }}
           />
@@ -65,7 +73,7 @@ const WelcomeScreen = () => {
               lineHeight: '28px',
               letterSpacing: '0.25px',
               color: '#BA5C00',
-              mb: 2,
+              mb: 1,
               textAlign: 'left',
             }}
           >
@@ -79,7 +87,7 @@ const WelcomeScreen = () => {
               lineHeight: '24px',
               color: 'rgba(0, 0, 0, 0.6)',
               textAlign: 'left',
-              mb: '95px',
+              mb: '24px',
             }}
           >
             Thiết lập giúp ứng dụng hỗ trợ tối đa nghiệp vụ hàng ngày và cá nhân hóa trải
@@ -88,12 +96,53 @@ const WelcomeScreen = () => {
 
           <Box sx={{ flex: 1 }} />
 
-          {/* CTA Button */}
-          <PrimaryButton onClick={handleGetStarted}>
-            Bắt đầu thiết lập
-          </PrimaryButton>
+          {/* Desktop / tablet: in-flow CTA */}
+          <Box sx={{ display: { xs: 'none', sm: 'flex' }, position: 'relative', justifyContent: 'center' }}>
+            <Box sx={{ width: { xs: '100%', sm: 'auto' }, maxWidth: { xs: 'calc(100% - 24px)', sm: '480px' } }}>
+              <PrimaryButton onClick={handleGetStarted} sx={{ height: 48, borderRadius: '100px' }}>
+                Bắt đầu thiết lập
+              </PrimaryButton>
+            </Box>
+          </Box>
         </Box>
       </Container>
+
+      {/* Mobile sticky footer bar: white strip (94px) with neutral upward shadow and pill CTA */}
+      <Box
+        sx={{
+          display: { xs: 'flex', sm: 'none' },
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1400,
+          alignItems: 'center',
+          justifyContent: 'center',
+          px: 2,
+          minHeight: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+          bgcolor: '#ffffff',
+          boxShadow: '0 -8px 16px rgba(0,0,0,0.12)',
+        }}
+      >
+        <Box sx={{ width: '100%', maxWidth: 'calc(100% - 32px)' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <PrimaryButton
+              onClick={handleGetStarted}
+              disabled={false}
+              loading={false}
+              sx={{
+                height: 56,
+                borderRadius: '100px',
+                backgroundColor: '#FB7E00',
+                '&:hover': { backgroundColor: '#C96400' },
+                boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
+              }}
+            >
+              Bắt đầu thiết lập
+            </PrimaryButton>
+          </Box>
+        </Box>
+      </Box>
     </Box>
   );
 };

@@ -4,6 +4,7 @@ import { API_CONFIG, STORAGE_KEYS } from '../config/constants';
 class ApiService {
   private authApi: AxiosInstance;
   private tenantApi: AxiosInstance;
+  private coreApi: AxiosInstance;
 
   constructor() {
     this.authApi = axios.create({
@@ -15,6 +16,13 @@ class ApiService {
 
     this.tenantApi = axios.create({
       baseURL: `${API_CONFIG.TENANT_SERVICE_URL}/api/v1`,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    this.coreApi = axios.create({
+      baseURL: `${API_CONFIG.CORE_SERVICE_URL}`,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -58,6 +66,57 @@ class ApiService {
 
       return config;
     });
+
+    this.coreApi.interceptors.request.use((config) => {
+      const token =
+        localStorage.getItem('tenantAccessToken') ||
+        localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+
+      console.log(
+        '[CoreAPI Interceptor] tenantAccessToken:',
+        localStorage.getItem('tenantAccessToken'),
+      );
+      console.log(
+        '[CoreAPI Interceptor] accessToken:',
+        localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN),
+      );
+      console.log(
+        '[CoreAPI Interceptor] Using token:',
+        token ? token.substring(0, 20) + '...' : 'NONE',
+      );
+
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        console.warn('[CoreAPI] No token available for request:', config.url);
+      }
+
+      return config;
+    });
+
+    // Response interceptor for debugging
+    this.coreApi.interceptors.response.use(
+      (response) => {
+        console.log('[CoreAPI Response]', response.config.url, 'Status:', response.status);
+        console.log(
+          '[CoreAPI Response] Full response.data:',
+          JSON.stringify(response.data, null, 2),
+        );
+        console.log('[CoreAPI Response] Type of response.data:', typeof response.data);
+        return response;
+      },
+      (error) => {
+        console.error(
+          '[CoreAPI Response Error]',
+          error.config?.url,
+          'Status:',
+          error.response?.status,
+          'Data:',
+          error.response?.data,
+        );
+        return Promise.reject(error);
+      },
+    );
   }
 
   // Auth API
@@ -142,6 +201,70 @@ class ApiService {
     const response = await this.tenantApi.post(`/tenants/${tenantId}/onboarding/complete`);
     return response.data;
   }
+
+  // Accounting Objects (customers/vendors/employees)
+  async createAccountingObject(data: any) {
+    const response = await this.coreApi.post('/api/objects', data);
+    return response.data;
+  }
+
+  async getAccountingObjects(query: Record<string, any> = {}) {
+    const params = new URLSearchParams(query as Record<string, string>).toString();
+    const url = params ? `/api/objects?${params}` : '/api/objects';
+    const response = await this.coreApi.get(url);
+    return response.data;
+  }
+
+  async getNextObjectCode(type: 'customer' | 'vendor' | 'employee' = 'customer') {
+    try {
+      console.log('[ApiService] Calling GET /api/objects/next-code?type=', type);
+      const response = await this.coreApi.get(`/api/objects/next-code?type=${type}`);
+      console.log('[ApiService] Raw response:', response);
+      console.log('[ApiService] response.data:', response.data);
+
+      // Handle wrapped response: { success, data: { code }, timestamp }
+      if (response && response.data) {
+        // Check for wrapped response (success/data/timestamp pattern)
+        if (
+          response.data.success &&
+          response.data.data &&
+          typeof response.data.data.code === 'string'
+        ) {
+          console.log('[ApiService] Returning response.data.data.code:', response.data.data.code);
+          return response.data.data.code;
+        }
+        // Fallback: direct { code } pattern
+        if (typeof response.data.code === 'string') {
+          console.log('[ApiService] Returning response.data.code:', response.data.code);
+          return response.data.code;
+        }
+        // Fallback: plain string
+        if (typeof response.data === 'string') {
+          console.log('[ApiService] Returning response.data (string):', response.data);
+          return response.data;
+        }
+        // If unexpected shape, return undefined so caller can fallback
+        console.warn('[ApiService] getNextObjectCode unexpected response:', response.data);
+        return undefined as unknown as string;
+      }
+      console.warn('[ApiService] No response or response.data');
+      return undefined as unknown as string;
+    } catch (error) {
+      console.error('[ApiService] getNextObjectCode error:', error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        console.error('[ApiService] Error response:', (error as any).response);
+      }
+      throw error;
+    }
+  }
+
+  // Warehouses
+  async createWarehouse(data: any) {
+    const response = await this.coreApi.post('/api/warehouses', data);
+    return response.data;
+  }
 }
 
 export const apiService = new ApiService();
+
+export default apiService;

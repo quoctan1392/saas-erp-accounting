@@ -67,11 +67,11 @@ Luồng onboarding được kích hoạt sau khi người dùng mới tạo tena
   - Primary button (Orange/Brand color)
   - Full width (với padding 24px)
   - Height: 48px
-  - Border radius: 8px
+  - Border radius: 100px
   - Font weight: 600
 
 ### Behavior
-- **Initial State**: Button luôn enabled
+- **Initial State**: Button luôn enabled và ở fixed position để luôn hiển thị
 - **On Click**: Navigate to Business Type Selection screen
 - **Animation**: Smooth fade-in khi load screen (300ms)
 

@@ -62,8 +62,8 @@ export const DashboardScreen: React.FC = () => {
               onClick={handleMenu}
               color="inherit"
             >
-              {user?.picture ? (
-                <Avatar src={user.picture} alt={user.name} />
+              { (user as any)?.picture ? (
+                <Avatar src={(user as any).picture} alt={(user as any).name} />
               ) : (
                 <AccountCircle />
               )}

@@ -4,7 +4,6 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './context/AuthContext';
 import { OnboardingProvider } from './context/OnboardingContextSafe';
 import { GOOGLE_CONFIG } from './config/constants';
-import SplashScreen from './pages/SplashScreen';
 import LoginDemoScreenSimple from './pages/LoginDemoScreenSimple';
 import LoginScreen from './pages/LoginScreen';
 import SignupScreen from './pages/SignupScreen';
@@ -19,6 +18,15 @@ import { TenantSelectionScreen } from './pages/TenantSelectionScreen';
 import WelcomeScreen from './pages/onboarding/WelcomeScreen';
 import BusinessTypeScreen from './pages/onboarding/BusinessTypeScreen';
 import BusinessInfoScreen from './pages/onboarding/BusinessInfoScreen';
+import { BusinessInfoScreenDNTN } from './pages/onboarding/BusinessInfoScreen';
+import BusinessSectorScreen from './pages/onboarding/BusinessSectorScreen';
+import AccountingSetupScreen from './pages/onboarding/AccountingSetupScreen';
+import AdvancedSetupScreen from './pages/onboarding/AdvancedSetupScreen';
+import CategoryDeclarationScreen from './pages/declaration/CategoryDeclarationScreen';
+import CustomerFormScreen from './pages/declaration/CustomerFormScreen';
+import SupplierFormScreen from './pages/declaration/SupplierFormScreen';
+import WarehouseFormScreen from './pages/declaration/WarehouseFormScreen';
+import ProductFormScreen from './pages/declaration/ProductFormScreen';
 import MainLayout from './components/MainLayout';
 
 const theme = createTheme({
@@ -58,6 +66,20 @@ function App() {
               <Route path="/onboarding/welcome" element={<WelcomeScreen />} />
               <Route path="/onboarding/business-type" element={<BusinessTypeScreen />} />
               <Route path="/onboarding/business-info" element={<BusinessInfoScreen />} />
+              <Route path="/onboarding/business-info-dntn" element={<BusinessInfoScreenDNTN />} />
+              <Route path="/onboarding/business-sector" element={<BusinessSectorScreen />} />
+              <Route path="/onboarding/accounting-setup" element={<AccountingSetupScreen />} />
+              <Route path="/onboarding/advanced-setup" element={<AdvancedSetupScreen />} />
+              
+              {/* Declaration routes */}
+              <Route path="/declaration/categories" element={<CategoryDeclarationScreen />} />
+              <Route path="/declaration/customers" element={<CustomerFormScreen />} />
+              <Route path="/declaration/suppliers" element={<SupplierFormScreen />} />
+              <Route path="/declaration/warehouses" element={<WarehouseFormScreen />} />
+              {/* Warehouse create now uses inline overlay pattern */}
+              <Route path="/declaration/products" element={<ProductFormScreen />} />
+              <Route path="/declaration/products/new" element={<ProductFormScreen />} />
+              <Route path="/declaration/products/:id/edit" element={<ProductFormScreen />} />
               
               {/* Routes with persistent bottom navigation */}
               <Route element={<MainLayout />}>

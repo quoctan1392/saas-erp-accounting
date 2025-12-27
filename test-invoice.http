@@ -1,0 +1,162 @@
+### =====================================================
+### INVOICE MODULE API TESTS
+### Base URL: http://localhost:3003
+### =====================================================
+
+@baseUrl = http://localhost:3003
+@invoiceId = {{createInvoice.response.body.id}}
+
+### =====================================================
+### 1. CREATE INVOICE (Draft)
+### =====================================================
+# @name createInvoice
+POST {{baseUrl}}/invoices
+Content-Type: application/json
+
+{
+  "invoiceForm": "01GTKT0/001",
+  "invoiceSign": "AA/24E",
+  "invoiceDate": "2024-12-23",
+  "accountObjectId": "550e8400-e29b-41d4-a716-446655440001",
+  "accountObjectName": "Công ty TNHH ABC",
+  "accountObjectAddress": "123 Đường ABC, Quận 1, TP.HCM",
+  "accountObjectTaxCode": "0123456789",
+  "phoneNumber": "0901234567",
+  "paymentMethod": "cash",
+  "currencyId": "550e8400-e29b-41d4-a716-446655440002",
+  "exchangeRate": 1,
+  "totalAmount": 1000000,
+  "totalDiscountAmount": 0,
+  "totalVatAmount": 100000,
+  "totalPayment": 1100000,
+  "note": "Hóa đơn bán hàng tháng 12/2024",
+  "details": [
+    {
+      "itemId": "550e8400-e29b-41d4-a716-446655440003",
+      "itemCode": "SP001",
+      "itemName": "Laptop Dell Inspiron 15",
+      "description": "Laptop Dell Inspiron 15 - Core i5, 8GB RAM",
+      "unitId": "550e8400-e29b-41d4-a716-446655440004",
+      "unitName": "Cái",
+      "quantity": 5,
+      "unitPrice": 200000,
+      "amount": 1000000,
+      "discountRate": 0,
+      "discountAmount": 0,
+      "vatRate": 10,
+      "vatAmount": 100000,
+      "totalAmount": 1100000,
+      "lineNumber": 1
+    }
+  ]
+}
+
+### =====================================================
+### 2. GET ALL INVOICES (with filters)
+### =====================================================
+GET {{baseUrl}}/invoices?page=1&limit=20
+
+### Get invoices by status
+GET {{baseUrl}}/invoices?status=draft
+
+### Get invoices by date range
+GET {{baseUrl}}/invoices?fromDate=2024-01-01&toDate=2024-12-31
+
+### Get invoices by customer
+GET {{baseUrl}}/invoices?accountObjectId=550e8400-e29b-41d4-a716-446655440001
+
+### =====================================================
+### 3. GET INVOICE BY ID
+### =====================================================
+GET {{baseUrl}}/invoices/{{invoiceId}}
+
+### =====================================================
+### 4. UPDATE INVOICE (only draft)
+### =====================================================
+PUT {{baseUrl}}/invoices/{{invoiceId}}
+Content-Type: application/json
+
+{
+  "accountObjectName": "Công ty TNHH XYZ (Updated)",
+  "note": "Hóa đơn đã cập nhật",
+  "totalAmount": 1200000,
+  "totalVatAmount": 120000,
+  "totalPayment": 1320000,
+  "details": [
+    {
+      "itemId": "550e8400-e29b-41d4-a716-446655440003",
+      "itemCode": "SP001",
+      "itemName": "Laptop Dell Inspiron 15",
+      "unitId": "550e8400-e29b-41d4-a716-446655440004",
+      "unitName": "Cái",
+      "quantity": 6,
+      "unitPrice": 200000,
+      "amount": 1200000,
+      "vatRate": 10,
+      "vatAmount": 120000,
+      "totalAmount": 1320000,
+      "lineNumber": 1
+    }
+  ]
+}
+
+### =====================================================
+### 5. PUBLISH INVOICE
+### =====================================================
+POST {{baseUrl}}/invoices/{{invoiceId}}/publish
+Content-Type: application/json
+
+### =====================================================
+### 6. CANCEL INVOICE (only published)
+### =====================================================
+POST {{baseUrl}}/invoices/{{invoiceId}}/cancel
+Content-Type: application/json
+
+{
+  "cancelledBy": "550e8400-e29b-41d4-a716-446655440000",
+  "cancelReason": "Khách hàng yêu cầu hủy do sai thông tin"
+}
+
+### =====================================================
+### 7. EXPORT INVOICE TO PDF
+### =====================================================
+GET {{baseUrl}}/invoices/{{invoiceId}}/pdf
+
+### =====================================================
+### 8. SEND INVOICE VIA EMAIL
+### =====================================================
+POST {{baseUrl}}/invoices/{{invoiceId}}/send-email
+Content-Type: application/json
+
+{
+  "toEmail": "customer@example.com",
+  "subject": "Hóa đơn GTGT từ Công ty ABC",
+  "message": "Kính gửi Quý khách,\n\nĐính kèm theo đây là hóa đơn GTGT cho đơn hàng của quý khách.\n\nTrân trọng!"
+}
+
+### =====================================================
+### 9. DELETE INVOICE (only draft)
+### =====================================================
+DELETE {{baseUrl}}/invoices/{{invoiceId}}
+
+### =====================================================
+### TEST SCENARIOS
+### =====================================================
+
+### Scenario 1: Full lifecycle
+# 1. Create invoice (draft)
+# 2. Update invoice details
+# 3. Publish invoice
+# 4. Send email
+# 5. Export PDF
+
+### Scenario 2: Create and cancel
+# 1. Create invoice (draft)
+# 2. Publish invoice
+# 3. Cancel invoice with reason
+
+### Scenario 3: Validation tests
+# Try to update published invoice (should fail)
+# Try to delete published invoice (should fail)
+# Try to publish already published invoice (should fail)
+# Try to cancel draft invoice (should fail)
