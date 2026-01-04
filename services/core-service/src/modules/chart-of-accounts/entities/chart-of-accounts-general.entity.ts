@@ -34,7 +34,7 @@ export class ChartOfAccountsGeneral {
   description?: string;
 
   @Column({ name: 'accounting_regime' })
-  accountingRegime: string; // 'simple' or 'standard'
+  accountingRegime: string; // '200' (Circular 200) or '133' (Circular 133)
 
   @Column({ default: true })
   active: boolean;

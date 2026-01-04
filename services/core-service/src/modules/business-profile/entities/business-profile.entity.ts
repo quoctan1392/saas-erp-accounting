@@ -7,8 +7,8 @@ export enum BusinessType {
 }
 
 export enum AccountingRegime {
-  SIMPLE = 'simple',
-  STANDARD = 'standard',
+  CIRCULAR_133 = '133', // Circular 133 (simplified accounting)
+  CIRCULAR_200 = '200', // Circular 200 (standard accounting)
 }
 
 export enum TaxCalculationMethod {

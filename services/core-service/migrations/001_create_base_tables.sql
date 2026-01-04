@@ -36,7 +36,9 @@ CREATE TABLE IF NOT EXISTS business_profile (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by UUID,
-    updated_by UUID
+    updated_by UUID,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP
 );
 
 CREATE INDEX idx_business_profile_tenant_id ON business_profile(tenant_id);
@@ -54,7 +56,11 @@ CREATE TABLE IF NOT EXISTS einvoice_provider (
     is_active BOOLEAN DEFAULT TRUE,
     config JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID,
+    updated_by UUID,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP
 );
 
 CREATE INDEX idx_einvoice_provider_tenant_id ON einvoice_provider(tenant_id);
@@ -95,6 +101,8 @@ CREATE TABLE IF NOT EXISTS chart_of_accounts_custom (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by UUID,
     updated_by UUID,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP,
     UNIQUE(tenant_id, account_number)
 );
 
@@ -113,9 +121,14 @@ CREATE TABLE IF NOT EXISTS subject_group (
     code VARCHAR(50) NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
+    parent_id UUID,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID,
+    updated_by UUID,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP,
     UNIQUE(tenant_id, code)
 );
 
@@ -144,10 +157,15 @@ CREATE TABLE IF NOT EXISTS accounting_object (
     list_bank_account_ids UUID [],
     identity_number VARCHAR(50),
     note TEXT,
+    email VARCHAR(255),
+    website VARCHAR(255),
+    tax_code VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by UUID,
     updated_by UUID,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP,
     UNIQUE(tenant_id, account_object_code),
     FOREIGN KEY (subject_group_id) REFERENCES subject_group(id) ON DELETE
     SET
@@ -183,6 +201,10 @@ CREATE TABLE IF NOT EXISTS item_category (
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID,
+    updated_by UUID,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP,
     UNIQUE(tenant_id, code),
     FOREIGN KEY (parent_id) REFERENCES item_category(id) ON DELETE
     SET
@@ -202,6 +224,10 @@ CREATE TABLE IF NOT EXISTS unit (
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID,
+    updated_by UUID,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP,
     UNIQUE(tenant_id, code)
 );
 
@@ -235,6 +261,8 @@ CREATE TABLE IF NOT EXISTS item (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by UUID,
     updated_by UUID,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP,
     UNIQUE(tenant_id, code),
     FOREIGN KEY (category_id) REFERENCES item_category(id) ON DELETE
     SET
@@ -266,6 +294,10 @@ CREATE TABLE IF NOT EXISTS warehouse (
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID,
+    updated_by UUID,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP,
     UNIQUE(tenant_id, code)
 );
 
@@ -295,7 +327,11 @@ CREATE TABLE IF NOT EXISTS inventory_transaction (
     to_warehouse_id UUID,
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by UUID,
+    updated_by UUID,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP,
     FOREIGN KEY (item_id) REFERENCES item(id) ON DELETE CASCADE,
     FOREIGN KEY (warehouse_id) REFERENCES warehouse(id) ON DELETE CASCADE,
     FOREIGN KEY (from_warehouse_id) REFERENCES warehouse(id) ON DELETE
@@ -335,6 +371,8 @@ CREATE TABLE IF NOT EXISTS bank_account (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by UUID,
     updated_by UUID,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP,
     UNIQUE(tenant_id, account_number)
 );
 
@@ -374,7 +412,7 @@ RETURN NEW;
 
 END;
 
-$ $ language 'plpgsql';
+$ $ LANGUAGE 'plpgsql';
 
 -- Apply trigger to all tables with updated_at column
 CREATE TRIGGER update_business_profile_updated_at BEFORE
