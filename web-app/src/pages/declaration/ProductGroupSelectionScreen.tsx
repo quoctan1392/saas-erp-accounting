@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Box, Typography, IconButton, Divider, TextField, InputAdornment } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Typography, IconButton, Divider, TextField, InputAdornment, CircularProgress } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import Icon from '../../components/Icon';
 import ProductGroupCreateScreen from './ProductGroupCreateScreen';
+import { apiService } from '../../services/api';
 import headerDay from '../../assets/Header_day.png';
 
 interface Props {
@@ -20,10 +21,39 @@ const DEFAULT_GROUPS = [
 
 const ProductGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect }) => {
   const [groups, setGroups] = useState(DEFAULT_GROUPS.slice());
+  const [isLoading, setIsLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [exiting, setExiting] = useState(false);
   const ANIM_MS = 280;
+
+  // Load groups from API when screen opens
+  useEffect(() => {
+    if (open) {
+      loadGroups();
+    }
+  }, [open]);
+
+  const loadGroups = async () => {
+    setIsLoading(true);
+    try {
+      const apiGroups = await apiService.getItemCategories();
+      if (apiGroups && apiGroups.length > 0) {
+        const formattedGroups = apiGroups.map((g: any) => ({
+          value: g.id || g.code,
+          label: g.name,
+        }));
+        setGroups(formattedGroups);
+      } else {
+        setGroups(DEFAULT_GROUPS.slice());
+      }
+    } catch (error) {
+      console.error('Error loading item categories:', error);
+      setGroups(DEFAULT_GROUPS.slice());
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (!open) return null;
 
@@ -38,10 +68,6 @@ const ProductGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect 
 
   const handleAddNew = () => {
     setCreateOpen(true);
-  };
-
-  const handleCreate = (newGroup: { value: string; label: string }) => {
-    setGroups((g) => [newGroup, ...g]);
   };
 
   return (
@@ -131,30 +157,36 @@ const ProductGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect 
               />
             </Box>
 
-            {groups.filter(g => g.label.toLowerCase().includes(searchText.toLowerCase())).map((g, idx) => (
-              <Box key={g.value}>
-                <Box
-                  onClick={() => {
-                    onSelect(g.label);
-                    onClose();
-                  }}
-                  sx={{ display: 'flex', alignItems: 'center', py: 1.75, px: 1, cursor: 'pointer', justifyContent: 'space-between' }}
-                >
-                  <Typography sx={{ fontSize: 16 }}>{g.label}</Typography>
-                </Box>
-                {idx < groups.length - 1 && <Divider sx={{ borderColor: '#F1F3F5' }} />}
+            {isLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress size={32} sx={{ color: '#FB7E00' }} />
               </Box>
-            ))}
+            ) : (
+              groups.filter(g => g.label.toLowerCase().includes(searchText.toLowerCase())).map((g, idx) => (
+                <Box key={g.value}>
+                  <Box
+                    onClick={() => {
+                      onSelect(g.label);
+                      onClose();
+                    }}
+                    sx={{ display: 'flex', alignItems: 'center', py: 1.75, px: 1, cursor: 'pointer', justifyContent: 'space-between' }}
+                  >
+                    <Typography sx={{ fontSize: 16 }}>{g.label}</Typography>
+                  </Box>
+                  {idx < groups.length - 1 && <Divider sx={{ borderColor: '#F1F3F5' }} />}
+                </Box>
+              ))
+            )}
           </Box>
         </Box>
         <ProductGroupCreateScreen
           open={createOpen}
           onClose={() => setCreateOpen(false)}
           onCreate={(grp) => {
-            handleCreate(grp);
-            // immediately select created group in parent form and close selection
-            onSelect(grp.label);
+            // Snackbar đã hiển thị trong CreateScreen rồi
+            // Chỉ cần đóng selection screen và set giá trị về form cha
             setCreateOpen(false);
+            onSelect(grp.label);
             onClose();
           }}
         />

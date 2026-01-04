@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, IconButton, Divider, TextField, InputAdornment, CircularProgress } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import * as Iconsax from 'iconsax-react';
-import UnitCreateScreen from './UnitCreateScreen.tsx';
+import ItemCategoryCreateScreen from './ItemCategoryCreateScreen';
 import { apiService } from '../../services/api';
 import headerDay from '../../assets/Header_day.png';
 
@@ -18,52 +18,47 @@ interface Props {
   onSelect: (label: string) => void;
 }
 
-const DEFAULT_UNITS = [
-  { value: 'cai', label: 'Cái' },
-  { value: 'chiec', label: 'Chiếc' },
-  { value: 'bo', label: 'Bộ' },
-  { value: 'kg', label: 'Kg' },
-  { value: 'g', label: 'Gam' },
-  { value: 'lit', label: 'Lít' },
-  { value: 'hop', label: 'Hộp' },
-  { value: 'thung', label: 'Thùng' },
-  { value: 'met', label: 'Mét' },
-  { value: 'pack', label: 'Pack' },
+const DEFAULT_CATEGORIES = [
+  { value: 'hanghoa', label: 'Hàng hoá' },
+  { value: 'dichvu', label: 'Dịch vụ' },
+  { value: 'vattu', label: 'Vật tư' },
+  { value: 'thanhpham', label: 'Thành phẩm' },
+  { value: 'nguyen_vat_lieu', label: 'Nguyên vật liệu' },
 ];
 
-const UnitSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect }) => {
-  const [units, setUnits] = useState(DEFAULT_UNITS.slice());
+const ItemCategorySelectionScreen: React.FC<Props> = ({ open, onClose, onSelect }) => {
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES.slice());
   const [isLoading, setIsLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [exiting, setExiting] = useState(false);
   const ANIM_MS = 280;
 
-  // Load units from API when screen opens
+  // Load categories from API when screen opens
   useEffect(() => {
     if (open) {
-      loadUnits();
+      loadCategories();
     }
   }, [open]);
 
-  const loadUnits = async () => {
+  const loadCategories = async () => {
     setIsLoading(true);
     try {
-      const apiUnits = await apiService.getUnits();
-      if (apiUnits && apiUnits.length > 0) {
-        const formattedUnits = apiUnits.map((u: any) => ({
-          value: u.id || u.code,
-          label: u.name,
+      const apiCategories = await apiService.getItemCategories();
+      if (apiCategories && apiCategories.length > 0) {
+        const formattedCategories = apiCategories.map((c: any) => ({
+          value: c.id || c.code,
+          label: c.name,
         }));
-        setUnits(formattedUnits);
+        setCategories(formattedCategories);
       } else {
-        // Keep default units if no API data
-        setUnits(DEFAULT_UNITS.slice());
+        // Keep default categories if no API data
+        setCategories(DEFAULT_CATEGORIES.slice());
       }
     } catch (error) {
-      console.error('Error loading units:', error);
-      // Keep default units on error
-      setUnits(DEFAULT_UNITS.slice());
+      console.error('Error loading item categories:', error);
+      // Keep default categories on error
+      setCategories(DEFAULT_CATEGORIES.slice());
     } finally {
       setIsLoading(false);
     }
@@ -82,9 +77,9 @@ const UnitSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect }) => {
 
   const handleAdd = () => setCreateOpen(true);
 
-  const handleCreate = (u: { value: string; label: string }) => {
-    // Reload units from API to get the newly created one
-    loadUnits();
+  const handleCreate = () => {
+    // Reload categories from API to get the newly created one
+    loadCategories();
   };
 
   return (
@@ -101,7 +96,7 @@ const UnitSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect }) => {
             </IconButton>
 
             <Box sx={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', px: 2 }}>
-              <Typography sx={{ color: 'var(--Greyscale-900, #0D0D12)', textAlign: 'center', fontFamily: '"Bricolage Grotesque"', fontSize: '20px', fontWeight: 500 }}>Chọn đơn vị tính</Typography>
+              <Typography sx={{ color: 'var(--Greyscale-900, #0D0D12)', textAlign: 'center', fontFamily: '"Bricolage Grotesque"', fontSize: '20px', fontWeight: 500 }}>Chọn nhóm hàng hoá</Typography>
             </Box>
 
             <Box sx={{ position: 'absolute', right: 0, top: 6 }}>
@@ -115,24 +110,30 @@ const UnitSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect }) => {
         <Box sx={{ borderRadius: { xs: '16px 16px 0 0', sm: '16px' }, px: 0.5, py: { xs: 2, sm: 6 }, pb: { xs: `calc(100px + env(safe-area-inset-bottom, 0px))`, sm: 6 }, position: { xs: 'fixed', sm: 'relative' }, top: { xs: '80px', sm: 'auto' }, bottom: { xs: 0, sm: 'auto' }, left: '16px', right: '16px', maxWidth: 'calc(100% - 32px)', display: 'flex', flexDirection: 'column', overflowY: { xs: 'auto', sm: 'visible' }, bgcolor: 'transparent' }}>
           <Box sx={{ px: 0, width: '100%' }}>
             <Box sx={{ mb: 2 }}>
-              <TextField fullWidth placeholder="Tìm đơn vị tính..." value={query} onChange={(e) => setQuery(e.target.value)} sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'white', borderRadius: '24px', height: '48px', '& fieldset': { borderColor: '#DEE2E6' }, '& .MuiOutlinedInput-input': { paddingLeft: '12px', paddingRight: '8px' } } }} InputProps={{ startAdornment: (<InputAdornment position="start"><Icon name="SearchNormal" size={20} color="#6C757D" variant="Outline" /></InputAdornment>) }} />
+              <TextField fullWidth placeholder="Tìm nhóm hàng hoá..." value={query} onChange={(e) => setQuery(e.target.value)} sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'white', borderRadius: '24px', height: '48px', '& fieldset': { borderColor: '#DEE2E6' }, '& .MuiOutlinedInput-input': { paddingLeft: '12px', paddingRight: '8px' } } }} InputProps={{ startAdornment: (<InputAdornment position="start"><Icon name="SearchNormal" size={20} color="#6C757D" variant="Outline" /></InputAdornment>) }} />
             </Box>
 
-            {units.filter(u => u.label.toLowerCase().includes(query.toLowerCase())).map((u, idx) => (
-              <Box key={u.value}>
-                <Box onClick={() => { onSelect(u.label); onClose(); }} sx={{ display: 'flex', alignItems: 'center', py: 1.75, px: 1, cursor: 'pointer', justifyContent: 'space-between' }}>
-                  <Typography sx={{ fontSize: 16 }}>{u.label}</Typography>
-                </Box>
-                {idx < units.length - 1 && <Divider sx={{ borderColor: '#F1F3F5' }} />}
+            {isLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress size={32} sx={{ color: '#FB7E00' }} />
               </Box>
-            ))}
+            ) : (
+              categories.filter(c => c.label.toLowerCase().includes(query.toLowerCase())).map((c, idx) => (
+                <Box key={c.value}>
+                  <Box onClick={() => { onSelect(c.label); onClose(); }} sx={{ display: 'flex', alignItems: 'center', py: 1.75, px: 1, cursor: 'pointer', justifyContent: 'space-between' }}>
+                    <Typography sx={{ fontSize: 16 }}>{c.label}</Typography>
+                  </Box>
+                  {idx < categories.length - 1 && <Divider sx={{ borderColor: '#F1F3F5' }} />}
+                </Box>
+              ))
+            )}
           </Box>
         </Box>
 
-        <UnitCreateScreen open={createOpen} onClose={() => setCreateOpen(false)} onCreate={(u) => { handleCreate(u); onSelect(u.label); setCreateOpen(false); onClose(); }} />
+        <ItemCategoryCreateScreen open={createOpen} onClose={() => setCreateOpen(false)} onCreate={(c) => { handleCreate(); onSelect(c.label); setCreateOpen(false); onClose(); }} />
       </Box>
     </>
   );
 };
 
-export default UnitSelectionScreen;
+export default ItemCategorySelectionScreen;

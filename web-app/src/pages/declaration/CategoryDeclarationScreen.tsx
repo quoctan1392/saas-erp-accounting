@@ -5,6 +5,7 @@ import { ROUTES } from '../../config/constants';
 import { ArrowBack } from '@mui/icons-material';
 import headerDay from '../../assets/Header_day.png';
 import * as Iconsax from 'iconsax-react';
+import apiService from '../../services/api';
 
 // Icon wrapper component
 const Icon = ({ name, size = 24, color = 'currentColor', variant = 'Outline' }: any) => {
@@ -27,27 +28,30 @@ const CategoryDeclarationScreen = () => {
   const [exiting, setExiting] = useState(false);
   const ANIM_MS = 280;
   
-  // Mock data - trong thực tế sẽ load từ API
-  const [categories] = useState<CategoryStatus[]>([
+  // Categories data - load counts from API
+  const [categories, setCategories] = useState<CategoryStatus[]>([
     { id: 'customers', name: 'Danh mục khách hàng', route: ROUTES.DECLARATION_CUSTOMERS, count: 0, completed: false },
     { id: 'suppliers', name: 'Danh mục nhà cung cấp', route: ROUTES.DECLARATION_SUPPLIERS, count: 0, completed: false },
     { id: 'warehouses', name: 'Danh mục kho', route: ROUTES.DECLARATION_WAREHOUSES, count: 0, completed: false },
-    { id: 'products', name: 'Danh mục hàng hoá dịch vụ', route: ROUTES.DECLARATION_PRODUCTS, count: 0, completed: false },
+    { id: 'products', name: 'Danh mục HHDV', route: ROUTES.DECLARATION_PRODUCTS, count: 0, completed: false },
   ]);
 
   useEffect(() => {
-    // TODO: Load category counts from API
-    // const loadCategoryCounts = async () => {
-    //   const counts = await apiService.getDeclarationCounts();
-    //   setCategories(prevCategories =>
-    //     prevCategories.map(cat => ({
-    //       ...cat,
-    //       count: counts[cat.id] || 0,
-    //       completed: (counts[cat.id] || 0) > 0
-    //     }))
-    //   );
-    // };
-    // loadCategoryCounts();
+    const loadCategoryCounts = async () => {
+      try {
+        const counts = await apiService.getDeclarationCounts();
+        setCategories(prevCategories =>
+          prevCategories.map(cat => ({
+            ...cat,
+            count: counts[cat.id as keyof typeof counts] || 0,
+            completed: (counts[cat.id as keyof typeof counts] || 0) > 0
+          }))
+        );
+      } catch (error) {
+        console.error('Error loading category counts:', error);
+      }
+    };
+    loadCategoryCounts();
   }, []);
 
   const handleBack = () => {
@@ -197,8 +201,8 @@ const CategoryDeclarationScreen = () => {
                   readOnly
                   icon={<Box sx={{ width: 20, height: 20, borderRadius: '50%', border: '1px solid #ADB5BD' }} />}
                   checkedIcon={
-                    <Box sx={{ width: 20, height: 20, borderRadius: '50%', bgcolor: '#28A745', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'white' }} />
+                    <Box sx={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon name="TickCircle" size={20} color="#28A745" variant="Bold" />
                     </Box>
                   }
                   sx={{ p: 0 }}

@@ -221,4 +221,29 @@ export class WarehousesService {
       limit,
     };
   }
+
+  /**
+   * Get next warehouse code
+   */
+  async getNextWarehouseCode(tenantId: string): Promise<string> {
+    const prefix = 'KHO';
+
+    // Find the latest code with the prefix
+    const latestWarehouse = await this.warehouseRepository
+      .createQueryBuilder('warehouse')
+      .where('warehouse.tenantId = :tenantId', { tenantId })
+      .andWhere('warehouse.isDeleted = :isDeleted', { isDeleted: false })
+      .andWhere('warehouse.code LIKE :prefix', { prefix: `${prefix}%` })
+      .orderBy('warehouse.code', 'DESC')
+      .getOne();
+
+    if (!latestWarehouse) {
+      return `${prefix}001`;
+    }
+
+    // Extract number from code
+    const codeNumber = parseInt(latestWarehouse.code.replace(prefix, ''), 10);
+    const nextNumber = (codeNumber + 1).toString().padStart(3, '0');
+    return `${prefix}${nextNumber}`;
+  }
 }

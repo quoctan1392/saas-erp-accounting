@@ -16,6 +16,28 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { JwtStrategy } from './common/strategies/jwt.strategy';
 
+// Entities
+import { AccountingObject } from './modules/accounting-objects/entities/accounting-object.entity';
+import { SubjectGroup } from './modules/accounting-objects/entities/subject-group.entity';
+import { BankAccount } from './modules/bank-accounts/entities/bank-account.entity';
+import { BusinessProfile } from './modules/business-profile/entities/business-profile.entity';
+import { EInvoiceProvider } from './modules/business-profile/entities/einvoice-provider.entity';
+import { ChartOfAccountsGeneral } from './modules/chart-of-accounts/entities/chart-of-accounts-general.entity';
+import { ChartOfAccountsCustom } from './modules/chart-of-accounts/entities/chart-of-accounts-custom.entity';
+import { InventoryTransaction } from './modules/inventory/entities/inventory-transaction.entity';
+import { Invoice } from './modules/invoices/entities/invoice.entity';
+import { InvoiceDetail } from './modules/invoices/entities/invoice-detail.entity';
+import { Item } from './modules/items/entities/item.entity';
+import { ItemCategory } from './modules/items/entities/item-category.entity';
+import { Unit } from './modules/items/entities/unit.entity';
+import { SaleVoucher } from './modules/sales/entities/sale-voucher.entity';
+import { SaleVoucherDetail } from './modules/sales/entities/sale-voucher-detail.entity';
+import { OutwardVoucher } from './modules/sales/entities/outward-voucher.entity';
+import { OutwardVoucherDetail } from './modules/sales/entities/outward-voucher-detail.entity';
+import { ReceiptVoucher } from './modules/sales/entities/receipt-voucher.entity';
+import { ReceiptVoucherDetail } from './modules/sales/entities/receipt-voucher-detail.entity';
+import { Warehouse } from './modules/warehouses/entities/warehouse.entity';
+
 // Modules
 import { BusinessProfileModule } from './modules/business-profile/business-profile.module';
 import { ChartOfAccountsModule } from './modules/chart-of-accounts/chart-of-accounts.module';
@@ -26,7 +48,32 @@ import { SalesModule } from './modules/sales/sales.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
+import { DeclarationModule } from './modules/declaration/declaration.module';
 // import { ReportsModule } from './modules/reports/reports.module';
+
+// All entities array
+const entities = [
+  AccountingObject,
+  SubjectGroup,
+  BankAccount,
+  BusinessProfile,
+  EInvoiceProvider,
+  ChartOfAccountsGeneral,
+  ChartOfAccountsCustom,
+  InventoryTransaction,
+  Invoice,
+  InvoiceDetail,
+  Item,
+  ItemCategory,
+  Unit,
+  SaleVoucher,
+  SaleVoucherDetail,
+  OutwardVoucher,
+  OutwardVoucherDetail,
+  ReceiptVoucher,
+  ReceiptVoucherDetail,
+  Warehouse,
+];
 
 @Module({
   imports: [
@@ -46,7 +93,7 @@ import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module
         username: configService.get('DB_USERNAME'),
         password: configService.get('DB_PASSWORD'),
         database: configService.get('DB_DATABASE'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        entities: entities,
         synchronize: configService.get('NODE_ENV') === 'development',
         logging: configService.get('NODE_ENV') === 'development',
         ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
@@ -95,6 +142,7 @@ import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module
     InvoicesModule,
     InventoryModule,
     BankAccountsModule,
+    DeclarationModule,
     // ReportsModule,
   ],
   providers: [

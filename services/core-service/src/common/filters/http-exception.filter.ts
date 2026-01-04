@@ -41,6 +41,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       JSON.stringify(errorResponse),
     );
 
+    // Log full stack trace in development
+    if (exception instanceof Error) {
+      this.logger.error('Stack trace:', exception.stack);
+    }
+
     response.status(status).json(errorResponse);
   }
 }

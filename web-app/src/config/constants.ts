@@ -32,6 +32,9 @@ export const ROUTES = {
   DECLARATION_WAREHOUSES: '/declaration/warehouses',
   DECLARATION_PRODUCTS: '/declaration/products',
   DECLARATION_INITIAL_BALANCE: '/declaration/initial-balance',
+  DECLARATION_INITIAL_BALANCE_STEP1: '/declaration/initial-balance/step-1',
+  DECLARATION_INITIAL_BALANCE_STEP2: '/declaration/initial-balance/step-2',
+  DECLARATION_INITIAL_BALANCE_STEP3: '/declaration/initial-balance/step-3',
 };
 
 export const STORAGE_KEYS = {

@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsIn } from 'class-validator';
 
 export class CreateSubjectGroupDto {
   @IsString()
@@ -8,6 +8,11 @@ export class CreateSubjectGroupDto {
   @IsString()
   @IsNotEmpty()
   name: string;
+
+  @IsString()
+  @IsIn(['customer', 'vendor', 'both'])
+  @IsOptional()
+  type?: 'customer' | 'vendor' | 'both' = 'both';
 
   @IsString()
   @IsOptional()

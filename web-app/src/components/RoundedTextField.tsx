@@ -23,9 +23,9 @@ const RoundedTextField: React.FC<RoundedTextFieldProps> = ({ sx, InputLabelProps
           }}
           sx={{
             '& .MuiOutlinedInput-root': {
-              backgroundColor: '#FFF',
+              backgroundColor: '#transparent',
               borderRadius: '48px',
-              paddingLeft: hasStartAdornment ? '16px' : '24px',
+              paddingLeft: hasStartAdornment ? '12px' : '16px',
               paddingRight: '16px',
               height: '48px',
               minHeight: '48px',
@@ -70,9 +70,12 @@ const RoundedTextField: React.FC<RoundedTextFieldProps> = ({ sx, InputLabelProps
               backgroundColor: 'transparent',
               transformOrigin: 'left top',
               '&.MuiInputLabel-shrink': {
-                left: '0px',
-                backgroundColor: '#ffffff',
+                left: '4px',
+                transform: 'translate(14px, -9px) scale(0.75)',
               },
+            },
+            '& .MuiOutlinedInput-notchedOutline legend': {
+              maxWidth: '100%',
             },
             ...sx,
           }}

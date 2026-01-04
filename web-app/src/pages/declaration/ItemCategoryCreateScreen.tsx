@@ -8,12 +8,13 @@ import headerDay from '../../assets/Header_day.png';
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreate: (u: { value: string; label: string }) => void;
+  onCreate: (category: { value: string; label: string }) => void;
 }
 
-const UnitCreateScreen: React.FC<Props> = ({ open, onClose, onCreate }) => {
+const ItemCategoryCreateScreen: React.FC<Props> = ({ open, onClose, onCreate }) => {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,42 +25,42 @@ const UnitCreateScreen: React.FC<Props> = ({ open, onClose, onCreate }) => {
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      setError('Tên đơn vị là bắt buộc');
+      setError('Tên nhóm hàng hoá là bắt buộc');
       return;
     }
     setError(null);
     setIsLoading(true);
     
     try {
-      const unitCode = code.trim() || name.trim().toUpperCase().replace(/\s+/g, '_');
+      const categoryCode = code.trim() || name.trim().toUpperCase().replace(/\s+/g, '_');
       
-      // Call API to save unit to database
-      const savedUnit = await apiService.createUnit({
-        code: unitCode,
+      // Call API to save item category to database
+      const savedCategory = await apiService.createItemCategory({
+        code: categoryCode,
         name: name.trim(),
-        isBaseUnit: true,
-        conversionRate: 1,
+        description: description.trim() || undefined,
       });
       
-      console.log('Unit saved successfully:', savedUnit);
+      console.log('Item category saved successfully:', savedCategory);
       
-      const unit = { 
-        value: savedUnit.id || unitCode, 
+      const category = { 
+        value: savedCategory.id || categoryCode, 
         label: name.trim() 
       };
       
       setExiting(true);
       setTimeout(() => {
-        onCreate(unit);
+        onCreate(category);
         setCode('');
         setName('');
+        setDescription('');
         setIsActive(true);
         setExiting(false);
         setIsLoading(false);
       }, 260);
     } catch (err: any) {
-      console.error('Error saving unit:', err);
-      setError(err.response?.data?.message || 'Không thể lưu đơn vị tính. Vui lòng thử lại.');
+      console.error('Error saving item category:', err);
+      setError(err.response?.data?.message || 'Không thể lưu nhóm hàng hoá. Vui lòng thử lại.');
       setIsLoading(false);
     }
   };
@@ -84,17 +85,18 @@ const UnitCreateScreen: React.FC<Props> = ({ open, onClose, onCreate }) => {
               <ArrowBack />
             </IconButton>
             <Box sx={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', px: 2 }}>
-              <Typography sx={{ color: 'var(--Greyscale-900, #0D0D12)', textAlign: 'center', fontFamily: '"Bricolage Grotesque"', fontSize: '20px', fontWeight: 500 }}>Thêm đơn vị tính</Typography>
+              <Typography sx={{ color: 'var(--Greyscale-900, #0D0D12)', textAlign: 'center', fontFamily: '"Bricolage Grotesque"', fontSize: '20px', fontWeight: 500 }}>Thêm nhóm hàng hoá</Typography>
             </Box>
           </Box>
         </Box>
 
         <Box sx={{ borderRadius: { xs: '16px 16px 0 0', sm: '16px' }, px: 1, py: { xs: 2, sm: 6 }, pb: { xs: `calc(100px + env(safe-area-inset-bottom, 0px))`, sm: 6 }, position: { xs: 'fixed', sm: 'relative' }, top: { xs: '80px', sm: 'auto' }, bottom: { xs: 0, sm: 'auto' }, left: '16px', right: '16px', maxWidth: 'calc(100% - 32px)', display: 'flex', flexDirection: 'column', overflowY: { xs: 'auto', sm: 'visible' }, bgcolor: 'transparent' }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <Typography sx={{ fontSize: 16, fontWeight: 700 }}>Thông tin đơn vị tính</Typography>
+            <Typography sx={{ fontSize: 16, fontWeight: 700 }}>Thông tin nhóm hàng hoá</Typography>
             {error && <Alert severity="error">{error}</Alert>}
-            <RoundedTextField fullWidth label="Mã đơn vị" placeholder="Nhập mã (tuỳ chọn)" value={code} onChange={(e) => setCode(e.target.value)} />
-            <RoundedTextField required fullWidth label="Tên đơn vị" placeholder="Nhập tên đơn vị" value={name} onChange={(e) => setName(e.target.value)} />
+            <RoundedTextField fullWidth label="Mã nhóm" placeholder="Nhập mã (tuỳ chọn)" value={code} onChange={(e) => setCode(e.target.value)} />
+            <RoundedTextField required fullWidth label="Tên nhóm" placeholder="Nhập tên nhóm hàng hoá" value={name} onChange={(e) => setName(e.target.value)} />
+            <RoundedTextField fullWidth label="Mô tả" placeholder="Nhập mô tả (tuỳ chọn)" value={description} onChange={(e) => setDescription(e.target.value)} multiline rows={3} />
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Typography sx={{ fontSize: 16, fontWeight: 500 }}>Đang sử dụng</Typography>
               <Switch checked={isActive} onChange={(e) => setIsActive(e.target.checked)} sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: '#FB7E00' }, '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: '#FB7E00' } }} />
@@ -112,4 +114,4 @@ const UnitCreateScreen: React.FC<Props> = ({ open, onClose, onCreate }) => {
   );
 };
 
-export default UnitCreateScreen;
+export default ItemCategoryCreateScreen;

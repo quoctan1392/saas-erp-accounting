@@ -5,6 +5,7 @@ import { ROUTES } from '../../config/constants';
 import { useEffect, useState } from 'react';
 import WarehouseForm from './WarehouseForm';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import SuccessSnackbar from '../../components/SuccessSnackbar';
 import { apiService } from '../../services/api';
 import headerDay from '../../assets/Header_day.png';
 
@@ -24,6 +25,7 @@ const WarehouseFormScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
 
   // Form state
   const [code, setCode] = useState('');
@@ -32,13 +34,20 @@ const WarehouseFormScreen = () => {
   const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
-    const generateWarehouseCode = () => {
-      const last = parseInt(localStorage.getItem('lastWarehouseNumber') || '0', 10);
-      const next = last + 1;
-      return `KHO${next.toString().padStart(3, '0')}`;
+    const fetchNextCode = async () => {
+      try {
+        const nextCode = await apiService.getNextWarehouseCode();
+        setCode(nextCode);
+      } catch (error) {
+        console.error('Error fetching next warehouse code:', error);
+        // Fallback to localStorage
+        const last = parseInt(localStorage.getItem('lastWarehouseNumber') || '0', 10);
+        const next = last + 1;
+        setCode(`KHO${next.toString().padStart(3, '0')}`);
+      }
     };
 
-    setCode(generateWarehouseCode());
+    fetchNextCode();
   }, []);
 
   const handleFieldChange = (setter: any) => (value: any) => {
@@ -75,22 +84,26 @@ const WarehouseFormScreen = () => {
     setIsLoading(true);
     try {
       const payload: any = {
-        warehouseCode: code,
-        warehouseName: name,
+        code: code,
+        name: name,
         address: address || undefined,
         isActive,
       };
 
       const res = await apiService.createWarehouse(payload);
       // infer created warehouse name
-      const createdName = res?.data?.warehouseName || res?.warehouseName || name;
+      const createdName = res?.data?.name || res?.name || name;
 
+      setShowSuccessSnackbar(true);
       setHasChanges(false);
-      if (returnTo) {
-        navigate(returnTo, { state: { selectedWarehouse: createdName } });
-      } else {
-        navigate(ROUTES.DECLARATION_CATEGORIES);
-      }
+      
+      setTimeout(() => {
+        if (returnTo) {
+          navigate(returnTo, { state: { selectedWarehouse: createdName } });
+        } else {
+          navigate(ROUTES.DECLARATION_CATEGORIES);
+        }
+      }, 1500);
     } catch (error) {
       // Minimal user feedback for now
       // eslint-disable-next-line no-alert
@@ -104,20 +117,30 @@ const WarehouseFormScreen = () => {
     setIsLoading(true);
     try {
       const payload: any = {
-        warehouseCode: code,
-        warehouseName: name,
+        code: code,
+        name: name,
         address: address || undefined,
         isActive,
       };
 
       await apiService.createWarehouse(payload);
 
-      // Persist last number and reset form
+      setShowSuccessSnackbar(true);
+
+      // Persist last number to localStorage (fallback)
       const currentNumber = parseInt(code.replace('KHO', ''), 10);
       localStorage.setItem('lastWarehouseNumber', currentNumber.toString());
 
-      const nextNumber = (currentNumber + 1).toString().padStart(3, '0');
-      setCode(`KHO${nextNumber}`);
+      // Fetch next code from API
+      try {
+        const nextCode = await apiService.getNextWarehouseCode();
+        setCode(nextCode);
+      } catch (error) {
+        console.error('Error fetching next warehouse code:', error);
+        // Fallback to localStorage
+        const nextNumber = (currentNumber + 1).toString().padStart(3, '0');
+        setCode(`KHO${nextNumber}`);
+      }
       setName('');
       setAddress('');
       setIsActive(true);
@@ -238,6 +261,13 @@ const WarehouseFormScreen = () => {
           await handleSave();
           setShowConfirmDialog(false);
         }}
+      />
+
+      {/* Success Snackbar */}
+      <SuccessSnackbar
+        open={showSuccessSnackbar}
+        message="Thêm kho hàng mới thành công"
+        onClose={() => setShowSuccessSnackbar(false)}
       />
     </Box>
   );

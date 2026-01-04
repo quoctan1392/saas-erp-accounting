@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Box, Typography, IconButton, Divider, Button, InputAdornment, Switch, Alert } from '@mui/material';
+import { Box, Typography, IconButton, Divider, Button, InputAdornment, Switch, Alert, CircularProgress } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import RoundedTextField from '../../components/RoundedTextField';
 import BottomSheet from '../../components/BottomSheet';
 import Icon from '../../components/Icon';
+import SuccessSnackbar from '../../components/SuccessSnackbar';
+import { apiService } from '../../services/api';
 import headerDay from '../../assets/Header_day.png';
 
 interface Props {
@@ -26,30 +28,61 @@ const ProductGroupCreateScreen: React.FC<Props> = ({ open, onClose, onCreate }) 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
   const ANIM_MS = 280;
 
   const productTypeLabel = PRODUCT_TYPE_OPTIONS.find((o) => o.value === productType)?.label || '';
 
-  const handleSubmit = () => {
-    if (!code || !name) {
-      setError('Mã nhóm và Tên nhóm là bắt buộc');
+  const handleSubmit = async () => {
+    if (!name) {
+      setError('Tên nhóm là bắt buộc');
       return;
     }
 
     setError(null);
-    const newGroup = { value: code.trim(), label: name.trim() };
-    // animate slide-out then notify parent
-    setExiting(true);
-    setTimeout(() => {
-      onCreate(newGroup);
-      // reset local state
-      setCode('');
-      setName('');
-      setProductType('goods');
-      setIsActive(true);
-      setExiting(false);
-    }, ANIM_MS);
+    setIsLoading(true);
+    
+    try {
+      const categoryCode = code.trim() || name.trim().toUpperCase().replace(/\s+/g, '_');
+      
+      // Call API to save item category to database
+      const savedCategory = await apiService.createItemCategory({
+        code: categoryCode,
+        name: name.trim(),
+        description: productTypeLabel, // Store product type as description
+      });
+      
+      console.log('Item category saved successfully:', savedCategory);
+      
+      const newGroup = { 
+        value: savedCategory.id || categoryCode, 
+        label: name.trim() 
+      };
+      
+      setIsLoading(false);
+      setShowSuccessSnackbar(true);
+      
+      // Wait for snackbar to show, then close and notify parent
+      setTimeout(() => {
+        setExiting(true);
+        setTimeout(() => {
+          onCreate(newGroup);
+          // reset local state
+          setCode('');
+          setName('');
+          setProductType('goods');
+          setIsActive(true);
+          setExiting(false);
+          setShowSuccessSnackbar(false);
+        }, ANIM_MS);
+      }, 1000);
+    } catch (err: any) {
+      console.error('Error saving item category:', err);
+      setError(err.response?.data?.message || 'Không thể lưu nhóm. Vui lòng thử lại.');
+      setIsLoading(false);
+    }
   };
 
   if (!open) return null;
@@ -164,41 +197,48 @@ const ProductGroupCreateScreen: React.FC<Props> = ({ open, onClose, onCreate }) 
             </Box>
           </Box>
         </Box>
-
-        {/* Mobile sticky primary button */}
-        <Box sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 1403, px: 2, py: 2, pb: 'calc(16px + env(safe-area-inset-bottom, 0px))', bgcolor: '#ffffff', boxShadow: '0 -8px 16px rgba(0,0,0,0.06)' }}>
-          <Button
-            fullWidth
-            variant="text"
-            onClick={handleSubmit}
-            disabled={!code.trim() || !name.trim() || exiting}
-            sx={{
-              borderRadius: '100px',
-              bgcolor: !code.trim() || !name.trim() || exiting ? '#DEE2E6' : '#FB7E00',
-              color: !code.trim() || !name.trim() || exiting ? '#ADB5BD' : '#fff',
-              textTransform: 'none',
-              fontWeight: 500,
-              height: 56,
-              fontSize: 16,
-            }}
-          >
-            Hoàn tất
-          </Button>
-        </Box>
-
-        <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Chọn tính chất" hideClose zIndexBase={1500}>
-          <Box sx={{ px: 0 }}>
-            {PRODUCT_TYPE_OPTIONS.map((opt, idx) => (
-              <Box key={opt.value}>
-                <Box onClick={() => { setProductType(opt.value); setSheetOpen(false); }} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1.75, px: 0, cursor: 'pointer' }}>
-                  <Typography sx={{ fontSize: 16, color: '#090909' }}>{opt.label}</Typography>
-                </Box>
-                {idx < PRODUCT_TYPE_OPTIONS.length - 1 && <Divider sx={{ borderColor: '#F1F3F5' }} />}
-              </Box>
-            ))}
-          </Box>
-        </BottomSheet>
       </Box>
+
+      {/* Button box moved outside main container for proper z-index stacking */}
+      <Box sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 1410, px: 2, py: 2, pb: 'calc(16px + env(safe-area-inset-bottom, 0px))', bgcolor: '#ffffff', boxShadow: '0 -8px 16px rgba(0,0,0,0.06)', animation: exiting ? 'slideOutToRight 0.28s ease' : 'slideInFromRight 0.28s ease', '@keyframes slideInFromRight': { from: { transform: 'translateX(100%)' }, to: { transform: 'translateX(0)' } }, '@keyframes slideOutToRight': { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(100%)' } } }}>
+        <Button
+          fullWidth
+          variant="text"
+          onClick={handleSubmit}
+          disabled={!name.trim() || exiting || isLoading}
+          sx={{
+            borderRadius: '100px',
+            bgcolor: !name.trim() || exiting || isLoading ? '#DEE2E6' : '#FB7E00',
+            color: !name.trim() || exiting || isLoading ? '#ADB5BD' : '#fff',
+            textTransform: 'none',
+            fontWeight: 500,
+            height: 56,
+            fontSize: 16,
+          }}
+        >
+          {isLoading ? <CircularProgress size={24} sx={{ color: '#fff' }} /> : 'Hoàn tất'}
+        </Button>
+      </Box>
+
+      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Chọn tính chất" hideClose zIndexBase={1500}>
+        <Box sx={{ px: 0 }}>
+          {PRODUCT_TYPE_OPTIONS.map((opt, idx) => (
+            <Box key={opt.value}>
+              <Box onClick={() => { setProductType(opt.value); setSheetOpen(false); }} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1.75, px: 0, cursor: 'pointer' }}>
+                <Typography sx={{ fontSize: 16, color: '#090909' }}>{opt.label}</Typography>
+              </Box>
+              {idx < PRODUCT_TYPE_OPTIONS.length - 1 && <Divider sx={{ borderColor: '#F1F3F5' }} />}
+            </Box>
+          ))}
+        </Box>
+      </BottomSheet>
+      
+      <SuccessSnackbar
+        open={showSuccessSnackbar}
+        onClose={() => setShowSuccessSnackbar(false)}
+        message="Thêm nhóm hàng hoá dịch vụ thành công"
+        variant="add"
+      />
     </>
   );
 };

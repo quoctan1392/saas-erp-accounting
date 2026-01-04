@@ -110,32 +110,86 @@ export class ItemsService {
       throw new ConflictException('Item code already exists');
     }
 
-    // Validate unit exists
-    const unit = await this.unitRepository.findOne({
-      where: { id: dto.unitId, tenantId, isDeleted: false },
-    });
+    // Validate unit exists - check by ID first, then by name if not a valid UUID
+    let unit: Unit | null = null;
+    const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(dto.unitId);
+    
+    if (isValidUuid) {
+      unit = await this.unitRepository.findOne({
+        where: { id: dto.unitId, tenantId, isDeleted: false },
+      });
+    }
+    
+    // If not found by ID, try to find by name or create new
+    if (!unit) {
+      unit = await this.unitRepository.findOne({
+        where: { name: dto.unitId, tenantId, isDeleted: false },
+      });
+      
+      // If still not found, create a new unit
+      if (!unit) {
+        unit = this.unitRepository.create({
+          tenantId,
+          code: dto.unitId.toUpperCase().replace(/\s+/g, '_'),
+          name: dto.unitId,
+          isActive: true,
+          isBaseUnit: true,
+          conversionRate: 1,
+          createdBy: userId,
+          updatedBy: userId,
+        });
+        await this.unitRepository.save(unit);
+      }
+    }
 
     if (!unit) {
       throw new BadRequestException('Unit not found');
     }
 
-    // Validate categories if provided
+    // Validate categories if provided - handle both UUID and name
+    let categoryIds: string[] = [];
     if (dto.listItemCategoryId && dto.listItemCategoryId.length > 0) {
-      const categories = await this.categoryRepository.find({
-        where: {
-          id: In(dto.listItemCategoryId),
-          tenantId,
-          isDeleted: false,
-        },
-      });
-
-      if (categories.length !== dto.listItemCategoryId.length) {
-        throw new BadRequestException('One or more categories not found');
+      for (const categoryIdOrName of dto.listItemCategoryId) {
+        const isValidUuidCategory = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(categoryIdOrName);
+        
+        let category: ItemCategory | null = null;
+        
+        if (isValidUuidCategory) {
+          category = await this.categoryRepository.findOne({
+            where: { id: categoryIdOrName, tenantId, isDeleted: false },
+          });
+        }
+        
+        // If not found by ID, try by name
+        if (!category) {
+          category = await this.categoryRepository.findOne({
+            where: { name: categoryIdOrName, tenantId, isDeleted: false },
+          });
+        }
+        
+        // If still not found, create a new category
+        if (!category) {
+          category = this.categoryRepository.create({
+            tenantId,
+            code: categoryIdOrName.toUpperCase().replace(/\s+/g, '_'),
+            name: categoryIdOrName,
+            isActive: true,
+            createdBy: userId,
+            updatedBy: userId,
+          });
+          await this.categoryRepository.save(category);
+        }
+        
+        if (category) {
+          categoryIds.push(category.id);
+        }
       }
     }
 
     const item = this.itemRepository.create({
       ...dto,
+      listItemCategoryId: categoryIds.length > 0 ? categoryIds : undefined,
+      unitId: unit.id,
       tenantId,
       createdBy: userId,
     });
@@ -420,5 +474,28 @@ export class ItemsService {
     unit.updatedBy = userId;
 
     await this.unitRepository.save(unit);
+  }
+
+  // Get next item code
+  async getNextItemCode(tenantId: string): Promise<string> {
+    const prefix = 'VT';
+
+    // Find the latest code with the prefix
+    const latestItem = await this.itemRepository
+      .createQueryBuilder('item')
+      .where('item.tenantId = :tenantId', { tenantId })
+      .andWhere('item.isDeleted = :isDeleted', { isDeleted: false })
+      .andWhere('item.code LIKE :prefix', { prefix: `${prefix}%` })
+      .orderBy('item.code', 'DESC')
+      .getOne();
+
+    if (!latestItem) {
+      return `${prefix}00001`;
+    }
+
+    // Extract number from code
+    const codeNumber = parseInt(latestItem.code.replace(prefix, ''), 10);
+    const nextNumber = (codeNumber + 1).toString().padStart(5, '0');
+    return `${prefix}${nextNumber}`;
   }
 }

@@ -17,6 +17,9 @@ import { ArrowBack } from '@mui/icons-material';
 import RoundedTextField from '../../components/RoundedTextField';
 import { apiService } from '../../services/api';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import SuccessSnackbar from '../../components/SuccessSnackbar';
+import SubjectGroupSelectionScreen from './SubjectGroupSelectionScreen';
+import BankSelectionScreen from './BankSelectionScreen';
 import headerDay from '../../assets/Header_day.png';
 import * as Iconsax from 'iconsax-react';
 
@@ -27,12 +30,19 @@ const Icon = ({ name, size = 24, color = 'currentColor', variant = 'Outline' }: 
   return <Comp size={size} color={color} variant={variant} />;
 };
 
-const CustomerFormScreen = () => {
+interface CustomerFormScreenProps {
+  embedded?: boolean;
+  onClose?: () => void;
+  onSaveSuccess?: (customer: any) => void;
+}
+
+const CustomerFormScreen = ({ embedded = false, onClose, onSaveSuccess }: CustomerFormScreenProps = {}) => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
   const ANIM_MS = 280;
 
   // Form state
@@ -63,23 +73,33 @@ const CustomerFormScreen = () => {
   
 
   // Expandable sections
-  const [isContactExpanded, setIsContactExpanded] = useState(false);
-  const [isEInvoiceExpanded, setIsEInvoiceExpanded] = useState(false);
-  const [isBankExpanded, setIsBankExpanded] = useState(false);
+  const [isContactExpanded, setIsContactExpanded] = useState(true);
+  const [isEInvoiceExpanded, setIsEInvoiceExpanded] = useState(true);
+  const [isBankExpanded, setIsBankExpanded] = useState(true);
+
+  // Customer Group
+  const [customerGroup, setCustomerGroup] = useState('');
+  const [customerGroupScreenOpen, setCustomerGroupScreenOpen] = useState(false);
+
+  // Bank selection
+  const [bankSelectionOpen, setBankSelectionOpen] = useState(false);
 
   // Auto-generate customer code on mount
   useEffect(() => {
-    // TODO: Call API to get next customer code
-    // For now, generate sequential code in format KH00001, KH00002, etc.
-    const generateCustomerCode = () => {
-      // In production, this should call API: GET /api/customers/next-code
-      // For now, use localStorage to track the last customer number
-      const lastCustomerNumber = parseInt(localStorage.getItem('lastCustomerNumber') || '0', 10);
-      const nextNumber = lastCustomerNumber + 1;
-      return `KH${nextNumber.toString().padStart(5, '0')}`;
+    const fetchNextCode = async () => {
+      try {
+        const nextCode = await apiService.getNextObjectCode('customer');
+        setCode(nextCode);
+      } catch (error) {
+        console.error('Error fetching next customer code:', error);
+        // Fallback to localStorage
+        const lastCustomerNumber = parseInt(localStorage.getItem('lastCustomerNumber') || '0', 10);
+        const nextNumber = lastCustomerNumber + 1;
+        setCode(`KH${nextNumber.toString().padStart(5, '0')}`);
+      }
     };
 
-    setCode(generateCustomerCode());
+    fetchNextCode();
   }, []);
 
   const handleFieldChange = (setter: any) => (value: any) => {
@@ -88,18 +108,30 @@ const CustomerFormScreen = () => {
   };
 
   const handleBack = () => {
-    if (hasChanges) {
-      setShowConfirmDialog(true);
+    if (embedded && onClose) {
+      if (hasChanges) {
+        setShowConfirmDialog(true);
+      } else {
+        onClose();
+      }
     } else {
-      setExiting(true);
-      setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), ANIM_MS);
+      if (hasChanges) {
+        setShowConfirmDialog(true);
+      } else {
+        setExiting(true);
+        setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), ANIM_MS);
+      }
     }
   };
 
   const handleConfirmLeave = () => {
     setShowConfirmDialog(false);
-    setExiting(true);
-    setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), ANIM_MS);
+    if (embedded && onClose) {
+      onClose();
+    } else {
+      setExiting(true);
+      setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), ANIM_MS);
+    }
   };
 
   const handleTaxLookup = async () => {
@@ -117,7 +149,7 @@ const CustomerFormScreen = () => {
         address,
         phone,
         isCustomer: true,
-        isVendor: false,
+        isVendor: isDualRole,
         isEmployee: false,
         contactName: contactName || undefined,
         contactPhone: contactPhone || undefined,
@@ -128,11 +160,30 @@ const CustomerFormScreen = () => {
         listBankAccountIds: bankAccountNumber ? [bankAccountNumber] : undefined,
       };
 
+      console.log('Saving customer with data:', accountingObjectData);
+
       const result = await apiService.createAccountingObject(accountingObjectData);
       console.log('Customer saved successfully:', result);
 
+      // If embedded mode with callback, invoke it
+      if (embedded && onSaveSuccess) {
+        const customerData = {
+          id: result.data?.id || result.id,
+          name,
+          code,
+          type: customerType,
+          taxCode: customerType === 'organization' ? taxCode : undefined,
+          idNumber: customerType === 'individual' ? idNumber : undefined,
+        };
+        onSaveSuccess(customerData);
+        setHasChanges(false);
+        if (onClose) onClose();
+        return;
+      }
+
+      setShowSuccessSnackbar(true);
       setHasChanges(false);
-      navigate(ROUTES.DECLARATION_CATEGORIES);
+      setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), 1500);
     } catch (error) {
       console.error('Error saving customer:', error);
       // TODO: Show error notification to user
@@ -166,18 +217,20 @@ const CustomerFormScreen = () => {
       const result = await apiService.createAccountingObject(accountingObjectData);
       console.log('Customer saved successfully:', result);
 
-      // Save the customer number to localStorage for sequential numbering
-      const currentNumber = parseInt(code.replace('KH', ''), 10);
-      localStorage.setItem('lastCustomerNumber', currentNumber.toString());
+      setShowSuccessSnackbar(true);
 
-      // Reset form and generate new customer code
-      const generateCustomerCode = () => {
-        const lastCustomerNumber = parseInt(localStorage.getItem('lastCustomerNumber') || '0', 10);
-        const nextNumber = lastCustomerNumber + 1;
-        return `KH${nextNumber.toString().padStart(5, '0')}`;
-      };
+      // Fetch next code from API
+      try {
+        const nextCode = await apiService.getNextObjectCode('customer');
+        setCode(nextCode);
+      } catch (error) {
+        // Fallback to localStorage
+        const currentNumber = parseInt(code.replace('KH', ''), 10);
+        localStorage.setItem('lastCustomerNumber', currentNumber.toString());
+        const nextNumber = currentNumber + 1;
+        setCode(`KH${nextNumber.toString().padStart(5, '0')}`);
+      }
 
-      setCode(generateCustomerCode());
       setTaxCode('');
       setIdNumber('');
       setName('');
@@ -270,7 +323,7 @@ const CustomerFormScreen = () => {
           }}
         >
           {/* Form Fields */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pb: { xs: 3, sm: 0 } }}>
             {/* Customer Type and Dual Role */}
             <Box>
               <Typography sx={{ fontSize: '16px', fontWeight: 600, mb: 1, color: '#212529' }}>
@@ -395,31 +448,57 @@ const CustomerFormScreen = () => {
               }}
             />
 
+            {/* Customer Group */}
+            <RoundedTextField
+              fullWidth
+              label="Nhóm khách hàng"
+              placeholder="Chọn nhóm khách hàng"
+              value={customerGroup}
+              onClick={() => setCustomerGroupScreenOpen(true)}
+              InputProps={{
+                readOnly: true,
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCustomerGroupScreenOpen(true);
+                      }}
+                    >
+                      <Icon name="ArrowDown2" size={18} color="#6C757D" variant="Outline" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+
             {/* Contact Information Section */}
             <Box>
               <Box
                 onClick={() => setIsContactExpanded(!isContactExpanded)}
                 sx={{
                   display: 'flex',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
                   gap: 1,
                   cursor: 'pointer',
-                  py: 1,
+                  py: 0,
                 }}
               >
+                <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#212529' }}>
+                  Người liên hệ
+                </Typography>
                 <Icon
                   name={isContactExpanded ? 'ArrowDown2' : 'ArrowRight2'}
                   size={20}
                   color="#6C757D"
                   variant="Outline"
                 />
-                <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#212529' }}>
-                  Người liên hệ
-                </Typography>
               </Box>
 
               {isContactExpanded && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>
                   {customerType === 'organization' && (
                     <RoundedTextField
                       fullWidth
@@ -457,25 +536,26 @@ const CustomerFormScreen = () => {
                   onClick={() => setIsEInvoiceExpanded(!isEInvoiceExpanded)}
                   sx={{
                     display: 'flex',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                     gap: 1,
                     cursor: 'pointer',
-                    py: 1,
+                    py: 0,
                   }}
                 >
+                  <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#212529' }}>
+                    Người nhận hoá đơn điện tử
+                  </Typography>
                   <Icon
                     name={isEInvoiceExpanded ? 'ArrowDown2' : 'ArrowRight2'}
                     size={20}
                     color="#6C757D"
                     variant="Outline"
                   />
-                  <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#212529' }}>
-                    Người nhận hoá đơn điện tử
-                  </Typography>
                 </Box>
 
                 {isEInvoiceExpanded && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>
                     <RoundedTextField
                       fullWidth
                       label="Họ tên"
@@ -513,25 +593,26 @@ const CustomerFormScreen = () => {
                   onClick={() => setIsBankExpanded(!isBankExpanded)}
                   sx={{
                     display: 'flex',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
-                    gap: 1,
+                    gap: 0,
                     cursor: 'pointer',
-                    py: 1,
+                    py: 0,
                   }}
                 >
+                  <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#212529' }}>
+                    Tài khoản ngân hàng
+                  </Typography>
                   <Icon
                     name={isBankExpanded ? 'ArrowDown2' : 'ArrowRight2'}
                     size={20}
                     color="#6C757D"
                     variant="Outline"
                   />
-                  <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#212529' }}>
-                    Tài khoản ngân hàng
-                  </Typography>
                 </Box>
 
                 {isBankExpanded && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 3 }}>
                     <RoundedTextField
                       fullWidth
                       label="Số tài khoản"
@@ -543,9 +624,25 @@ const CustomerFormScreen = () => {
                     <RoundedTextField
                       fullWidth
                       label="Tên ngân hàng"
-                      placeholder="Nhập tên ngân hàng"
+                      placeholder="Chọn ngân hàng"
                       value={bankName}
-                      onChange={(e) => handleFieldChange(setBankName)(e.target.value)}
+                      onClick={() => setBankSelectionOpen(true)}
+                      InputProps={{
+                        readOnly: true,
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setBankSelectionOpen(true);
+                              }}
+                            >
+                              <Icon name="ArrowDown2" size={18} color="#6C757D" variant="Outline" />
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
                     />
                     <RoundedTextField
                       fullWidth
@@ -587,32 +684,34 @@ const CustomerFormScreen = () => {
             >
               Lưu
             </Button>
-            <Button
-              variant="contained"
-              onClick={handleSaveAndAddNew}
-              disabled={!isFormValid() || isLoading}
-              sx={{
-                borderRadius: '12px',
-                textTransform: 'none',
-                fontWeight: 600,
-                bgcolor: '#007DFB',
-                color: 'white',
-                px: 4,
-                py: 1.5,
-                minWidth: 120,
-                boxShadow: 'none',
-                '&:hover': {
-                  bgcolor: '#0056b3',
+            {!embedded && (
+              <Button
+                variant="contained"
+                onClick={handleSaveAndAddNew}
+                disabled={!isFormValid() || isLoading}
+                sx={{
+                  borderRadius: '12px',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  bgcolor: '#007DFB',
+                  color: 'white',
+                  px: 4,
+                  py: 1.5,
+                  minWidth: 120,
                   boxShadow: 'none',
-                },
-                '&.Mui-disabled': {
-                  bgcolor: '#DEE2E6',
-                  color: '#ADB5BD',
-                },
-              }}
-            >
-              Lưu và thêm mới
-            </Button>
+                  '&:hover': {
+                    bgcolor: '#0056b3',
+                    boxShadow: 'none',
+                  },
+                  '&.Mui-disabled': {
+                    bgcolor: '#DEE2E6',
+                    color: '#ADB5BD',
+                  },
+                }}
+              >
+                Lưu và thêm mới
+              </Button>
+            )}
           </Box>
         </Box>
       </Container>
@@ -636,7 +735,7 @@ const CustomerFormScreen = () => {
       >
         <Button
           fullWidth
-          variant="outlined"
+          variant={embedded ? "contained" : "outlined"}
           onClick={handleSave}
           disabled={!isFormValid() || isLoading}
           sx={{
@@ -645,41 +744,53 @@ const CustomerFormScreen = () => {
             textTransform: 'none',
             fontWeight: 500,
             fontSize: '16px',
-            borderColor: '#C5C5C5',
-            bgcolor: '#F5F5F5',
-            color: '#090909',
+            ...(embedded ? {
+              bgcolor: '#FB7E00',
+              color: 'white',
+              boxShadow: 'none',
+              '&:hover': {
+                bgcolor: '#FB7E00',
+                boxShadow: 'none',
+              },
+            } : {
+              borderColor: '#C5C5C5',
+              bgcolor: '#F5F5F5',
+              color: '#090909',
+              '&:hover': {
+                borderColor: '#E65A2E',
+                bgcolor: '#FFF',
+              },
+            }),
             height: 56,
-            '&:hover': {
-              borderColor: '#E65A2E',
-              bgcolor: '#FFF',
-            },
           }}
         >
           Lưu
         </Button>
-        <Button
-          fullWidth
-          variant="contained"
-          onClick={handleSaveAndAddNew}
-          disabled={!isFormValid() || isLoading}
-          sx={{
-            flex: 1,
-            borderRadius: '100px',
-            fontSize: '16px',
-            textTransform: 'none',
-            fontWeight: 500,
-            bgcolor: '#FB7E00',
-            color: 'white',
-            height: 56,
-            boxShadow: 'none',
-            '&:hover': {
+        {!embedded && (
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={handleSaveAndAddNew}
+            disabled={!isFormValid() || isLoading}
+            sx={{
+              flex: 1,
+              borderRadius: '100px',
+              fontSize: '16px',
+              textTransform: 'none',
+              fontWeight: 500,
               bgcolor: '#FB7E00',
+              color: 'white',
+              height: 56,
               boxShadow: 'none',
-            },
-          }}
-        >
-          Lưu và thêm mới
-        </Button>
+              '&:hover': {
+                bgcolor: '#FB7E00',
+                boxShadow: 'none',
+              },
+            }}
+          >
+            Lưu và thêm mới
+          </Button>
+        )}
       </Box>
 
       {/* Confirm Dialog */}
@@ -693,6 +804,36 @@ const CustomerFormScreen = () => {
         onConfirm={async () => {
           await handleSave();
           setShowConfirmDialog(false);
+        }}
+      />
+
+      {/* Success Snackbar */}
+      <SuccessSnackbar
+        open={showSuccessSnackbar}
+        message="Thêm khách hàng mới thành công"
+        onClose={() => setShowSuccessSnackbar(false)}
+      />
+
+      {/* Customer Group Selection Screen */}
+      <SubjectGroupSelectionScreen
+        open={customerGroupScreenOpen}
+        onClose={() => setCustomerGroupScreenOpen(false)}
+        onSelect={(label) => {
+          setCustomerGroup(label);
+          setHasChanges(true);
+          setCustomerGroupScreenOpen(false);
+        }}
+        type="customer"
+      />
+
+      {/* Bank Selection Screen */}
+      <BankSelectionScreen
+        open={bankSelectionOpen}
+        onClose={() => setBankSelectionOpen(false)}
+        onSelect={(shortName) => {
+          setBankName(shortName);
+          setHasChanges(true);
+          setBankSelectionOpen(false);
         }}
       />
     </Box>

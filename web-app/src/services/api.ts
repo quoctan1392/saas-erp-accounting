@@ -176,10 +176,84 @@ class ApiService {
     return response.data;
   }
 
+  async getNextObjectCode(type: 'customer' | 'vendor'): Promise<string> {
+    const response = await this.coreApi.get(`/api/objects/next-code/${type}`);
+    return response.data.data;
+  }
+
+  // Items/Products
+  async createItem(data: any) {
+    const response = await this.coreApi.post('/api/items', data);
+    return response.data;
+  }
+
+  async getItems(query: Record<string, any> = {}) {
+    const params = new URLSearchParams(query as Record<string, string>).toString();
+    const url = params ? `/api/items?${params}` : '/api/items';
+    const response = await this.coreApi.get(url);
+    return response.data;
+  }
+
+  async getNextItemCode(): Promise<string> {
+    const response = await this.coreApi.get('/api/items/next-code');
+    return response.data.data;
+  }
+
   // Warehouses
   async createWarehouse(data: any) {
     const response = await this.coreApi.post('/api/warehouses', data);
     return response.data;
+  }
+
+  async getWarehouses(query: Record<string, any> = {}) {
+    const params = new URLSearchParams(query as Record<string, string>).toString();
+    const url = params ? `/api/warehouses?${params}` : '/api/warehouses';
+    const response = await this.coreApi.get(url);
+    return response.data;
+  }
+
+  async getNextWarehouseCode(): Promise<string> {
+    const response = await this.coreApi.get('/api/warehouses/next-code');
+    return response.data.data;
+  }
+
+  // Declaration counts
+  async getDeclarationCounts(): Promise<{ customers: number; suppliers: number; warehouses: number; products: number }> {
+    const response = await this.coreApi.get('/api/declaration/counts');
+    return response.data.data || response.data;
+  }
+
+  // Subject Groups (customer groups / supplier groups)
+  async getSubjectGroups(): Promise<any[]> {
+    const response = await this.coreApi.get('/api/subject-groups');
+    return response.data.data || response.data;
+  }
+
+  async createSubjectGroup(data: { code: string; name: string; type: 'customer' | 'vendor' | 'both'; description?: string }): Promise<any> {
+    const response = await this.coreApi.post('/api/subject-groups', data);
+    return response.data.data || response.data;
+  }
+
+  // Item Categories (product groups / service groups)
+  async getItemCategories(): Promise<any[]> {
+    const response = await this.coreApi.get('/api/item-categories');
+    return response.data.data || response.data;
+  }
+
+  async createItemCategory(data: { code: string; name: string; description?: string; parentId?: string }): Promise<any> {
+    const response = await this.coreApi.post('/api/item-categories', data);
+    return response.data.data || response.data;
+  }
+
+  // Units (Đơn vị tính)
+  async getUnits(): Promise<any[]> {
+    const response = await this.coreApi.get('/api/units');
+    return response.data.data || response.data;
+  }
+
+  async createUnit(data: { code: string; name: string; isBaseUnit?: boolean; conversionRate?: number; baseUnitId?: string }): Promise<any> {
+    const response = await this.coreApi.post('/api/units', data);
+    return response.data.data || response.data;
   }
 }
 

@@ -18,6 +18,9 @@ import { ArrowBack } from '@mui/icons-material';
 import { ROUTES } from '../../config/constants';
 import RoundedTextField from '../../components/RoundedTextField';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import SuccessSnackbar from '../../components/SuccessSnackbar';
+import SubjectGroupSelectionScreen from './SubjectGroupSelectionScreen';
+import BankSelectionScreen from './BankSelectionScreen';
 import { apiService } from '../../services/api';
 import headerDay from '../../assets/Header_day.png';
 import * as Iconsax from 'iconsax-react';
@@ -29,12 +32,19 @@ const Icon = ({ name, size = 24, color = 'currentColor', variant = 'Outline' }: 
   return <Comp size={size} color={color} variant={variant} />;
 };
 
-const SupplierFormScreen = () => {
+interface SupplierFormScreenProps {
+  embedded?: boolean;
+  onClose?: () => void;
+  onSaveSuccess?: (supplier: any) => void;
+}
+
+const SupplierFormScreen = ({ embedded = false, onClose, onSaveSuccess }: SupplierFormScreenProps = {}) => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
   const ANIM_MS = 280;
 
   // Form state
@@ -59,18 +69,32 @@ const SupplierFormScreen = () => {
   const [bankBranch, setBankBranch] = useState('');
 
   // Expandable sections
-  const [isContactExpanded, setIsContactExpanded] = useState(false);
-  const [isBankExpanded, setIsBankExpanded] = useState(false);
+  const [isContactExpanded, setIsContactExpanded] = useState(true);
+  const [isBankExpanded, setIsBankExpanded] = useState(true);
 
-  // Auto-generate supplier code on mount
+  // Supplier Group
+  const [supplierGroup, setSupplierGroup] = useState('');
+  const [supplierGroupScreenOpen, setSupplierGroupScreenOpen] = useState(false);
+
+  // Bank selection
+  const [bankSelectionOpen, setBankSelectionOpen] = useState(false);
+
+  // Auto-generate supplier code on mount - fetch from API
   useEffect(() => {
-    const generateSupplierCode = () => {
-      const lastSupplierNumber = parseInt(localStorage.getItem('lastSupplierNumber') || '0', 10);
-      const nextNumber = lastSupplierNumber + 1;
-      return `NCC${nextNumber.toString().padStart(5, '0')}`;
+    const fetchNextCode = async () => {
+      try {
+        const nextCode = await apiService.getNextObjectCode('vendor');
+        setCode(nextCode);
+      } catch (error) {
+        console.error('Error fetching next supplier code:', error);
+        // Fallback to localStorage
+        const lastSupplierNumber = parseInt(localStorage.getItem('lastSupplierNumber') || '0', 10);
+        const nextNumber = lastSupplierNumber + 1;
+        setCode(`NCC${nextNumber.toString().padStart(5, '0')}`);
+      }
     };
 
-    setCode(generateSupplierCode());
+    fetchNextCode();
   }, []);
 
   const handleFieldChange = (setter: any) => (value: any) => {
@@ -79,18 +103,30 @@ const SupplierFormScreen = () => {
   };
 
   const handleBack = () => {
-    if (hasChanges) {
-      setShowConfirmDialog(true);
+    if (embedded && onClose) {
+      if (hasChanges) {
+        setShowConfirmDialog(true);
+      } else {
+        onClose();
+      }
     } else {
-      setExiting(true);
-      setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), ANIM_MS);
+      if (hasChanges) {
+        setShowConfirmDialog(true);
+      } else {
+        setExiting(true);
+        setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), ANIM_MS);
+      }
     }
   };
 
   const handleConfirmLeave = () => {
     setShowConfirmDialog(false);
-    setExiting(true);
-    setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), ANIM_MS);
+    if (embedded && onClose) {
+      onClose();
+    } else {
+      setExiting(true);
+      setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), ANIM_MS);
+    }
   };
 
   const handleTaxLookup = async () => {
@@ -107,7 +143,7 @@ const SupplierFormScreen = () => {
         accountObjectName: name,
         address,
         phone,
-        isCustomer: false,
+        isCustomer: isDualRole,
         isVendor: true,
         isEmployee: false,
         contactName: contactName || undefined,
@@ -123,8 +159,25 @@ const SupplierFormScreen = () => {
       const result = await apiService.createAccountingObject(accountingObjectData);
       console.log('Supplier saved successfully:', result);
 
+      // If embedded mode with callback, invoke it
+      if (embedded && onSaveSuccess) {
+        const supplierData = {
+          id: result.data?.id || result.id,
+          name,
+          code,
+          type: supplierType,
+          taxCode: supplierType === 'organization' ? taxCode : undefined,
+          idNumber: supplierType === 'individual' ? idNumber : undefined,
+        };
+        onSaveSuccess(supplierData);
+        setHasChanges(false);
+        if (onClose) onClose();
+        return;
+      }
+
+      setShowSuccessSnackbar(true);
       setHasChanges(false);
-      navigate(ROUTES.DECLARATION_CATEGORIES);
+      setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), 1500);
     } catch (error) {
       console.error('Error saving supplier:', error);
       alert('Không thể lưu nhà cung cấp. Vui lòng thử lại.');
@@ -141,7 +194,7 @@ const SupplierFormScreen = () => {
         accountObjectName: name,
         address,
         phone,
-        isCustomer: false,
+        isCustomer: isDualRole,
         isVendor: true,
         isEmployee: false,
         contactName: contactName || undefined,
@@ -157,18 +210,23 @@ const SupplierFormScreen = () => {
       const result = await apiService.createAccountingObject(accountingObjectData);
       console.log('Supplier saved successfully:', result);
 
-      // Save the supplier number to localStorage for sequential numbering
+      setShowSuccessSnackbar(true);
+
+      // Save the supplier number to localStorage for sequential numbering (fallback)
       const currentNumber = parseInt(code.replace('NCC', ''), 10);
       localStorage.setItem('lastSupplierNumber', currentNumber.toString());
 
-      // Reset form and generate new supplier code
-      const generateSupplierCode = () => {
+      // Reset form and fetch new supplier code from API
+      try {
+        const nextCode = await apiService.getNextObjectCode('vendor');
+        setCode(nextCode);
+      } catch (error) {
+        console.error('Error fetching next supplier code:', error);
+        // Fallback to localStorage
         const lastSupplierNumber = parseInt(localStorage.getItem('lastSupplierNumber') || '0', 10);
         const nextNumber = lastSupplierNumber + 1;
-        return `NCC${nextNumber.toString().padStart(5, '0')}`;
-      };
-
-      setCode(generateSupplierCode());
+        setCode(`NCC${nextNumber.toString().padStart(5, '0')}`);
+      }
       setTaxCode('');
       setIdNumber('');
       setName('');
@@ -367,6 +425,31 @@ const SupplierFormScreen = () => {
               inputProps={{ inputMode: 'tel' }}
             />
 
+            {/* Supplier Group */}
+            <RoundedTextField
+              fullWidth
+              label="Nhóm nhà cung cấp"
+              placeholder="Chọn nhóm nhà cung cấp"
+              value={supplierGroup}
+              onClick={() => setSupplierGroupScreenOpen(true)}
+              InputProps={{
+                readOnly: true,
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSupplierGroupScreenOpen(true);
+                      }}
+                    >
+                      <Icon name="ArrowDown2" size={18} color="#6C757D" variant="Outline" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+
             {/* Status Switch */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0 }}>
               <Typography sx={{ fontSize: '16px', fontWeight: 500, color: '#212529' }}>
@@ -479,7 +562,23 @@ const SupplierFormScreen = () => {
                     label="Tên ngân hàng"
                     placeholder="Chọn ngân hàng"
                     value={bankName}
-                    onChange={(e) => handleFieldChange(setBankName)(e.target.value)}
+                    onClick={() => setBankSelectionOpen(true)}
+                    InputProps={{
+                      readOnly: true,
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setBankSelectionOpen(true);
+                            }}
+                          >
+                            <Icon name="ArrowDown2" size={18} color="#6C757D" variant="Outline" />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
                   />
                   <RoundedTextField
                     fullWidth
@@ -520,32 +619,34 @@ const SupplierFormScreen = () => {
             >
               Lưu
             </Button>
-            <Button
-              variant="contained"
-              onClick={handleSaveAndAddNew}
-              disabled={!isFormValid() || isLoading}
-              sx={{
-                borderRadius: '12px',
-                textTransform: 'none',
-                fontWeight: 600,
-                bgcolor: '#007DFB',
-                color: 'white',
-                px: 4,
-                py: 1.5,
-                minWidth: 120,
-                boxShadow: 'none',
-                '&:hover': {
-                  bgcolor: '#0056b3',
+            {!embedded && (
+              <Button
+                variant="contained"
+                onClick={handleSaveAndAddNew}
+                disabled={!isFormValid() || isLoading}
+                sx={{
+                  borderRadius: '12px',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  bgcolor: '#007DFB',
+                  color: 'white',
+                  px: 4,
+                  py: 1.5,
+                  minWidth: 120,
                   boxShadow: 'none',
-                },
-                '&.Mui-disabled': {
-                  bgcolor: '#DEE2E6',
-                  color: '#ADB5BD',
-                },
-              }}
-            >
-              Lưu và thêm mới
-            </Button>
+                  '&:hover': {
+                    bgcolor: '#0056b3',
+                    boxShadow: 'none',
+                  },
+                  '&.Mui-disabled': {
+                    bgcolor: '#DEE2E6',
+                    color: '#ADB5BD',
+                  },
+                }}
+              >
+                Lưu và thêm mới
+              </Button>
+            )}
           </Box>
         </Box>
       </Container>
@@ -569,7 +670,7 @@ const SupplierFormScreen = () => {
       >
         <Button
           fullWidth
-          variant="outlined"
+          variant={embedded ? "contained" : "outlined"}
           onClick={handleSave}
           disabled={!isFormValid() || isLoading}
           sx={{
@@ -578,41 +679,53 @@ const SupplierFormScreen = () => {
             textTransform: 'none',
             fontWeight: 500,
             fontSize: '16px',
-            borderColor: '#C5C5C5',
-            bgcolor: '#F5F5F5',
-            color: '#090909',
+            ...(embedded ? {
+              bgcolor: '#FB7E00',
+              color: 'white',
+              boxShadow: 'none',
+              '&:hover': {
+                bgcolor: '#FB7E00',
+                boxShadow: 'none',
+              },
+            } : {
+              borderColor: '#C5C5C5',
+              bgcolor: '#F5F5F5',
+              color: '#090909',
+              '&:hover': {
+                borderColor: '#E65A2E',
+                bgcolor: '#FFF',
+              },
+            }),
             height: 56,
-            '&:hover': {
-              borderColor: '#E65A2E',
-              bgcolor: '#FFF',
-            },
           }}
         >
           Lưu
         </Button>
-        <Button
-          fullWidth
-          variant="contained"
-          onClick={handleSaveAndAddNew}
-          disabled={!isFormValid() || isLoading}
-          sx={{
-            flex: 1,
-            borderRadius: '100px',
-            fontSize: '16px',
-            textTransform: 'none',
-            fontWeight: 500,
-            bgcolor: '#FB7E00',
-            color: 'white',
-            height: 56,
-            boxShadow: 'none',
-            '&:hover': {
+        {!embedded && (
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={handleSaveAndAddNew}
+            disabled={!isFormValid() || isLoading}
+            sx={{
+              flex: 1,
+              borderRadius: '100px',
+              fontSize: '16px',
+              textTransform: 'none',
+              fontWeight: 500,
               bgcolor: '#FB7E00',
+              color: 'white',
+              height: 56,
               boxShadow: 'none',
-            },
-          }}
-        >
-          Lưu và thêm mới
-        </Button>
+              '&:hover': {
+                bgcolor: '#FB7E00',
+                boxShadow: 'none',
+              },
+            }}
+          >
+            Lưu và thêm mới
+          </Button>
+        )}
       </Box>
 
       {/* Confirm Dialog */}
@@ -626,6 +739,36 @@ const SupplierFormScreen = () => {
         onConfirm={async () => {
           await handleSave();
           setShowConfirmDialog(false);
+        }}
+      />
+
+      {/* Success Snackbar */}
+      <SuccessSnackbar
+        open={showSuccessSnackbar}
+        message="Thêm nhà cung cấp mới thành công"
+        onClose={() => setShowSuccessSnackbar(false)}
+      />
+
+      {/* Supplier Group Selection Screen */}
+      <SubjectGroupSelectionScreen
+        open={supplierGroupScreenOpen}
+        onClose={() => setSupplierGroupScreenOpen(false)}
+        onSelect={(label) => {
+          setSupplierGroup(label);
+          setHasChanges(true);
+          setSupplierGroupScreenOpen(false);
+        }}
+        type="vendor"
+      />
+
+      {/* Bank Selection Screen */}
+      <BankSelectionScreen
+        open={bankSelectionOpen}
+        onClose={() => setBankSelectionOpen(false)}
+        onSelect={(shortName) => {
+          setBankName(shortName);
+          setHasChanges(true);
+          setBankSelectionOpen(false);
         }}
       />
     </Box>

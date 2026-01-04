@@ -216,4 +216,28 @@ export class AccountingObjectsService {
 
     await this.subjectGroupRepository.save(group);
   }
+
+  // Get next code for customer/vendor
+  async getNextCode(tenantId: string, type: 'customer' | 'vendor'): Promise<string> {
+    const prefix = type === 'customer' ? 'KH' : 'NCC';
+    const whereCondition = type === 'customer' ? { isCustomer: true } : { isVendor: true };
+
+    // Find the latest code with the prefix
+    const latestObject = await this.accountingObjectRepository
+      .createQueryBuilder('object')
+      .where('object.tenantId = :tenantId', { tenantId })
+      .andWhere('object.isDeleted = :isDeleted', { isDeleted: false })
+      .andWhere('object.accountObjectCode LIKE :prefix', { prefix: `${prefix}%` })
+      .orderBy('object.accountObjectCode', 'DESC')
+      .getOne();
+
+    if (!latestObject) {
+      return `${prefix}00001`;
+    }
+
+    // Extract number from code
+    const codeNumber = parseInt(latestObject.accountObjectCode.replace(prefix, ''), 10);
+    const nextNumber = (codeNumber + 1).toString().padStart(5, '0');
+    return `${prefix}${nextNumber}`;
+  }
 }

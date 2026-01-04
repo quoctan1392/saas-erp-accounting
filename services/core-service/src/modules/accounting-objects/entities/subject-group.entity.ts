@@ -10,6 +10,9 @@ export class SubjectGroup extends BaseEntity {
   @Column()
   name: string;
 
+  @Column({ type: 'varchar', length: 20, default: 'both' })
+  type: 'customer' | 'vendor' | 'both';
+
   @Column({ type: 'text', nullable: true })
   description?: string;
 

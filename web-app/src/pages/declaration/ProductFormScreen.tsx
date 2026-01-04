@@ -8,6 +8,7 @@ import { ArrowBack } from '@mui/icons-material';
 import RoundedTextField from '../../components/RoundedTextField';
 import BottomSheet from '../../components/BottomSheet';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import SuccessSnackbar from '../../components/SuccessSnackbar';
 import ProductGroupSelectionScreen from './ProductGroupSelectionScreen';
 import UnitSelectionScreen from './UnitSelectionScreen';
 import WarehouseSelectionScreen from './WarehouseSelectionScreen';
@@ -31,6 +32,7 @@ const ProductFormScreen = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
   const ANIM_MS = 280;
 
   // Form state
@@ -104,13 +106,20 @@ const ProductFormScreen = () => {
 
   // Auto-generate product code on mount
   useEffect(() => {
-    const generateProductCode = () => {
-      const lastProductNumber = parseInt(localStorage.getItem('lastProductNumber') || '0', 10);
-      const nextNumber = lastProductNumber + 1;
-      return `VT${nextNumber.toString().padStart(5, '0')}`;
+    const fetchNextCode = async () => {
+      try {
+        const nextCode = await apiService.getNextItemCode();
+        setCode(nextCode);
+      } catch (error) {
+        console.error('Error fetching next product code:', error);
+        // Fallback to localStorage
+        const lastProductNumber = parseInt(localStorage.getItem('lastProductNumber') || '0', 10);
+        const nextNumber = lastProductNumber + 1;
+        setCode(`VT${nextNumber.toString().padStart(5, '0')}`);
+      }
     };
 
-      setCode(generateProductCode());
+    fetchNextCode();
     // derive business type from onboarding/current tenant stored choice
     try {
       const onboardingData = JSON.parse(localStorage.getItem('onboardingData') || '{}');
@@ -220,29 +229,32 @@ const ProductFormScreen = () => {
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      // TODO: Implement API call to create product
       const effectivePurchaseVAT = businessType === BusinessType.PRIVATE_ENTERPRISE ? saleVAT : purchaseVAT;
       const effectiveSaleVAT = businessType === BusinessType.PRIVATE_ENTERPRISE ? saleVAT : '';
 
-      const productData = {
-        productType,
+      // Map to backend CreateItemDto
+      const itemData: any = {
         code,
         name,
-        productGroup,
-        unit,
-        salePrice: salePrice.replace(/,/g, ''),
-        purchasePrice: purchasePrice.replace(/,/g, ''),
-        defaultWarehouse,
-        initialStock: initialStock.replace(/,/g, ''),
-        allowNegative,
-        purchaseVAT: effectivePurchaseVAT,
-        saleVAT: effectiveSaleVAT,
-        taxIndustry,
+        type: productType, // goods, service, material, finished
+        unitId: unit || 'default-unit-id', // TODO: Get actual unit ID from selection
+        sellPrice: parseFloat(salePrice.replace(/,/g, '')) || 0,
+        purchasePrice: parseFloat(purchasePrice.replace(/,/g, '')) || 0,
+        exportTaxRate: parseFloat(effectiveSaleVAT || '0') || 0,
+        importTaxRate: parseFloat(effectivePurchaseVAT || '0') || 0,
+        minimumStock: parseFloat(initialStock.replace(/,/g, '')) || 0,
+        isActive: true,
+        // Optional fields
+        listItemCategoryId: productGroup ? [productGroup] : undefined,
       };
 
-      console.log('Product saved successfully:', productData);
+      console.log('Saving item with data:', itemData);
+      const result = await apiService.createItem(itemData);
+      console.log('Item saved successfully:', result);
+
+      setShowSuccessSnackbar(true);
       setHasChanges(false);
-      navigate(ROUTES.DECLARATION_CATEGORIES);
+      setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), 1500);
     } catch (error) {
       console.error('Error saving product:', error);
       alert('Không thể lưu hàng hoá. Vui lòng thử lại.');
@@ -257,36 +269,42 @@ const ProductFormScreen = () => {
       const effectivePurchaseVAT = businessType === BusinessType.PRIVATE_ENTERPRISE ? saleVAT : purchaseVAT;
       const effectiveSaleVAT = businessType === BusinessType.PRIVATE_ENTERPRISE ? saleVAT : '';
 
-      const productData = {
-        productType,
+      // Map to backend CreateItemDto
+      const itemData: any = {
         code,
         name,
-        productGroup,
-        unit,
-        salePrice: salePrice.replace(/,/g, ''),
-        purchasePrice: purchasePrice.replace(/,/g, ''),
-        defaultWarehouse,
-        initialStock: initialStock.replace(/,/g, ''),
-        allowNegative,
-        purchaseVAT: effectivePurchaseVAT,
-        saleVAT: effectiveSaleVAT,
-        taxIndustry,
+        type: productType,
+        unitId: unit || 'default-unit-id',
+        sellPrice: parseFloat(salePrice.replace(/,/g, '')) || 0,
+        purchasePrice: parseFloat(purchasePrice.replace(/,/g, '')) || 0,
+        exportTaxRate: parseFloat(effectiveSaleVAT || '0') || 0,
+        importTaxRate: parseFloat(effectivePurchaseVAT || '0') || 0,
+        minimumStock: parseFloat(initialStock.replace(/,/g, '')) || 0,
+        isActive: true,
+        listItemCategoryId: productGroup ? [productGroup] : undefined,
       };
 
-      console.log('Product saved successfully:', productData);
+      console.log('Saving item with data:', itemData);
+      const result = await apiService.createItem(itemData);
+      console.log('Item saved successfully:', result);
 
-      // Save the product number to localStorage for sequential numbering
+      setShowSuccessSnackbar(true);
+
+      // Save the product number to localStorage for sequential numbering (fallback)
       const currentNumber = parseInt(code.replace('VT', ''), 10);
       localStorage.setItem('lastProductNumber', currentNumber.toString());
 
-      // Reset form and generate new product code
-      const generateProductCode = () => {
+      // Reset form and fetch new product code from API
+      try {
+        const nextCode = await apiService.getNextItemCode();
+        setCode(nextCode);
+      } catch (error) {
+        console.error('Error fetching next product code:', error);
+        // Fallback to localStorage
         const lastProductNumber = parseInt(localStorage.getItem('lastProductNumber') || '0', 10);
         const nextNumber = lastProductNumber + 1;
-        return `VT${nextNumber.toString().padStart(5, '0')}`;
-      };
-
-      setCode(generateProductCode());
+        setCode(`VT${nextNumber.toString().padStart(5, '0')}`);
+      }
       setProductType('goods');
       setName('');
       setProductGroup('');
@@ -1085,6 +1103,13 @@ const ProductFormScreen = () => {
           await handleSave();
           setShowConfirmDialog(false);
         }}
+      />
+
+      {/* Success Snackbar */}
+      <SuccessSnackbar
+        open={showSuccessSnackbar}
+        message="Thêm sản phẩm mới thành công"
+        onClose={() => setShowSuccessSnackbar(false)}
       />
     </Box>
   );

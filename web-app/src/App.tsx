@@ -1,33 +1,62 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { lazy, Suspense } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { OnboardingProvider } from './context/OnboardingContextSafe';
 import { GOOGLE_CONFIG } from './config/constants';
-import LoginDemoScreenSimple from './pages/LoginDemoScreenSimple';
-import LoginScreen from './pages/LoginScreen';
-import SignupScreen from './pages/SignupScreen';
-import { ForgotPasswordScreen } from './pages/ForgotPasswordScreen';
-import { ResetPasswordScreen } from './pages/ResetPasswordScreen';
-import ProcessingScreen from './pages/ProcessingScreen';
-import { DashboardScreen } from './pages/DashboardScreen';
-import HomeScreen from './pages/HomeScreen';
-import MoreScreen from './pages/MoreScreen';
-import SelectTenantScreen from './pages/SelectTenantScreen';
-import { TenantSelectionScreen } from './pages/TenantSelectionScreen';
-import WelcomeScreen from './pages/onboarding/WelcomeScreen';
-import BusinessTypeScreen from './pages/onboarding/BusinessTypeScreen';
-import BusinessInfoScreen from './pages/onboarding/BusinessInfoScreen';
-import { BusinessInfoScreenDNTN } from './pages/onboarding/BusinessInfoScreen';
-import BusinessSectorScreen from './pages/onboarding/BusinessSectorScreen';
-import AccountingSetupScreen from './pages/onboarding/AccountingSetupScreen';
-import AdvancedSetupScreen from './pages/onboarding/AdvancedSetupScreen';
-import CategoryDeclarationScreen from './pages/declaration/CategoryDeclarationScreen';
-import CustomerFormScreen from './pages/declaration/CustomerFormScreen';
-import SupplierFormScreen from './pages/declaration/SupplierFormScreen';
-import WarehouseFormScreen from './pages/declaration/WarehouseFormScreen';
-import ProductFormScreen from './pages/declaration/ProductFormScreen';
-import MainLayout from './components/MainLayout';
+import { CircularProgress, Box } from '@mui/material';
+
+// Lazy load pages for better performance
+const LoginDemoScreenSimple = lazy(() => import('./pages/LoginDemoScreenSimple'));
+const LoginScreen = lazy(() => import('./pages/LoginScreen'));
+const SignupScreen = lazy(() => import('./pages/SignupScreen'));
+const ForgotPasswordScreen = lazy(() => import('./pages/ForgotPasswordScreen').then(m => ({ default: m.ForgotPasswordScreen })));
+const ResetPasswordScreen = lazy(() => import('./pages/ResetPasswordScreen').then(m => ({ default: m.ResetPasswordScreen })));
+const ProcessingScreen = lazy(() => import('./pages/ProcessingScreen'));
+const DashboardScreen = lazy(() => import('./pages/DashboardScreen').then(m => ({ default: m.DashboardScreen })));
+const HomeScreen = lazy(() => import('./pages/HomeScreen'));
+const MoreScreen = lazy(() => import('./pages/MoreScreen'));
+const SelectTenantScreen = lazy(() => import('./pages/SelectTenantScreen'));
+const TenantSelectionScreen = lazy(() => import('./pages/TenantSelectionScreen').then(m => ({ default: m.TenantSelectionScreen })));
+
+// Onboarding screens
+const WelcomeScreen = lazy(() => import('./pages/onboarding/WelcomeScreen'));
+const BusinessTypeScreen = lazy(() => import('./pages/onboarding/BusinessTypeScreen'));
+const BusinessInfoScreen = lazy(() => import('./pages/onboarding/BusinessInfoScreen'));
+const BusinessInfoScreenDNTN = lazy(() => import('./pages/onboarding/BusinessInfoScreen').then(m => ({ default: m.BusinessInfoScreenDNTN })));
+const BusinessSectorScreen = lazy(() => import('./pages/onboarding/BusinessSectorScreen'));
+const AccountingSetupScreen = lazy(() => import('./pages/onboarding/AccountingSetupScreen'));
+const AdvancedSetupScreen = lazy(() => import('./pages/onboarding/AdvancedSetupScreen'));
+
+// Declaration screens
+const CategoryDeclarationScreen = lazy(() => import('./pages/declaration/CategoryDeclarationScreen'));
+const CustomerFormScreen = lazy(() => import('./pages/declaration/CustomerFormScreen'));
+const SupplierFormScreen = lazy(() => import('./pages/declaration/SupplierFormScreen'));
+const WarehouseFormScreen = lazy(() => import('./pages/declaration/WarehouseFormScreen'));
+const ProductFormScreen = lazy(() => import('./pages/declaration/ProductFormScreen'));
+
+// Initial Balance screens
+const InitialBalanceStep1Screen = lazy(() => import('./pages/declaration/initial-balance/InitialBalanceStep1Screen'));
+const InitialBalanceStep2Screen = lazy(() => import('./pages/declaration/initial-balance/InitialBalanceStep2Screen'));
+const InitialBalanceStep3Screen = lazy(() => import('./pages/declaration/initial-balance/InitialBalanceStep3Screen'));
+
+const MainLayout = lazy(() => import('./components/MainLayout'));
+
+// Loading component for lazy loaded pages
+const PageLoader = () => (
+  <Box
+    sx={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    }}
+  >
+    <CircularProgress sx={{ color: 'white' }} />
+  </Box>
+);
 
 const theme = createTheme({
   palette: {
@@ -52,6 +81,7 @@ function App() {
         <AuthProvider>
           <Router>
             <OnboardingProvider>
+            <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Navigate to="/home" replace />} />
               <Route path="/login" element={<LoginScreen />} />
@@ -81,6 +111,12 @@ function App() {
               <Route path="/declaration/products/new" element={<ProductFormScreen />} />
               <Route path="/declaration/products/:id/edit" element={<ProductFormScreen />} />
               
+              {/* Initial Balance routes */}
+              <Route path="/declaration/initial-balance" element={<Navigate to="/declaration/initial-balance/step-1" replace />} />
+              <Route path="/declaration/initial-balance/step-1" element={<InitialBalanceStep1Screen />} />
+              <Route path="/declaration/initial-balance/step-2" element={<InitialBalanceStep2Screen />} />
+              <Route path="/declaration/initial-balance/step-3" element={<InitialBalanceStep3Screen />} />
+              
               {/* Routes with persistent bottom navigation */}
               <Route element={<MainLayout />}>
                 <Route path="/home" element={<HomeScreen />} />
@@ -89,6 +125,7 @@ function App() {
               
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            </Suspense>
             </OnboardingProvider>
           </Router>
         </AuthProvider>

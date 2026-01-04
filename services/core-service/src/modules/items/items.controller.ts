@@ -40,6 +40,11 @@ export class ItemsController {
     });
   }
 
+  @Get('next-code')
+  getNextCode(@TenantId() tenantId: string) {
+    return this.itemsService.getNextItemCode(tenantId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @TenantId() tenantId: string) {
     return this.itemsService.findOneItem(id, tenantId);

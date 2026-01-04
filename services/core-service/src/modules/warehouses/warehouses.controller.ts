@@ -37,6 +37,14 @@ export class WarehousesController {
   }
 
   /**
+   * Lấy mã kho tiếp theo
+   */
+  @Get('next-code')
+  getNextCode(@TenantId() tenantId: string) {
+    return this.warehousesService.getNextWarehouseCode(tenantId);
+  }
+
+  /**
    * Lấy danh sách kho
    */
   @Get()

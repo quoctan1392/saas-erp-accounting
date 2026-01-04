@@ -67,6 +67,14 @@ export class AccountingObjectsController {
   ) {
     return this.accountingObjectsService.delete(id, tenantId, userId);
   }
+
+  @Get('next-code/:type')
+  getNextCode(
+    @TenantId() tenantId: string,
+    @Param('type') type: 'customer' | 'vendor',
+  ) {
+    return this.accountingObjectsService.getNextCode(tenantId, type);
+  }
 }
 
 @Controller('subject-groups')
