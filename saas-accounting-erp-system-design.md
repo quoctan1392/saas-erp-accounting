@@ -29,6 +29,7 @@ Xây dựng nền tảng SaaS ERP tập trung vào kế toán cho doanh nghiệp
 | **Event-Driven**             | RabbitMQ                         | ✅     |
 
 **Microservices Architecture**:
+
 1. **Auth Service** (3001) - Authentication & Authorization
 2. **Tenant Service** (3002) - Multi-tenant Management
 3. **Core Service** (3003) - Main ERP Logic (Accounting, Sales, Inventory, Purchase)
@@ -37,6 +38,7 @@ Xây dựng nền tảng SaaS ERP tập trung vào kế toán cho doanh nghiệp
 6. **Reporting Service** (Future) - Advanced Analytics & BI
 
 **Core Service Modules**:
+
 - Business Profile (Hồ sơ doanh nghiệp)
 - Chart of Accounts (Hệ thống tài khoản kế toán)
 - Accounting Objects (Khách hàng, Nhà cung cấp, Nhân viên)
@@ -480,16 +482,11 @@ export class OrderCreationSaga {
 export class CircuitBreakerService {
   private circuits = new Map<string, CircuitBreaker>();
 
-  async execute<T>(
-    serviceName: string,
-    operation: () => Promise<T>
-  ): Promise<T> {
+  async execute<T>(serviceName: string, operation: () => Promise<T>): Promise<T> {
     const circuit = this.getCircuit(serviceName);
 
     if (circuit.isOpen()) {
-      throw new CircuitBreakerOpenException(
-        `Circuit breaker is open for ${serviceName}`
-      );
+      throw new CircuitBreakerOpenException(`Circuit breaker is open for ${serviceName}`);
     }
 
     try {
@@ -507,7 +504,7 @@ export class CircuitBreakerService {
 async function retryWithBackoff<T>(
   operation: () => Promise<T>,
   maxRetries: number = 3,
-  baseDelay: number = 1000
+  baseDelay: number = 1000,
 ): Promise<T> {
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -522,15 +519,10 @@ async function retryWithBackoff<T>(
 }
 
 // Timeout Pattern
-async function withTimeout<T>(
-  operation: () => Promise<T>,
-  timeoutMs: number = 5000
-): Promise<T> {
+async function withTimeout<T>(operation: () => Promise<T>, timeoutMs: number = 5000): Promise<T> {
   return Promise.race([
     operation(),
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new TimeoutException()), timeoutMs)
-    ),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new TimeoutException()), timeoutMs)),
   ]);
 }
 
@@ -542,7 +534,7 @@ export class BulkheadService {
   async execute<T>(
     poolName: string,
     operation: () => Promise<T>,
-    maxConcurrent: number = 10
+    maxConcurrent: number = 10,
   ): Promise<T> {
     const semaphore = this.getSemaphore(poolName, maxConcurrent);
 
@@ -739,24 +731,24 @@ Services với Database riêng:
 
 ```typescript
 // OpenTelemetry for Distributed Tracing
-import { trace, SpanStatusCode } from "@opentelemetry/api";
+import { trace, SpanStatusCode } from '@opentelemetry/api';
 
 @Injectable()
 export class SalesOrderService {
-  private tracer = trace.getTracer("sales-service");
+  private tracer = trace.getTracer('sales-service');
 
   async createOrder(dto: CreateOrderDto): Promise<Order> {
-    const span = this.tracer.startSpan("createOrder", {
+    const span = this.tracer.startSpan('createOrder', {
       attributes: {
-        "tenant.id": dto.tenantId,
-        "user.id": dto.userId,
-        "order.total": dto.totalAmount,
+        'tenant.id': dto.tenantId,
+        'user.id': dto.userId,
+        'order.total': dto.totalAmount,
       },
     });
 
     try {
       // Step 1: Validate
-      const validationSpan = this.tracer.startSpan("validateOrder", {
+      const validationSpan = this.tracer.startSpan('validateOrder', {
         parent: span,
       });
       await this.validateOrder(dto);
@@ -766,10 +758,10 @@ export class SalesOrderService {
       const order = await this.orderRepository.save(dto);
 
       // Step 3: Call other services
-      const inventorySpan = this.tracer.startSpan("checkInventory", {
+      const inventorySpan = this.tracer.startSpan('checkInventory', {
         parent: span,
         attributes: {
-          service: "inventory-service",
+          service: 'inventory-service',
         },
       });
       await this.inventoryClient.checkStock(order.items);
@@ -821,7 +813,7 @@ services:
               hour: 1000
           - name: cors
             config:
-              origins: ["*"]
+              origins: ['*']
 
   - name: accounting-service
     url: http://accounting-service:3003
@@ -857,7 +849,7 @@ services:
           - name: jwt
           - name: acl
             config:
-              whitelist: ["admin", "sales"]
+              whitelist: ['admin', 'sales']
 ```
 
 #### Core Services
@@ -934,7 +926,7 @@ Database: core_db (PostgreSQL)
 Cache: Redis
 Queue: RabbitMQ
 
-**Mục đích**: Service trung tâm xử lý toàn bộ nghiệp vụ ERP bao gồm kế toán, 
+**Mục đích**: Service trung tâm xử lý toàn bộ nghiệp vụ ERP bao gồm kế toán,
 bán hàng, kho, mua hàng. Là service quan trọng nhất của hệ thống.
 
 Tech Stack:
@@ -1048,6 +1040,7 @@ Endpoints:
 # Đối tượng (Khách hàng, Nhà cung cấp, Nhân viên)
 GET    /objects                             # Danh sách đối tượng (filter, search, pagination)
 POST   /objects                             # Tạo đối tượng mới
+GET    /objects/next-code                   # Lấy mã đối tượng tiếp theo (auto-increment)
 GET    /objects/:id                         # Chi tiết đối tượng
 PUT    /objects/:id                         # Cập nhật đối tượng
 DELETE /objects/:id                         # Xóa đối tượng
@@ -1063,6 +1056,10 @@ Query Params (GET /objects):
 ?isActive=true                               # Lọc hoạt động
 ?search=keyword                              # Tìm kiếm
 ?page=1&limit=20                             # Phân trang
+
+Query Params (GET /objects/next-code):
+?type=customer|vendor|employee               # Loại đối tượng (mặc định: customer)
+                                             # Trả về: "KH0001" (customer), "NCC0001" (vendor), "NV0001" (employee)
 
 Data Model:
 {
@@ -1087,6 +1084,16 @@ Data Model:
   identityNumber: string,                    // CMND/CCCD
   note: string                               // Ghi chú
 }
+
+Business Rules:
+- Mã đối tượng (accountObjectCode) phải unique trong tenant
+- Tự động sinh mã theo pattern:
+  + Khách hàng: KH0001, KH0002, ..., KH9999, KH10000 (tăng dần, padding 4 chữ số đến 9999)
+  + Nhà cung cấp: NCC0001, NCC0002, ..., NCC9999, NCC10000
+  + Nhân viên: NV0001, NV0002, ..., NV9999, NV10000
+- Khi tạo đối tượng, validate code không trùng lặp (ConflictException nếu trùng)
+- Frontend tự động fetch next code khi mở form tạo mới
+- Khi "Lưu và thêm mới", tự động fetch next code cho record tiếp theo
 
 ═══════════════════════════════════════════════════════════════════
 MODULE 4: ITEMS - Hàng hóa dịch vụ
@@ -1572,7 +1579,7 @@ Caching:
 > **Note**: Chức năng kế toán đã được tích hợp vào Core Service.
 > Service này giữ lại cho tương lai nếu cần tách riêng.
 
-```typescript
+````typescript
 
 ```typescript
 Modules:
@@ -1597,7 +1604,7 @@ POST   /accounting/journal-entries # Create journal entry
 GET    /accounting/reports/balance-sheet
 GET    /accounting/reports/income-statement
 GET    /accounting/reports/cash-flow
-```
+````
 
 ##### 3.4 HR Service (Future Development)
 
@@ -2071,33 +2078,37 @@ spec:
 #### 3.11 Inter-Service Communication Matrix
 
 ```
+
 ┌──────────────┬───────┬────────┬───────┬────────────┬────────┐
-│   Service    │ Auth  │ Tenant │ Core  │Notification│  API   │
-│              │       │        │       │            │Gateway │
+│ Service │ Auth │ Tenant │ Core │Notification│ API │
+│ │ │ │ │ │Gateway │
 ├──────────────┼───────┼────────┼───────┼────────────┼────────┤
-│ Auth         │   -   │  REST  │ gRPC  │   Event    │  REST  │
+│ Auth │ - │ REST │ gRPC │ Event │ REST │
 ├──────────────┼───────┼────────┼───────┼────────────┼────────┤
-│ Tenant       │  REST │   -    │ Event │   Event    │  REST  │
+│ Tenant │ REST │ - │ Event │ Event │ REST │
 ├──────────────┼───────┼────────┼───────┼────────────┼────────┤
-│ Core         │ gRPC  │  REST  │   -   │   Event    │  REST  │
+│ Core │ gRPC │ REST │ - │ Event │ REST │
 ├──────────────┼───────┼────────┼───────┼────────────┼────────┤
-│ Notification │   -   │   -    │   -   │     -      │  REST  │
+│ Notification │ - │ - │ - │ - │ REST │
 ├──────────────┼───────┼────────┼───────┼────────────┼────────┤
-│ API Gateway  │  ALL  │  ALL   │  ALL  │    ALL     │   -    │
+│ API Gateway │ ALL │ ALL │ ALL │ ALL │ - │
 └──────────────┴───────┴────────┴───────┴────────────┴────────┘
 
 Legend:
+
 - REST: Synchronous HTTP REST API
 - gRPC: High-performance RPC (Auth/Authorization checks)
 - Event: Asynchronous via RabbitMQ
 - ALL: Routes to all services
 
 Communication Details:
+
 1. Auth ↔ Core: gRPC for token validation (high frequency)
 2. Tenant ↔ Core: REST for tenant config lookup
 3. Core → Notification: Events (sale.created, invoice.published, etc.)
 4. Auth → Notification: Events (user.created, password.reset)
 5. Frontend → API Gateway → All Services: REST API
+
 ```
 
 ---
@@ -2107,20 +2118,22 @@ Communication Details:
 #### 4.1 Database per Service
 
 ```
+
 ┌─────────────────────────────────────────────────────────────┐
-│                       PostgreSQL 16                          │
+│ PostgreSQL 16 │
 ├─────────────────┬──────────────┬──────────────┬─────────────┤
-│    auth_db      │   tenant_db  │   core_db    │  (future)   │
-│                 │              │              │             │
-│ - users         │ - tenants    │ - business   │ - hr_db     │
-│ - roles         │ - subs       │ - accounts   │ - report_db │
-│ - permissions   │ - features   │ - items      │             │
-│ - sessions      │ - billing    │ - sales      │             │
-│                 │              │ - inventory  │             │
-│                 │              │ - invoices   │             │
-│                 │              │ - etc...     │             │
+│ auth_db │ tenant_db │ core_db │ (future) │
+│ │ │ │ │
+│ - users │ - tenants │ - business │ - hr_db │
+│ - roles │ - subs │ - accounts │ - report_db │
+│ - permissions │ - features │ - items │ │
+│ - sessions │ - billing │ - sales │ │
+│ │ │ - inventory │ │
+│ │ │ - invoices │ │
+│ │ │ - etc... │ │
 └─────────────────┴──────────────┴──────────────┴─────────────┘
-```
+
+````
 
 **Database Isolation Strategy**:
 - Each service has its own database/schema
@@ -2170,7 +2183,7 @@ CREATE POLICY tenant_isolation_policy ON sale_voucher
 CREATE INDEX idx_sale_voucher_tenant_id ON sale_voucher(tenant_id);
 CREATE INDEX idx_sale_voucher_posted_date ON sale_voucher(tenant_id, posted_date);
 CREATE INDEX idx_sale_voucher_object ON sale_voucher(tenant_id, account_object_id);
-```
+````
 
 #### 4.3 Multi-Tenant Strategy
 
@@ -2315,24 +2328,23 @@ CREATE UNIQUE INDEX ON mv_account_balances(tenant_id, account_id);
 // Backend for Frontend (BFF) Pattern
 // API Gateway aggregates multiple microservices
 
-import { Injectable } from "@nestjs/common";
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class DashboardBFFService {
   constructor(
     private accountingService: AccountingService,
     private salesService: SalesService,
-    private inventoryService: InventoryService
+    private inventoryService: InventoryService,
   ) {}
 
   async getDashboardData(tenantId: string, userId: string) {
     // Parallel calls to multiple services
-    const [accountingSummary, salesSummary, inventorySummary] =
-      await Promise.all([
-        this.accountingService.getSummary(tenantId),
-        this.salesService.getSummary(tenantId),
-        this.inventoryService.getSummary(tenantId),
-      ]);
+    const [accountingSummary, salesSummary, inventorySummary] = await Promise.all([
+      this.accountingService.getSummary(tenantId),
+      this.salesService.getSummary(tenantId),
+      this.inventoryService.getSummary(tenantId),
+    ]);
 
     return {
       accounting: accountingSummary,
@@ -2425,15 +2437,15 @@ Load Balancing:
 ```typescript
 // Multi-layer caching
 const cache = {
-  L1: "Browser Cache (Service Worker)",
-  L2: "CDN Cache (Static assets)",
-  L3: "Redis Cache (API responses)",
-  L4: "Database Query Cache",
+  L1: 'Browser Cache (Service Worker)',
+  L2: 'CDN Cache (Static assets)',
+  L3: 'Redis Cache (API responses)',
+  L4: 'Database Query Cache',
 };
 
 // Cache invalidation
 // Event-driven approach
-eventBus.on("invoice.updated", async (event) => {
+eventBus.on('invoice.updated', async (event) => {
   await cache.invalidate(`invoice:${event.invoiceId}`);
   await cache.invalidate(`customer:${event.customerId}:invoices`);
 });
@@ -2558,7 +2570,7 @@ Accessibility:
 
 ```typescript
 // Base components (Shadcn/ui)
--Button,
+(-Button,
   Input,
   Select,
   Checkbox,
@@ -2579,7 +2591,7 @@ Accessibility:
     FinancialDashboard -
     ReportViewer -
     ChartOfAccountsTree -
-    TransactionList;
+    TransactionList);
 ```
 
 #### 9.3 Responsive Breakpoints
@@ -2657,13 +2669,13 @@ interface Plugin {
 
 // Example: Custom report plugin
 const customReportPlugin: Plugin = {
-  name: "custom-report-plugin",
-  version: "1.0.0",
+  name: 'custom-report-plugin',
+  version: '1.0.0',
   initialize: (app) => {
-    app.registerRoute("/reports/custom", CustomReportHandler);
+    app.registerRoute('/reports/custom', CustomReportHandler);
   },
   hooks: {
-    "invoice.created": async (invoice) => {
+    'invoice.created': async (invoice) => {
       // Custom logic
     },
   },

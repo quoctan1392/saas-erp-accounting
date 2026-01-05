@@ -47,9 +47,7 @@ export class AccountingObjectsService {
       where.isActive = filters.isActive;
     }
 
-    const queryBuilder = this.accountingObjectRepository
-      .createQueryBuilder('object')
-      .where(where);
+    const queryBuilder = this.accountingObjectRepository.createQueryBuilder('object').where(where);
 
     if (search) {
       queryBuilder.andWhere(
@@ -61,11 +59,8 @@ export class AccountingObjectsService {
     const [objects, total] = await queryBuilder
       .leftJoinAndSelect('object.subjectGroup', 'subjectGroup')
       .skip(skip)
-      .take(l)
-      .orderBy(
-        sortBy ? `object.${sortBy}` : 'object.createdAt',
-        sortOrder || 'DESC',
-      )
+      .take(limit)
+      .orderBy(sortBy ? `object.${sortBy}` : 'object.createdAt', sortOrder || 'DESC')
       .getManyAndCount();
 
     return new PaginationResponseDto(objects, total, p, l);
@@ -217,27 +212,76 @@ export class AccountingObjectsService {
     await this.subjectGroupRepository.save(group);
   }
 
-  // Get next code for customer/vendor
-  async getNextCode(tenantId: string, type: 'customer' | 'vendor'): Promise<string> {
-    const prefix = type === 'customer' ? 'KH' : 'NCC';
-    const whereCondition = type === 'customer' ? { isCustomer: true } : { isVendor: true };
+  /**
+   * Generate next available object code
+   * Pattern: KH0001, KH0002, ..., KH9999, KH10000, ...
+   * Maintains character count consistency until exceeding 9999
+   */
+  async getNextObjectCode(
+    tenantId: string,
+    type: 'customer' | 'vendor' | 'employee',
+  ): Promise<string> {
+    // Determine prefix based on type
+    const prefixMap = {
+      customer: 'KH',
+      vendor: 'NCC',
+      employee: 'NV',
+    };
+    const prefix = prefixMap[type];
 
-    // Find the latest code with the prefix
-    const latestObject = await this.accountingObjectRepository
-      .createQueryBuilder('object')
-      .where('object.tenantId = :tenantId', { tenantId })
-      .andWhere('object.isDeleted = :isDeleted', { isDeleted: false })
-      .andWhere('object.accountObjectCode LIKE :prefix', { prefix: `${prefix}%` })
-      .orderBy('object.accountObjectCode', 'DESC')
-      .getOne();
+    // Build where clause based on type
+    const where: FindOptionsWhere<AccountingObject> = {
+      tenantId,
+      isDeleted: false,
+    };
 
-    if (!latestObject) {
-      return `${prefix}00001`;
+    if (type === 'customer') {
+      where.isCustomer = true;
+    } else if (type === 'vendor') {
+      where.isVendor = true;
+    } else if (type === 'employee') {
+      where.isEmployee = true;
     }
 
-    // Extract number from code
-    const codeNumber = parseInt(latestObject.accountObjectCode.replace(prefix, ''), 10);
-    const nextNumber = (codeNumber + 1).toString().padStart(5, '0');
-    return `${prefix}${nextNumber}`;
+    // Get all codes with this prefix, ordered by code
+    const objects = await this.accountingObjectRepository.find({
+      where,
+      order: { accountObjectCode: 'DESC' },
+      select: ['accountObjectCode'],
+    });
+
+    if (objects.length === 0) {
+      // First object: KH0001, NCC0001, or NV0001
+      return `${prefix}0001`;
+    }
+
+    // Extract numeric parts from codes with matching prefix
+    const numbers = objects
+      .map((obj) => obj.accountObjectCode)
+      .filter((code) => code.startsWith(prefix))
+      .map((code) => {
+        const numStr = code.substring(prefix.length);
+        const num = parseInt(numStr, 10);
+        return isNaN(num) ? 0 : num;
+      })
+      .filter((num) => num > 0);
+
+    if (numbers.length === 0) {
+      return `${prefix}0001`;
+    }
+
+    // Find the maximum number
+    const maxNumber = Math.max(...numbers);
+    const nextNumber = maxNumber + 1;
+
+    // Determine padding: keep 4 digits until exceeding 9999
+    let paddingLength = 4;
+    if (nextNumber > 9999) {
+      paddingLength = nextNumber.toString().length;
+    }
+
+    // Pad with zeros
+    const paddedNumber = nextNumber.toString().padStart(paddingLength, '0');
+    return `${prefix}${paddedNumber}`;
   }
 }

@@ -1,14 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ChartOfAccountsService } from './chart-of-accounts.service';
 import { CreateCustomAccountDto } from './dto/create-custom-account.dto';
 import { UpdateCustomAccountDto } from './dto/update-custom-account.dto';
@@ -21,7 +11,7 @@ export class ChartOfAccountsController {
   constructor(private readonly chartOfAccountsService: ChartOfAccountsService) {}
 
   @Get('general')
-  findGeneralAccounts(@Query('regime') regime: 'simple' | 'standard' = 'standard') {
+  findGeneralAccounts(@Query('regime') regime: '200' | '133' = '200') {
     return this.chartOfAccountsService.findGeneralAccounts(regime);
   }
 
@@ -62,7 +52,7 @@ export class ChartOfAccountsController {
   initializeAccounts(
     @TenantId() tenantId: string,
     @UserId() userId: string,
-    @Body('regime') regime: 'simple' | 'standard',
+    @Body('regime') regime: '200' | '133',
   ) {
     return this.chartOfAccountsService.initializeAccountsFromGeneral(tenantId, userId, regime);
   }

@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChartOfAccountsGeneral } from './entities/chart-of-accounts-general.entity';
@@ -15,7 +20,7 @@ export class ChartOfAccountsService {
     private customAccountRepository: Repository<ChartOfAccountsCustom>,
   ) {}
 
-  async findGeneralAccounts(regime: 'simple' | 'standard'): Promise<ChartOfAccountsGeneral[]> {
+  async findGeneralAccounts(regime: '200' | '133'): Promise<ChartOfAccountsGeneral[]> {
     return this.generalAccountRepository.find({
       where: { accountingRegime: regime, active: true },
       order: { accountNumber: 'ASC' },
@@ -101,11 +106,7 @@ export class ChartOfAccountsService {
     return this.customAccountRepository.save(account);
   }
 
-  async deleteCustomAccount(
-    id: string,
-    tenantId: string,
-    userId: string,
-  ): Promise<void> {
+  async deleteCustomAccount(id: string, tenantId: string, userId: string): Promise<void> {
     const account = await this.customAccountRepository.findOne({
       where: { id, tenantId, isDeleted: false },
     });
@@ -132,7 +133,7 @@ export class ChartOfAccountsService {
   async initializeAccountsFromGeneral(
     tenantId: string,
     userId: string,
-    regime: 'simple' | 'standard',
+    regime: '200' | '133',
   ): Promise<void> {
     // Check if accounts already initialized
     const existing = await this.customAccountRepository.count({

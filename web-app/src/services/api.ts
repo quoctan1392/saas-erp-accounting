@@ -72,12 +72,51 @@ class ApiService {
         localStorage.getItem('tenantAccessToken') ||
         localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
 
+      console.log(
+        '[CoreAPI Interceptor] tenantAccessToken:',
+        localStorage.getItem('tenantAccessToken'),
+      );
+      console.log(
+        '[CoreAPI Interceptor] accessToken:',
+        localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN),
+      );
+      console.log(
+        '[CoreAPI Interceptor] Using token:',
+        token ? token.substring(0, 20) + '...' : 'NONE',
+      );
+
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        console.warn('[CoreAPI] No token available for request:', config.url);
       }
 
       return config;
     });
+
+    // Response interceptor for debugging
+    this.coreApi.interceptors.response.use(
+      (response) => {
+        console.log('[CoreAPI Response]', response.config.url, 'Status:', response.status);
+        console.log(
+          '[CoreAPI Response] Full response.data:',
+          JSON.stringify(response.data, null, 2),
+        );
+        console.log('[CoreAPI Response] Type of response.data:', typeof response.data);
+        return response;
+      },
+      (error) => {
+        console.error(
+          '[CoreAPI Response Error]',
+          error.config?.url,
+          'Status:',
+          error.response?.status,
+          'Data:',
+          error.response?.data,
+        );
+        return Promise.reject(error);
+      },
+    );
   }
 
   // Auth API
@@ -176,84 +215,53 @@ class ApiService {
     return response.data;
   }
 
-  async getNextObjectCode(type: 'customer' | 'vendor'): Promise<string> {
-    const response = await this.coreApi.get(`/api/objects/next-code/${type}`);
-    return response.data.data;
-  }
+  async getNextObjectCode(type: 'customer' | 'vendor' | 'employee' = 'customer') {
+    try {
+      console.log('[ApiService] Calling GET /api/objects/next-code?type=', type);
+      const response = await this.coreApi.get(`/api/objects/next-code?type=${type}`);
+      console.log('[ApiService] Raw response:', response);
+      console.log('[ApiService] response.data:', response.data);
 
-  // Items/Products
-  async createItem(data: any) {
-    const response = await this.coreApi.post('/api/items', data);
-    return response.data;
-  }
-
-  async getItems(query: Record<string, any> = {}) {
-    const params = new URLSearchParams(query as Record<string, string>).toString();
-    const url = params ? `/api/items?${params}` : '/api/items';
-    const response = await this.coreApi.get(url);
-    return response.data;
-  }
-
-  async getNextItemCode(): Promise<string> {
-    const response = await this.coreApi.get('/api/items/next-code');
-    return response.data.data;
+      // Handle wrapped response: { success, data: { code }, timestamp }
+      if (response && response.data) {
+        // Check for wrapped response (success/data/timestamp pattern)
+        if (
+          response.data.success &&
+          response.data.data &&
+          typeof response.data.data.code === 'string'
+        ) {
+          console.log('[ApiService] Returning response.data.data.code:', response.data.data.code);
+          return response.data.data.code;
+        }
+        // Fallback: direct { code } pattern
+        if (typeof response.data.code === 'string') {
+          console.log('[ApiService] Returning response.data.code:', response.data.code);
+          return response.data.code;
+        }
+        // Fallback: plain string
+        if (typeof response.data === 'string') {
+          console.log('[ApiService] Returning response.data (string):', response.data);
+          return response.data;
+        }
+        // If unexpected shape, return undefined so caller can fallback
+        console.warn('[ApiService] getNextObjectCode unexpected response:', response.data);
+        return undefined as unknown as string;
+      }
+      console.warn('[ApiService] No response or response.data');
+      return undefined as unknown as string;
+    } catch (error) {
+      console.error('[ApiService] getNextObjectCode error:', error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        console.error('[ApiService] Error response:', (error as any).response);
+      }
+      throw error;
+    }
   }
 
   // Warehouses
   async createWarehouse(data: any) {
     const response = await this.coreApi.post('/api/warehouses', data);
     return response.data;
-  }
-
-  async getWarehouses(query: Record<string, any> = {}) {
-    const params = new URLSearchParams(query as Record<string, string>).toString();
-    const url = params ? `/api/warehouses?${params}` : '/api/warehouses';
-    const response = await this.coreApi.get(url);
-    return response.data;
-  }
-
-  async getNextWarehouseCode(): Promise<string> {
-    const response = await this.coreApi.get('/api/warehouses/next-code');
-    return response.data.data;
-  }
-
-  // Declaration counts
-  async getDeclarationCounts(): Promise<{ customers: number; suppliers: number; warehouses: number; products: number }> {
-    const response = await this.coreApi.get('/api/declaration/counts');
-    return response.data.data || response.data;
-  }
-
-  // Subject Groups (customer groups / supplier groups)
-  async getSubjectGroups(): Promise<any[]> {
-    const response = await this.coreApi.get('/api/subject-groups');
-    return response.data.data || response.data;
-  }
-
-  async createSubjectGroup(data: { code: string; name: string; type: 'customer' | 'vendor' | 'both'; description?: string }): Promise<any> {
-    const response = await this.coreApi.post('/api/subject-groups', data);
-    return response.data.data || response.data;
-  }
-
-  // Item Categories (product groups / service groups)
-  async getItemCategories(): Promise<any[]> {
-    const response = await this.coreApi.get('/api/item-categories');
-    return response.data.data || response.data;
-  }
-
-  async createItemCategory(data: { code: string; name: string; description?: string; parentId?: string }): Promise<any> {
-    const response = await this.coreApi.post('/api/item-categories', data);
-    return response.data.data || response.data;
-  }
-
-  // Units (Đơn vị tính)
-  async getUnits(): Promise<any[]> {
-    const response = await this.coreApi.get('/api/units');
-    return response.data.data || response.data;
-  }
-
-  async createUnit(data: { code: string; name: string; isBaseUnit?: boolean; conversionRate?: number; baseUnitId?: string }): Promise<any> {
-    const response = await this.coreApi.post('/api/units', data);
-    return response.data.data || response.data;
   }
 }
 
