@@ -27,20 +27,32 @@ export class CreateOpeningBalanceDto {
   periodId: string;
 
   @ApiProperty({
-    description: 'ID loại tiền',
-    example: 'uuid',
+    description: 'ID loại tiền hoặc mã tiền tệ',
+    example: 'VND',
   })
   @IsNotEmpty()
-  @IsUUID()
+  @IsString()
   currencyId: string;
 
   @ApiProperty({
-    description: 'ID tài khoản kế toán',
+    description: 'ID tài khoản kế toán (optional nếu có accountNumber)',
     example: 'uuid',
+    required: false,
   })
-  @IsNotEmpty()
+  @ValidateIf((o) => !o.accountNumber)
+  @IsOptional()
   @IsUUID()
-  accountId: string;
+  accountId?: string;
+
+  @ApiProperty({
+    description: 'Số tài khoản (bắt buộc nếu không có accountId)',
+    example: '1111',
+    required: false,
+  })
+  @ValidateIf((o) => !o.accountId)
+  @IsNotEmpty({ message: 'Phải có accountId hoặc accountNumber' })
+  @IsString()
+  accountNumber?: string;
 
   @ApiProperty({
     description: 'Dư Nợ (>= 0)',
@@ -82,19 +94,22 @@ export class CreateOpeningBalanceDto {
 // Batch DTO
 export class BatchOpeningBalanceItemDto {
   @ApiProperty({
-    description: 'ID tài khoản kế toán',
+    description: 'ID tài khoản kế toán (optional nếu có accountNumber)',
     example: 'uuid',
+    required: false,
   })
-  @IsNotEmpty()
+  @ValidateIf((o) => !o.accountNumber)
+  @IsOptional()
   @IsUUID()
-  accountId: string;
+  accountId?: string;
 
   @ApiProperty({
-    description: 'Số tài khoản (optional - auto fetch)',
+    description: 'Số tài khoản (bắt buộc nếu không có accountId)',
     example: '111',
     required: false,
   })
-  @IsOptional()
+  @ValidateIf((o) => !o.accountId)
+  @IsNotEmpty({ message: 'Phải có accountId hoặc accountNumber' })
   @IsString()
   accountNumber?: string;
 
@@ -164,11 +179,11 @@ export class BatchCreateOpeningBalanceDto {
   periodId: string;
 
   @ApiProperty({
-    description: 'ID loại tiền',
-    example: 'uuid',
+    description: 'ID loại tiền hoặc mã tiền tệ',
+    example: 'VND',
   })
   @IsNotEmpty()
-  @IsUUID()
+  @IsString()
   currencyId: string;
 
   @ApiProperty({

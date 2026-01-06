@@ -7,12 +7,12 @@ import {
   Param,
   Query,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { OnboardingService } from './onboarding.service';
 import { UpdateBusinessTypeDto } from './dto/update-business-type.dto';
 import { SaveBusinessInfoDto } from './dto/save-business-info.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { UserId } from '../../common/decorators/user.decorator';
 
 @Controller('tenants/:tenantId/onboarding')
 @UseGuards(JwtAuthGuard)
@@ -31,20 +31,9 @@ export class OnboardingController {
   @Put('business-type')
   async updateBusinessType(
     @Param('tenantId') tenantId: string,
+    @UserId() userId: string,
     @Body() dto: UpdateBusinessTypeDto,
-    @Request() req: any,
   ) {
-    console.log('Full request user object:', JSON.stringify(req.user, null, 2)); // Debug log
-    console.log('Request headers:', JSON.stringify(req.headers, null, 2)); // Debug log
-    
-    let userId = null;
-    if (req.user) {
-      userId = req.user.sub || req.user.userId || req.user.id;
-      console.log('Extracted userId:', userId); // Debug log
-    } else {
-      console.log('No user object found in request');
-    }
-    
     const data = await this.onboardingService.updateBusinessType(
       tenantId,
       userId,
@@ -59,13 +48,9 @@ export class OnboardingController {
   @Post('business-info')
   async saveBusinessInfo(
     @Param('tenantId') tenantId: string,
+    @UserId() userId: string,
     @Body() dto: SaveBusinessInfoDto,
-    @Request() req: any,
   ) {
-    let userId = null;
-    if (req.user) {
-      userId = req.user.sub || req.user.userId || req.user.id;
-    }
     const data = await this.onboardingService.saveBusinessInfo(
       tenantId,
       userId,
@@ -80,12 +65,8 @@ export class OnboardingController {
   @Post('complete')
   async completeOnboarding(
     @Param('tenantId') tenantId: string,
-    @Request() req: any,
+    @UserId() userId: string,
   ) {
-    let userId = null;
-    if (req.user) {
-      userId = req.user.sub || req.user.userId || req.user.id;
-    }
     const data = await this.onboardingService.completeOnboarding(tenantId, userId);
     return {
       success: true,

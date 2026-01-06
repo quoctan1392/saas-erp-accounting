@@ -5,9 +5,13 @@ import { OpeningBalanceService } from './opening-balance.service';
 import { OpeningPeriod } from './entities/opening-period.entity';
 import { OpeningBalance } from './entities/opening-balance.entity';
 import { OpeningBalanceDetail } from './entities/opening-balance-detail.entity';
+import { ChartOfAccountsModule } from '../chart-of-accounts/chart-of-accounts.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([OpeningPeriod, OpeningBalance, OpeningBalanceDetail])],
+  imports: [
+    TypeOrmModule.forFeature([OpeningPeriod, OpeningBalance, OpeningBalanceDetail]),
+    ChartOfAccountsModule,
+  ],
   controllers: [OpeningBalanceController],
   providers: [OpeningBalanceService],
   exports: [OpeningBalanceService],

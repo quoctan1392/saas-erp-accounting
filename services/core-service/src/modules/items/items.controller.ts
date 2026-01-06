@@ -41,8 +41,9 @@ export class ItemsController {
   }
 
   @Get('next-code')
-  getNextCode(@TenantId() tenantId: string) {
-    return this.itemsService.getNextItemCode(tenantId);
+  async getNextCode(@TenantId() tenantId: string) {
+    const code = await this.itemsService.getNextItemCode(tenantId);
+    return { code };
   }
 
   @Get(':id')

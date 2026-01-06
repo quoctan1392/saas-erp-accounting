@@ -29,6 +29,8 @@ import { SalesModule } from './modules/sales/sales.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
+import { DeclarationModule } from './modules/declaration/declaration.module';
+import { OpeningBalanceModule } from './modules/opening-balance/opening-balance.module';
 // import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
@@ -98,6 +100,8 @@ import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module
     InvoicesModule,
     InventoryModule,
     BankAccountsModule,
+    DeclarationModule,
+    OpeningBalanceModule,
     // ReportsModule,
   ],
   providers: [

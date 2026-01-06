@@ -15,6 +15,14 @@ export class ChartOfAccountsController {
     return this.chartOfAccountsService.findGeneralAccounts(regime);
   }
 
+  @Get('by-number/:accountNumber')
+  findByAccountNumber(
+    @Param('accountNumber') accountNumber: string,
+    @Query('regime') regime: '200' | '133' = '200',
+  ) {
+    return this.chartOfAccountsService.findByAccountNumber(accountNumber, regime);
+  }
+
   @Get('custom')
   findCustomAccounts(@TenantId() tenantId: string) {
     return this.chartOfAccountsService.findCustomAccounts(tenantId);

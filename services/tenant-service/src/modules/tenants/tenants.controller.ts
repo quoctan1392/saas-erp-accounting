@@ -7,7 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
-  Request,
+  Req,
   HttpCode,
   HttpStatus,
   ForbiddenException,
@@ -16,8 +16,10 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto, UpdateTenantDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { UserId } from '../../common/decorators/user.decorator';
 import { TenantStatus, TenantPlan } from './entities/tenant.entity';
 import { JwtService } from '@nestjs/jwt';
+import { Request } from 'express';
 
 @ApiTags('tenants')
 @Controller('tenants')
@@ -31,10 +33,10 @@ export class TenantsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new tenant' })
-  async create(@Body() createTenantDto: CreateTenantDto, @Request() req: any) {
+  async create(@UserId() userId: string, @Body() createTenantDto: CreateTenantDto) {
     const tenant = await this.tenantsService.create({
       ...createTenantDto,
-      ownerId: req.user.id || req.user.sub,
+      ownerId: userId,
     });
 
     return {
@@ -47,8 +49,7 @@ export class TenantsController {
 
   @Get('my-tenants')
   @ApiOperation({ summary: 'Get all tenants that current user is a member of' })
-  async getMyTenants(@Request() req: any) {
-    const userId = req.user.id || req.user.sub;
+  async getMyTenants(@UserId() userId: string) {
     const tenants = await this.tenantsService.getUserTenants(userId);
 
     return {
@@ -62,7 +63,7 @@ export class TenantsController {
   @Post(':tenantId/select')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Select a tenant and get tenant-scoped access token' })
-  async selectTenant(@Param('tenantId') tenantId: string, @Request() req: any) {
+  async selectTenant(@Param('tenantId') tenantId: string, @Req() req: Request & { user: any }) {
     const userId = req.user.id || req.user.sub;
 
     // Check if user is a member of this tenant
@@ -91,6 +92,10 @@ export class TenantsController {
           id: tenant.id,
           name: tenant.name,
           role,
+          onboardingCompleted: tenant.onboardingCompleted,
+          onboardingStep: tenant.onboardingStep,
+          onboardingCompletedAt: tenant.onboardingCompletedAt,
+          businessType: tenant.businessType,
         },
         expiresIn: 3600,
       },
@@ -99,8 +104,8 @@ export class TenantsController {
 
   @Get('owned')
   @ApiOperation({ summary: 'Get tenants owned by current user' })
-  async getOwnedTenants(@Request() req: any) {
-    return await this.tenantsService.findByOwnerId(req.user.id);
+  async getOwnedTenants(@UserId() userId: string) {
+    return await this.tenantsService.findByOwnerId(userId);
   }
 
   @Get(':id')

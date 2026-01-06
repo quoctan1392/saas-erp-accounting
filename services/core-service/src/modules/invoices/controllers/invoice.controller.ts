@@ -10,7 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
-  Request,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,11 +26,13 @@ import { UpdateInvoiceDto } from '../dto/update-invoice.dto';
 import { QueryInvoiceDto } from '../dto/query-invoice.dto';
 import { CancelInvoiceDto, SendInvoiceEmailDto } from '../dto/invoice-actions.dto';
 import { Invoice } from '../entities/invoice.entity';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { TenantId, UserId } from '../../../common/decorators/tenant.decorator';
 
 @ApiTags('Invoices')
 @ApiBearerAuth()
 @Controller('invoices')
-// @UseGuards(JwtAuthGuard, TenantGuard) // Uncomment when auth is ready
+@UseGuards(JwtAuthGuard)
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}
 
@@ -49,13 +51,10 @@ export class InvoiceController {
     description: 'Invalid input data',
   })
   async create(
+    @TenantId() tenantId: string,
+    @UserId() userId: string,
     @Body() createInvoiceDto: CreateInvoiceDto,
-    @Request() req: any,
   ): Promise<Invoice> {
-    // TODO: Extract from JWT token when auth is ready
-    const tenantId = req.tenantId || 'default-tenant-id';
-    const userId = req.user?.id || 'default-user-id';
-
     return await this.invoiceService.create(tenantId, createInvoiceDto, userId);
   }
 
@@ -70,12 +69,9 @@ export class InvoiceController {
     description: 'List of invoices retrieved successfully',
   })
   async findAll(
+    @TenantId() tenantId: string,
     @Query() query: QueryInvoiceDto,
-    @Request() req: any,
   ): Promise<{ data: Invoice[]; total: number; page: number; limit: number }> {
-    // TODO: Extract from JWT token when auth is ready
-    const tenantId = req.tenantId || 'default-tenant-id';
-
     return await this.invoiceService.findAll(tenantId, query);
   }
 
@@ -95,12 +91,9 @@ export class InvoiceController {
     description: 'Invoice not found',
   })
   async findOne(
+    @TenantId() tenantId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Request() req: any,
   ): Promise<Invoice> {
-    // TODO: Extract from JWT token when auth is ready
-    const tenantId = req.tenantId || 'default-tenant-id';
-
     return await this.invoiceService.findOne(tenantId, id);
   }
 
@@ -124,14 +117,11 @@ export class InvoiceController {
     description: 'Invoice not found',
   })
   async update(
+    @TenantId() tenantId: string,
+    @UserId() userId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateInvoiceDto: UpdateInvoiceDto,
-    @Request() req: any,
   ): Promise<Invoice> {
-    // TODO: Extract from JWT token when auth is ready
-    const tenantId = req.tenantId || 'default-tenant-id';
-    const userId = req.user?.id || 'default-user-id';
-
     return await this.invoiceService.update(tenantId, id, updateInvoiceDto, userId);
   }
 
@@ -155,12 +145,9 @@ export class InvoiceController {
     description: 'Invoice not found',
   })
   async remove(
+    @TenantId() tenantId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Request() req: any,
   ): Promise<void> {
-    // TODO: Extract from JWT token when auth is ready
-    const tenantId = req.tenantId || 'default-tenant-id';
-
     await this.invoiceService.remove(tenantId, id);
   }
 
@@ -184,13 +171,10 @@ export class InvoiceController {
     description: 'Invoice not found',
   })
   async publish(
+    @TenantId() tenantId: string,
+    @UserId() userId: string,
     @Param('id', ParseUUIDPipe) id: string,
-    @Request() req: any,
   ): Promise<Invoice> {
-    // TODO: Extract from JWT token when auth is ready
-    const tenantId = req.tenantId || 'default-tenant-id';
-    const userId = req.user?.id || 'default-user-id';
-
     return await this.invoiceService.publish(tenantId, id, userId);
   }
 
@@ -214,13 +198,10 @@ export class InvoiceController {
     description: 'Invoice not found',
   })
   async cancel(
+    @TenantId() tenantId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() cancelDto: CancelInvoiceDto,
-    @Request() req: any,
   ): Promise<Invoice> {
-    // TODO: Extract from JWT token when auth is ready
-    const tenantId = req.tenantId || 'default-tenant-id';
-
     return await this.invoiceService.cancel(tenantId, id, cancelDto);
   }
 
@@ -239,8 +220,8 @@ export class InvoiceController {
     description: 'Invoice not found',
   })
   async exportPdf(
+    @TenantId() _tenantId: string,
     @Param('id', ParseUUIDPipe) _id: string,
-    @Request() _req: any,
   ): Promise<any> {
     // TODO: implement PDF export; placeholder for now
     return { message: 'PDF export not implemented yet' };
@@ -266,13 +247,10 @@ export class InvoiceController {
     description: 'Invoice not found',
   })
   async sendEmail(
+    @TenantId() tenantId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() sendEmailDto: SendInvoiceEmailDto,
-    @Request() req: any,
   ): Promise<{ message: string }> {
-    // TODO: Extract from JWT token when auth is ready
-    const tenantId = req.tenantId || 'default-tenant-id';
-
     await this.invoiceService.sendEmail(
       tenantId,
       id,

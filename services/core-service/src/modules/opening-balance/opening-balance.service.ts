@@ -10,6 +10,7 @@ import { Repository, DataSource, In } from 'typeorm';
 import { OpeningPeriod } from './entities/opening-period.entity';
 import { OpeningBalance } from './entities/opening-balance.entity';
 import { OpeningBalanceDetail } from './entities/opening-balance-detail.entity';
+import { ChartOfAccountsService } from '../chart-of-accounts/chart-of-accounts.service';
 import {
   CreateOpeningPeriodDto,
   UpdateOpeningPeriodDto,
@@ -33,6 +34,7 @@ export class OpeningBalanceService {
     @InjectRepository(OpeningBalanceDetail)
     private detailRepo: Repository<OpeningBalanceDetail>,
     private dataSource: DataSource,
+    private chartOfAccountsService: ChartOfAccountsService,
   ) {}
 
   // ==================== OPENING PERIOD ====================
@@ -163,29 +165,63 @@ export class OpeningBalanceService {
       throw new BadRequestException('Cannot have both debit and credit balance greater than 0');
     }
 
-    // Check for duplicate
+    // Resolve account number and name
+    let accountNumber = dto.accountNumber;
+    let accountName = '';
+    let accountId = dto.accountId;
+
+    if (accountNumber && !accountId) {
+      // Lookup account by number from chart of accounts (assuming regime 200)
+      const account = await this.chartOfAccountsService.findByAccountNumber(
+        accountNumber,
+        '200',
+      );
+      if (account) {
+        accountName = account.accountName;
+        // accountId remains null as we use accountNumber as primary identifier
+      } else {
+        // Account not found in general chart, use the provided number
+        accountName = `Account ${accountNumber}`;
+      }
+    } else if (accountId && !accountNumber) {
+      throw new BadRequestException('accountNumber is required when accountId is provided');
+    }
+
+    // Check for existing balance - if exists, UPDATE instead of throwing error (upsert pattern)
     const existing = await this.balanceRepo.findOne({
       where: {
         tenantId,
         periodId: dto.periodId,
-        accountId: dto.accountId,
+        accountNumber,
         currencyId: dto.currencyId,
       },
     });
 
     if (existing) {
-      throw new ConflictException('Opening balance for this account already exists');
+      // Update existing balance instead of throwing conflict error
+      existing.debitBalance = dto.debitBalance;
+      existing.creditBalance = dto.creditBalance;
+      existing.hasDetails = dto.hasDetails ?? existing.hasDetails;
+      existing.note = dto.note ?? existing.note;
+      existing.updatedBy = userId;
+      
+      // If hasDetails changed to true and there are old details, keep them
+      // If hasDetails changed to false, optionally clean up details (not implemented here)
+      
+      return this.balanceRepo.save(existing);
     }
 
-    // TODO: Fetch account info from chart_of_accounts
-    const accountNumber = 'TODO';
-    const accountName = 'TODO';
-
     const balance = this.balanceRepo.create({
-      ...dto,
       tenantId,
+      periodId: dto.periodId,
+      currencyId: dto.currencyId,
+      accountId: accountId || null,
       accountNumber,
       accountName,
+      debitBalance: dto.debitBalance,
+      creditBalance: dto.creditBalance,
+      hasDetails: dto.hasDetails || false,
+      note: dto.note,
       createdBy: userId,
     });
 
@@ -314,24 +350,39 @@ export class OpeningBalanceService {
       }
 
       // 2. Fetch all accounts to validate
-      const accountIds = dto.balances.map((b) => b.accountId);
-      // TODO: Fetch from chart_of_accounts table
-      const accountMap = new Map();
-      accountIds.forEach((id) => {
-        accountMap.set(id, {
-          id,
-          accountNumber: 'TODO',
-          accountName: 'TODO',
-        });
-      });
+      const accountNumbers = dto.balances
+        .map((b) => b.accountNumber)
+        .filter((n): n is string => !!n);
+      const accountMap = new Map<string, { accountNumber: string; accountName: string }>();
+
+      // Fetch account info from chart of accounts
+      for (const accNum of accountNumbers) {
+        const account = await this.chartOfAccountsService.findByAccountNumber(accNum, '200');
+        if (account) {
+          accountMap.set(accNum, {
+            accountNumber: account.accountNumber,
+            accountName: account.accountName,
+          });
+        } else {
+          // Use provided name or default
+          accountMap.set(accNum, {
+            accountNumber: accNum,
+            accountName: `Account ${accNum}`,
+          });
+        }
+      }
 
       // 3. Process each balance
       for (const item of dto.balances) {
         try {
-          const account = accountMap.get(item.accountId);
+          if (!item.accountNumber) {
+            throw new Error('accountNumber is required');
+          }
+
+          const account = accountMap.get(item.accountNumber);
 
           if (!account) {
-            throw new Error(`Account ${item.accountId} not found`);
+            throw new Error(`Account ${item.accountNumber} not found`);
           }
 
           // Validate debit/credit rules
@@ -339,12 +390,12 @@ export class OpeningBalanceService {
             throw new Error('Cannot have both debit and credit balance');
           }
 
-          // Check if exists
+          // Check if exists (by accountNumber and currencyId)
           let balance = await queryRunner.manager.findOne(OpeningBalance, {
             where: {
               tenantId,
               periodId: dto.periodId,
-              accountId: item.accountId,
+              accountNumber: item.accountNumber,
               currencyId: dto.currencyId,
             },
           });
@@ -373,7 +424,7 @@ export class OpeningBalanceService {
               tenantId,
               periodId: dto.periodId,
               currencyId: dto.currencyId,
-              accountId: item.accountId,
+              accountId: null,
               accountNumber: account.accountNumber,
               accountName: account.accountName,
               debitBalance: item.debitBalance,
@@ -501,6 +552,71 @@ export class OpeningBalanceService {
     });
 
     return this.detailRepo.save(detail);
+  }
+
+  async batchCreateBalanceDetails(
+    tenantId: string,
+    userId: string,
+    balanceId: string,
+    dto: BatchCreateOpeningBalanceDetailsDto,
+  ): Promise<OpeningBalanceDetail[]> {
+    const balance = await this.findOneBalance(tenantId, balanceId);
+
+    // Check if period is locked
+    const period = await this.findOnePeriod(tenantId, balance.periodId);
+    if (period.isLocked) {
+      throw new ForbiddenException('Cannot add details to locked period');
+    }
+
+    // Upsert pattern: update existing by accountObjectId, add new ones
+    const results: OpeningBalanceDetail[] = [];
+    
+    for (const item of dto.details) {
+      // Validate debit/credit rule
+      if (item.debitBalance > 0 && item.creditBalance > 0) {
+        throw new BadRequestException('Cannot have both debit and credit balance in detail');
+      }
+
+      // Check if detail already exists for this accountObjectId
+      let existing: OpeningBalanceDetail | null = null;
+      if (item.accountObjectId) {
+        existing = await this.detailRepo.findOne({
+          where: { balanceId, tenantId, accountObjectId: item.accountObjectId },
+        });
+      }
+
+      if (existing) {
+        // Update existing detail
+        existing.debitBalance = item.debitBalance;
+        existing.creditBalance = item.creditBalance;
+        existing.description = item.description;
+        existing.updatedBy = userId;
+        results.push(await this.detailRepo.save(existing));
+      } else {
+        // Create new detail
+        const detail = this.detailRepo.create({
+          balanceId,
+          tenantId,
+          accountObjectId: item.accountObjectId,
+          departmentId: item.departmentId,
+          costItemId: item.costItemId,
+          costObjectId: item.costObjectId,
+          projectId: item.projectId,
+          salesOrderId: item.salesOrderId,
+          purchaseOrderId: item.purchaseOrderId,
+          salesContractId: item.salesContractId,
+          purchaseContractId: item.purchaseContractId,
+          statisticalCodeId: item.statisticalCodeId,
+          debitBalance: item.debitBalance,
+          creditBalance: item.creditBalance,
+          description: item.description,
+          createdBy: userId,
+        });
+        results.push(await this.detailRepo.save(detail));
+      }
+    }
+
+    return results;
   }
 
   async updateBalanceDetail(

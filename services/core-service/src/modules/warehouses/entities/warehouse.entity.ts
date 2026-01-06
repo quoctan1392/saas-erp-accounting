@@ -13,18 +13,18 @@ export class Warehouse extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   address: string;
 
-  @Column({ type: 'boolean', default: true })
+  @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ name: 'inventory_account_id', type: 'uuid', nullable: true })
   inventoryAccountId: string; // Link to chart_of_accounts_custom (TK 15x)
 
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
+  @Column({ name: 'manager_name', type: 'varchar', length: 100, nullable: true })
   managerName: string; // Người quản lý kho
 
-  @Column({ type: 'varchar', length: 20, nullable: true })
+  @Column({ name: 'manager_phone', type: 'varchar', length: 20, nullable: true })
   managerPhone: string;
 }

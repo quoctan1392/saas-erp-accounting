@@ -30,10 +30,10 @@ export class OpeningBalance {
   @Column({ type: 'uuid', name: 'period_id' })
   periodId: string;
 
-  @Column({ type: 'uuid', name: 'currency_id' })
+  @Column({ type: 'varchar', length: 10, name: 'currency_id' })
   currencyId: string;
 
-  @Column({ type: 'uuid', name: 'account_id' })
+  @Column({ type: 'uuid', name: 'account_id', nullable: true })
   accountId: string;
 
   @Column({ type: 'varchar', length: 50, name: 'account_number' })

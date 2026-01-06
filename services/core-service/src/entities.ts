@@ -38,3 +38,8 @@ export { InventoryTransaction } from './modules/inventory/entities/inventory-tra
 
 // Bank Accounts
 export { BankAccount } from './modules/bank-accounts/entities/bank-account.entity';
+
+// Opening Balance
+export { OpeningPeriod } from './modules/opening-balance/entities/opening-period.entity';
+export { OpeningBalance } from './modules/opening-balance/entities/opening-balance.entity';
+export { OpeningBalanceDetail } from './modules/opening-balance/entities/opening-balance-detail.entity';

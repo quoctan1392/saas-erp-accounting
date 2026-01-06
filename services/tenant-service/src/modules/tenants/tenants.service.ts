@@ -187,6 +187,10 @@ export class TenantsService {
     name: string;
     role: TenantMemberRole;
     createdAt: Date;
+    onboardingCompleted: boolean;
+    onboardingStep: number;
+    onboardingCompletedAt: Date | null;
+    businessType: string | null;
   }>> {
     const memberships = await this.tenantMembersRepository
       .createQueryBuilder('member')
@@ -201,6 +205,10 @@ export class TenantsService {
       name: membership.tenant.name,
       role: membership.role,
       createdAt: membership.tenant.createdAt,
+      onboardingCompleted: membership.tenant.onboardingCompleted,
+      onboardingStep: membership.tenant.onboardingStep,
+      onboardingCompletedAt: membership.tenant.onboardingCompletedAt,
+      businessType: membership.tenant.businessType,
     }));
   }
 

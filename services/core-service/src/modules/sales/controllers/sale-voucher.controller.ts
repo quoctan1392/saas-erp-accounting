@@ -8,13 +8,13 @@ import {
   Delete,
   UseGuards,
   Query,
-  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { SaleVoucherService } from '../services/sale-voucher.service';
 import { CreateSaleVoucherDto } from '../dto/create-sale-voucher.dto';
 import { UpdateSaleVoucherDto } from '../dto/update-sale-voucher.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { TenantId, UserId } from '../../../common/decorators/tenant.decorator';
 
 @ApiTags('Sales - Sale Vouchers')
 @ApiBearerAuth()
@@ -27,9 +27,11 @@ export class SaleVoucherController {
   @ApiOperation({ summary: 'Create a new sale voucher' })
   @ApiResponse({ status: 201, description: 'Sale voucher created successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
-  create(@Body() createDto: CreateSaleVoucherDto, @Req() req: any) {
-    const tenantId = req.user.tenantId;
-    const userId = req.user.userId;
+  create(
+    @TenantId() tenantId: string,
+    @UserId() userId: string,
+    @Body() createDto: CreateSaleVoucherDto,
+  ) {
     return this.saleVoucherService.create(createDto, tenantId, userId);
   }
 
@@ -42,8 +44,7 @@ export class SaleVoucherController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Return all sale vouchers' })
-  findAll(@Req() req: any, @Query() query: any) {
-    const tenantId = req.user.tenantId;
+  findAll(@TenantId() tenantId: string, @Query() query: any) {
     return this.saleVoucherService.findAll(tenantId, query);
   }
 
@@ -51,8 +52,7 @@ export class SaleVoucherController {
   @ApiOperation({ summary: 'Get a sale voucher by ID' })
   @ApiResponse({ status: 200, description: 'Return the sale voucher' })
   @ApiResponse({ status: 404, description: 'Sale voucher not found' })
-  findOne(@Param('id') id: string, @Req() req: any) {
-    const tenantId = req.user.tenantId;
+  findOne(@TenantId() tenantId: string, @Param('id') id: string) {
     return this.saleVoucherService.findOne(id, tenantId);
   }
 
@@ -62,12 +62,11 @@ export class SaleVoucherController {
   @ApiResponse({ status: 400, description: 'Cannot update posted voucher' })
   @ApiResponse({ status: 404, description: 'Sale voucher not found' })
   update(
+    @TenantId() tenantId: string,
+    @UserId() userId: string,
     @Param('id') id: string,
     @Body() updateDto: UpdateSaleVoucherDto,
-    @Req() req: any,
   ) {
-    const tenantId = req.user.tenantId;
-    const userId = req.user.userId;
     return this.saleVoucherService.update(id, updateDto, tenantId, userId);
   }
 
@@ -76,8 +75,7 @@ export class SaleVoucherController {
   @ApiResponse({ status: 200, description: 'Sale voucher deleted successfully' })
   @ApiResponse({ status: 400, description: 'Cannot delete posted voucher' })
   @ApiResponse({ status: 404, description: 'Sale voucher not found' })
-  remove(@Param('id') id: string, @Req() req: any) {
-    const tenantId = req.user.tenantId;
+  remove(@TenantId() tenantId: string, @Param('id') id: string) {
     return this.saleVoucherService.remove(id, tenantId);
   }
 
@@ -86,9 +84,7 @@ export class SaleVoucherController {
   @ApiResponse({ status: 200, description: 'Sale voucher posted successfully' })
   @ApiResponse({ status: 400, description: 'Voucher already posted' })
   @ApiResponse({ status: 404, description: 'Sale voucher not found' })
-  post(@Param('id') id: string, @Req() req: any) {
-    const tenantId = req.user.tenantId;
-    const userId = req.user.userId;
+  post(@TenantId() tenantId: string, @UserId() userId: string, @Param('id') id: string) {
     return this.saleVoucherService.post(id, tenantId, userId);
   }
 }

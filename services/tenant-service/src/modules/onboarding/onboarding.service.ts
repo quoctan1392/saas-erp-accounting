@@ -70,7 +70,7 @@ export class OnboardingService {
 
   async updateBusinessType(
     tenantId: string,
-    userId: string | null,
+    userId: string,
     businessType: BusinessType,
   ): Promise<BusinessTypeResponseDto> {
     const tenant = await this.tenantRepository.findOne({
@@ -91,14 +91,10 @@ export class OnboardingService {
 
     await this.tenantRepository.save(tenant);
 
-    // Log audit only if userId is available
-    if (userId) {
-      await this.logAudit(tenantId, userId, 'business_type_selection', OnboardingAction.COMPLETED, {
-        businessType,
-      });
-    } else {
-      console.log('Skipping audit log due to missing userId');
-    }
+    // Log audit
+    await this.logAudit(tenantId, userId, 'business_type_selection', OnboardingAction.COMPLETED, {
+      businessType,
+    });
 
     return {
       tenantId: tenant.id,
@@ -118,7 +114,7 @@ export class OnboardingService {
 
   async saveBusinessInfo(
     tenantId: string,
-    userId: string | null,
+    userId: string,
     dto: SaveBusinessInfoDto,
   ): Promise<BusinessInfoResponseDto> {
     const tenant = await this.tenantRepository.findOne({
@@ -175,16 +171,14 @@ export class OnboardingService {
 
       businessInfo = await manager.save(businessInfo);
 
-      // Log audit only if userId is available
-      if (userId) {
-        const auditLog = new OnboardingAuditLog();
-        auditLog.tenantId = tenantId;
-        auditLog.userId = userId;
-        auditLog.stepName = 'business_info';
-        auditLog.action = OnboardingAction.COMPLETED;
-        auditLog.data = dto as any;
-        await manager.save(auditLog);
-      }
+      // Log audit
+      const auditLog = new OnboardingAuditLog();
+      auditLog.tenantId = tenantId;
+      auditLog.userId = userId;
+      auditLog.stepName = 'business_info';
+      auditLog.action = OnboardingAction.COMPLETED;
+      auditLog.data = dto as any;
+      await manager.save(auditLog);
 
       return businessInfo;
     });
@@ -203,7 +197,7 @@ export class OnboardingService {
 
   async completeOnboarding(
     tenantId: string,
-    userId: string | null,
+    userId: string,
   ): Promise<CompleteOnboardingResponseDto> {
     const tenant = await this.tenantRepository.findOne({
       where: { id: tenantId },
@@ -218,10 +212,8 @@ export class OnboardingService {
     tenant.onboardingCompletedAt = new Date();
     await this.tenantRepository.save(tenant);
 
-    // Log audit only if userId is available
-    if (userId) {
-      await this.logAudit(tenantId, userId, 'onboarding', OnboardingAction.COMPLETED, null);
-    }
+    // Log audit
+    await this.logAudit(tenantId, userId, 'onboarding', OnboardingAction.COMPLETED, null);
 
     return {
       tenantId: tenant.id,

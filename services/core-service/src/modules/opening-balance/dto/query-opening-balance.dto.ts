@@ -12,12 +12,12 @@ export class QueryOpeningBalanceDto {
   periodId?: string;
 
   @ApiProperty({
-    description: 'ID loại tiền',
-    example: 'uuid',
+    description: 'ID hoặc mã loại tiền (VND, USD, etc.)',
+    example: 'VND',
     required: false,
   })
   @IsOptional()
-  @IsUUID()
+  @IsString()
   currencyId?: string;
 
   @ApiProperty({

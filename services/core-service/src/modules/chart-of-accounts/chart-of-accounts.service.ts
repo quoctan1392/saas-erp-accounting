@@ -27,6 +27,15 @@ export class ChartOfAccountsService {
     });
   }
 
+  async findByAccountNumber(
+    accountNumber: string,
+    regime: '200' | '133',
+  ): Promise<ChartOfAccountsGeneral | null> {
+    return this.generalAccountRepository.findOne({
+      where: { accountNumber, accountingRegime: regime, active: true },
+    });
+  }
+
   async findCustomAccounts(tenantId: string): Promise<ChartOfAccountsCustom[]> {
     return this.customAccountRepository.find({
       where: { tenantId, isDeleted: false },

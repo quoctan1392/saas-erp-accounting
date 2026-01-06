@@ -135,9 +135,10 @@ services:
       - rabbitmq
     networks:
       - erp-network
-    volumes:
-      - ./services/core-service:/workspace/services/core-service
-      - /workspace/services/core-service/node_modules
+    # Removed volume mounts - code is baked into image during build
+    # volumes:
+    #   - ./services/core-service:/workspace/services/core-service
+    #   - /workspace/services/core-service/node_modules
 
 networks:
   erp-network:
