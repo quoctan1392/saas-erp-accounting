@@ -418,8 +418,8 @@ const InitialBalanceStep3Screen = () => {
                       borderRadius: '12px',
                     }}
                   >
-                    {/* Supplier Info: name / code / amount stacked (match customer UI) */}
-                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0 }}>
+                    {/* Supplier Info: name / code / amount stacked (name should take remaining width) */}
+                    <Box sx={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
                       <Typography
                         sx={{
                           fontSize: '16px',
@@ -428,19 +428,21 @@ const InitialBalanceStep3Screen = () => {
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
+                          display: 'block',
+                          maxWidth: '100%',
                         }}
                       >
                         {debt.supplierName}
                       </Typography>
-                      <Typography sx={{ fontSize: '12px', color: '#6C757D', mb: 0.5 }}>
+                      <Typography sx={{ fontSize: '12px', color: '#6C757D', mb: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {debt.supplierCode}
                       </Typography>
                       <Typography sx={{ fontSize: '14px', fontWeight: 500, color: '#1976D2' }}>
                         {formatNumber(debt.amount)} ₫
                       </Typography>
                     </Box>
-                    {/* Actions */}
-                    <Box sx={{ display: 'flex', gap: 1 }}>
+                    {/* Actions (fixed-size so name can shrink) */}
+                    <Box sx={{ display: 'flex', gap: 1, flex: '0 0 auto' }}>
                       <IconButton
                         size="small"
                         onClick={() => handleOpenDebtForm(debt)}
