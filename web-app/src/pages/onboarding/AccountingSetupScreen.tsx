@@ -25,11 +25,11 @@ import {
   Currency,
   InventoryValuationMethod,
 } from '../../types/onboarding';
-import PrimaryButton from '../../components/PrimaryButton';
+import AppButton from '../../components/AppButton';
 import OnboardingHeader from '../../components/OnboardingHeader';
 import RoundedTextField from '../../components/RoundedTextField';
 import welcomeBg from '../../assets/Welcome screen.png';
-import ConfirmDialog from '../../components/ConfirmDialog';
+import AlertDialog from '../../components/AlertDialog';
 import Icon from '../../components/Icon';
 import TaxIndustryGroupSelector from '../../components/TaxIndustryGroupSelector';
 import taxIndustryGroups from '../../data/taxIndustryGroups';
@@ -904,9 +904,9 @@ const AccountingSetupScreen = () => {
 
               {/* Fixed button at bottom - Desktop */}
               <Box sx={{ display: { xs: 'none', sm: 'block' }, mt: 4 }}>
-                <PrimaryButton onClick={handleSubmit} loading={isLoading} loadingText="Đang hoàn tất...">
+                <AppButton variantType="primary" fullWidth onClick={handleSubmit} loading={isLoading} loadingText="Đang hoàn tất...">
                   Tiếp tục
-                </PrimaryButton>
+                </AppButton>
               </Box>
             </>
           )}
@@ -930,9 +930,10 @@ const AccountingSetupScreen = () => {
           minHeight: 'calc(80px + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        <Box sx={{ width: '100%', maxWidth: 'calc(100% - 32px)' }}>
+        <Box sx={{ width: '100%', maxWidth: '100%' }}>
           <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-            <PrimaryButton
+            <AppButton variantType="primary"
+              fullWidth
               onClick={handleSubmit}
               loading={isLoading}
               loadingText="Đang hoàn tất..."
@@ -945,20 +946,20 @@ const AccountingSetupScreen = () => {
               }}
             >
               Tiếp tục
-            </PrimaryButton>
+            </AppButton>
           </Box>
         </Box>
       </Box>
 
       {/* Confirm dialog */}
-      <ConfirmDialog
+      <AlertDialog
+        variant="confirm"
         open={showConfirmDialog}
-        title="Xác nhận rời trang"
-        description="Thông tin trên biểu mẫu chưa được lưu. Nếu bạn rời trang, các thay đổi sẽ bị mất. Bạn có chắc muốn thoát?"
-        cancelText="Hủy"
-        confirmText="Rời đi"
-        confirmColor="error"
-        onCancel={handleCancelLeave}
+        onClose={handleCancelLeave}
+        title="Thay đổi chưa được lưu"
+        description="Bạn có muốn thoát mà không lưu lại các thay đổi?"
+        cancelText="Huỷ"
+        confirmText="Đồng ý"
         onConfirm={handleConfirmLeave}
       />
 

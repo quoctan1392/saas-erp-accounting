@@ -25,8 +25,6 @@ const SubjectGroupCreateScreen: React.FC<Props> = ({ open, onClose, onCreate, ty
   const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
   const ANIM_MS = 260;
 
-  if (!open) return null;
-
   const getSnackbarMessage = () => {
     if (type === 'customer') return 'Thêm nhóm khách hàng thành công';
     if (type === 'vendor') return 'Thêm nhóm nhà cung cấp thành công';
@@ -44,6 +42,13 @@ const SubjectGroupCreateScreen: React.FC<Props> = ({ open, onClose, onCreate, ty
     try {
       const groupCode = code.trim() || name.trim().toUpperCase().replace(/\s+/g, '_');
       
+      console.log('[SubjectGroupCreate] Creating group with data:', {
+        code: groupCode,
+        name: name.trim(),
+        type: groupType,
+        description: description.trim() || undefined,
+      });
+      
       // Call API to save subject group to database
       const savedGroup = await apiService.createSubjectGroup({
         code: groupCode,
@@ -52,12 +57,14 @@ const SubjectGroupCreateScreen: React.FC<Props> = ({ open, onClose, onCreate, ty
         description: description.trim() || undefined,
       });
       
-      console.log('Subject group saved successfully:', savedGroup);
+      console.log('[SubjectGroupCreate] Subject group saved successfully:', savedGroup);
       
       const group = { 
-        value: savedGroup.id || groupCode, 
-        label: name.trim() 
+        value: savedGroup.id || savedGroup.code || groupCode, 
+        label: savedGroup.name || name.trim() 
       };
+      
+      console.log('[SubjectGroupCreate] Formatted group to return:', group);
       
       setIsLoading(false);
       setShowSuccessSnackbar(true);
@@ -77,7 +84,7 @@ const SubjectGroupCreateScreen: React.FC<Props> = ({ open, onClose, onCreate, ty
         }, 260);
       }, 1000);
     } catch (err: any) {
-      console.error('Error saving subject group:', err);
+      console.error('[SubjectGroupCreate] Error saving subject group:', err);
       setError(err.response?.data?.message || 'Không thể lưu nhóm. Vui lòng thử lại.');
       setIsLoading(false);
     }
@@ -97,13 +104,15 @@ const SubjectGroupCreateScreen: React.FC<Props> = ({ open, onClose, onCreate, ty
     return 'Thêm nhóm đối tượng';
   };
 
+  if (!open) return null;
+
   return (
     <>
-      <Box onClick={triggerClose} sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(0,0,0,0.4)', zIndex: 1250 }} />
-      <Box sx={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 1251, bgcolor: '#fff', display: 'flex', flexDirection: 'column', animation: exiting ? 'slideOutToRight 0.26s ease' : 'slideInFromRight 0.26s ease', '@keyframes slideInFromRight': { from: { transform: 'translateX(100%)' }, to: { transform: 'translateX(0)' } }, '@keyframes slideOutToRight': { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(100%)' } } }}>
+      <Box onClick={triggerClose} sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(0,0,0,0.4)', zIndex: 1650 }} />
+      <Box sx={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 1651, bgcolor: '#fff', display: 'flex', flexDirection: 'column', animation: exiting ? 'slideOutToRight 0.26s ease' : 'slideInFromRight 0.26s ease', '@keyframes slideInFromRight': { from: { transform: 'translateX(100%)' }, to: { transform: 'translateX(0)' } }, '@keyframes slideOutToRight': { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(100%)' } } }}>
         <Box sx={{ height: { xs: 160, sm: 120 }, width: '100%', backgroundImage: `url(${headerDay})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
 
-        <Box sx={{ position: 'absolute', top: 36, left: 0, right: 0, zIndex: 1252, px: { xs: 2, sm: 3 } }}>
+        <Box sx={{ position: 'absolute', top: 36, left: 0, right: 0, zIndex: 1652, px: { xs: 2, sm: 3 } }}>
           <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: 'sm', mx: 'auto', py: 0.5 }}>
             <IconButton onClick={triggerClose} sx={{ position: 'absolute', left: 0, top: 6, width: 40, height: 40, backgroundColor: '#fff', '&:hover': { backgroundColor: '#f5f5f5' } }}>
               <ArrowBack />
@@ -114,7 +123,7 @@ const SubjectGroupCreateScreen: React.FC<Props> = ({ open, onClose, onCreate, ty
           </Box>
         </Box>
 
-        <Box sx={{ borderRadius: { xs: '16px 16px 0 0', sm: '16px' }, px: 1, py: { xs: 2, sm: 6 }, pb: { xs: `calc(100px + env(safe-area-inset-bottom, 0px))`, sm: 6 }, position: { xs: 'fixed', sm: 'relative' }, top: { xs: '80px', sm: 'auto' }, bottom: { xs: 0, sm: 'auto' }, left: '16px', right: '16px', maxWidth: 'calc(100% - 32px)', display: 'flex', flexDirection: 'column', overflowY: { xs: 'auto', sm: 'visible' }, bgcolor: 'transparent', zIndex: 1252 }}>
+        <Box sx={{ borderRadius: { xs: '16px 16px 0 0', sm: '16px' }, px: 1, py: { xs: 2, sm: 6 }, pb: { xs: `calc(100px + env(safe-area-inset-bottom, 0px))`, sm: 6 }, position: { xs: 'fixed', sm: 'relative' }, top: { xs: '80px', sm: 'auto' }, bottom: { xs: 0, sm: 'auto' }, left: '16px', right: '16px', maxWidth: 'calc(100% - 32px)', display: 'flex', flexDirection: 'column', overflowY: { xs: 'auto', sm: 'visible' }, bgcolor: 'transparent', zIndex: 1652 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <Typography sx={{ fontSize: 16, fontWeight: 700 }}>Thông tin nhóm</Typography>
             {error && <Alert severity="error">{error}</Alert>}
@@ -146,18 +155,17 @@ const SubjectGroupCreateScreen: React.FC<Props> = ({ open, onClose, onCreate, ty
       </Box>
 
       {/* Button box moved outside main container for proper z-index stacking */}
-      <Box sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 1260, px: 2, py: 2, pb: 'calc(16px + env(safe-area-inset-bottom, 0px))', bgcolor: '#fff', boxShadow: '0 -8px 16px rgba(0,0,0,0.06)', animation: exiting ? 'slideOutToRight 0.26s ease' : 'slideInFromRight 0.26s ease', '@keyframes slideInFromRight': { from: { transform: 'translateX(100%)' }, to: { transform: 'translateX(0)' } }, '@keyframes slideOutToRight': { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(100%)' } } }}>
-        <Button fullWidth variant="contained" onClick={handleSubmit} disabled={!name.trim() || exiting || isLoading} sx={{ borderRadius: '100px', bgcolor: !name.trim() || exiting || isLoading ? '#DEE2E6' : '#FB7E00', color: !name.trim() || exiting || isLoading ? '#ADB5BD' : '#fff', textTransform: 'none', fontWeight: 600, height: 56 }}>
+      <Box sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 1660, px: 2, py: 2, pb: 'calc(16px + env(safe-area-inset-bottom, 0px))', bgcolor: '#fff', boxShadow: '0 -8px 16px rgba(0,0,0,0.06)', animation: exiting ? 'slideOutToRight 0.26s ease' : 'slideInFromRight 0.26s ease', '@keyframes slideInFromRight': { from: { transform: 'translateX(100%)' }, to: { transform: 'translateX(0)' } }, '@keyframes slideOutToRight': { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(100%)' } } }}>
+        <Button fullWidth variant="contained" onClick={handleSubmit} disabled={!name.trim() || exiting || isLoading} sx={{ borderRadius: '100px', bgcolor: !name.trim() || exiting || isLoading ? '#DEE2E6' : '#FB7E00', color: !name.trim() || exiting || isLoading ? '#ADB5BD' : '#fff', fontSize: '16px', textTransform: 'none', fontWeight: 500, height: 56, boxShadow: 'none', '&:hover': { bgcolor: !name.trim() || exiting || isLoading ? '#DEE2E6' : '#fb7e00', boxShadow: 'none' } }}>
           {isLoading ? <CircularProgress size={24} sx={{ color: '#fff' }} /> : 'Hoàn tất'}
         </Button>
       </Box>
       
-      <SuccessSnackbar
-        open={showSuccessSnackbar}
-        onClose={() => setShowSuccessSnackbar(false)}
-        message={getSnackbarMessage()}
-        variant="add"
-      />
+        <SuccessSnackbar
+          open={showSuccessSnackbar}
+          onClose={() => setShowSuccessSnackbar(false)}
+          message={getSnackbarMessage()}
+        />
     </>
   );
 };

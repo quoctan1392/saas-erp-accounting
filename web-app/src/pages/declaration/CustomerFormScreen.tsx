@@ -15,9 +15,10 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 import { ArrowBack } from '@mui/icons-material';
 import RoundedTextField from '../../components/RoundedTextField';
+import SubjectGroupSelectionScreen from './SubjectGroupSelectionScreen';
+import BankSelectionScreen from './BankSelectionScreen';
 import { apiService } from '../../services/api';
-import ConfirmDialog from '../../components/ConfirmDialog';
-import ErrorDialog from '../../components/ErrorDialog';
+import AlertDialog from '../../components/AlertDialog';
 import headerDay from '../../assets/Header_day.png';
 import * as Iconsax from 'iconsax-react';
 
@@ -32,6 +33,7 @@ const CustomerFormScreen = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isPerformingConfirmAction, setIsPerformingConfirmAction] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [exiting, setExiting] = useState(false);
   const ANIM_MS = 280;
@@ -61,6 +63,13 @@ const CustomerFormScreen = () => {
   const [bankName, setBankName] = useState('');
   const [bankBranch, setBankBranch] = useState('');
 
+  // Customer Group & bank selector
+  const [customerGroup, setCustomerGroup] = useState('');
+  const [customerGroupScreenOpen, setCustomerGroupScreenOpen] = useState(false);
+  const [bankSelectionOpen, setBankSelectionOpen] = useState(false);
+  const [nestedSubjectCreateOpen, setNestedSubjectCreateOpen] = useState(false);
+  const showActionButtons = !customerGroupScreenOpen && !bankSelectionOpen && !nestedSubjectCreateOpen;
+
   // Expandable sections
   const [isContactExpanded, setIsContactExpanded] = useState(false);
   const [isEInvoiceExpanded, setIsEInvoiceExpanded] = useState(false);
@@ -75,12 +84,7 @@ const CustomerFormScreen = () => {
       try {
         console.log('[CustomerForm] Fetching next customer code...');
         const nextCode = await apiService.getNextObjectCode('customer');
-        console.log(
-          '[CustomerForm] Received next code from API:',
-          nextCode,
-          'Type:',
-          typeof nextCode,
-        );
+        console.log('[CustomerForm] Received next code from API:', nextCode, 'Type:', typeof nextCode);
 
         if (typeof nextCode === 'string' && nextCode.trim().length > 0) {
           console.log('[CustomerForm] Setting code to:', nextCode);
@@ -139,7 +143,6 @@ const CustomerFormScreen = () => {
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      // Map form fields to core-service CreateAccountingObjectDto
       const accountingObjectData: any = {
         accountObjectCode: code,
         accountObjectName: name,
@@ -164,11 +167,8 @@ const CustomerFormScreen = () => {
       navigate(ROUTES.DECLARATION_CATEGORIES);
     } catch (error: any) {
       console.error('Error saving customer:', error);
-      // Use MUI dialog to show error
       const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        'Không thể lưu khách hàng. Vui lòng thử lại.';
+        error?.response?.data?.message || error?.message || 'Không thể lưu khách hàng. Vui lòng thử lại.';
       setErrorDialogMessage(message);
       setErrorDialogOpen(true);
     } finally {
@@ -179,7 +179,6 @@ const CustomerFormScreen = () => {
   const handleSaveAndAddNew = async () => {
     setIsLoading(true);
     try {
-      // Map form fields to core-service CreateAccountingObjectDto (for "Save and add new")
       const accountingObjectData: any = {
         accountObjectCode: code,
         accountObjectName: name,
@@ -200,14 +199,11 @@ const CustomerFormScreen = () => {
       const result = await apiService.createAccountingObject(accountingObjectData);
       console.log('Customer saved successfully:', result);
 
-      // Fetch next customer code from API
       try {
         const nextCode = await apiService.getNextObjectCode('customer');
         if (typeof nextCode === 'string' && nextCode.trim().length > 0) {
           setCode(nextCode);
         } else {
-          console.warn('getNextObjectCode returned empty/invalid value on save-and-add:', nextCode);
-          // Fallback: increment current code or localStorage
           const parsed =
             parseInt(
               String(code || localStorage.getItem('lastCustomerNumber') || '0').replace(/\D/g, ''),
@@ -219,7 +215,6 @@ const CustomerFormScreen = () => {
         }
       } catch (error) {
         console.error('Error fetching next customer code:', error);
-        // Fallback: increment current code
         const currentNumber =
           parseInt(
             String(code || localStorage.getItem('lastCustomerNumber') || '0').replace(/\D/g, ''),
@@ -230,36 +225,28 @@ const CustomerFormScreen = () => {
         setCode(`KH${nextNumber.toString().padStart(paddingLength, '0')}`);
       }
 
-      // Reset form
       setTaxCode('');
       setIdNumber('');
       setName('');
       setAddress('');
       setPhone('');
       setIsDualRole(false);
-      // Reset contact
       setContactName('');
       setContactPhone('');
       setContactEmail('');
-      // Reset e-invoice recipient
       setEInvoiceName('');
       setEInvoicePhone('');
       setEInvoiceEmail('');
-      // Reset bank account
       setBankAccountNumber('');
       setBankName('');
       setBankBranch('');
-      // Reset expanded states
       setIsContactExpanded(false);
       setIsEInvoiceExpanded(false);
       setIsBankExpanded(false);
       setHasChanges(false);
     } catch (error: any) {
       console.error('Error saving customer:', error);
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        'Không thể lưu khách hàng. Vui lòng thử lại.';
+      const message = error?.response?.data?.message || error?.message || 'Không thể lưu khách hàng. Vui lòng thử lại.';
       setErrorDialogMessage(message);
       setErrorDialogOpen(true);
     } finally {
@@ -496,6 +483,31 @@ const CustomerFormScreen = () => {
               InputProps={{}}
             />
 
+            {/* Customer Group */}
+            <RoundedTextField
+              fullWidth
+              label="Nhóm khách hàng"
+              placeholder="Chọn nhóm khách hàng"
+              value={customerGroup}
+              onClick={() => setCustomerGroupScreenOpen(true)}
+              InputProps={{
+                readOnly: true,
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCustomerGroupScreenOpen(true);
+                      }}
+                    >
+                      <Icon name="ArrowDown2" size={18} color="#6C757D" variant="Outline" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+
             {/* Contact Information Section */}
             <Box>
               <Box
@@ -644,9 +656,25 @@ const CustomerFormScreen = () => {
                     <RoundedTextField
                       fullWidth
                       label="Tên ngân hàng"
-                      placeholder="Nhập tên ngân hàng"
+                      placeholder="Chọn ngân hàng"
                       value={bankName}
-                      onChange={(e) => handleFieldChange(setBankName)(e.target.value)}
+                      onClick={() => setBankSelectionOpen(true)}
+                      InputProps={{
+                        readOnly: true,
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setBankSelectionOpen(true);
+                              }}
+                            >
+                              <Icon name="ArrowDown2" size={18} color="#6C757D" variant="Outline" />
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
                     />
                     <RoundedTextField
                       fullWidth
@@ -662,147 +690,177 @@ const CustomerFormScreen = () => {
           </Box>
 
           {/* Desktop buttons */}
-          <Box
-            sx={{ display: { xs: 'none', sm: 'flex' }, gap: 2, mt: 4, justifyContent: 'flex-end' }}
-          >
-            <Button
-              variant="outlined"
-              onClick={handleSave}
-              disabled={!isFormValid() || isLoading}
-              sx={{
-                borderRadius: '12px',
-                textTransform: 'none',
-                fontWeight: 500,
-                borderColor: '#FB7E00',
-                color: '#FB7E00',
-                px: 4,
-                py: 1.5,
-                minWidth: 120,
-                '&:hover': {
-                  borderColor: '#E65A2E',
-                  bgcolor: '#FFF4E6',
-                },
-                '&.Mui-disabled': {
-                  borderColor: '#DEE2E6',
-                  color: '#ADB5BD',
-                },
-              }}
+          {showActionButtons && (
+            <Box
+              sx={{ display: { xs: 'none', sm: 'flex' }, gap: 2, mt: 4, justifyContent: 'flex-end' }}
             >
-              Lưu
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handleSaveAndAddNew}
-              disabled={!isFormValid() || isLoading}
-              sx={{
-                borderRadius: '12px',
-                textTransform: 'none',
-                fontWeight: 600,
-                bgcolor: '#007DFB',
-                color: 'white',
-                px: 4,
-                py: 1.5,
-                minWidth: 120,
-                boxShadow: 'none',
-                '&:hover': {
-                  bgcolor: '#0056b3',
+              <Button
+                variant="outlined"
+                onClick={handleSave}
+                disabled={!isFormValid() || isLoading}
+                sx={{
+                  borderRadius: '12px',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  borderColor: '#FB7E00',
+                  color: '#FB7E00',
+                  px: 4,
+                  py: 1.5,
+                  minWidth: 120,
+                  '&:hover': {
+                    borderColor: '#E65A2E',
+                    bgcolor: '#FFF4E6',
+                  },
+                  '&.Mui-disabled': {
+                    borderColor: '#DEE2E6',
+                    color: '#ADB5BD',
+                  },
+                }}
+              >
+                Lưu
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleSaveAndAddNew}
+                disabled={!isFormValid() || isLoading}
+                sx={{
+                  borderRadius: '12px',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  bgcolor: '#007DFB',
+                  color: 'white',
+                  px: 4,
+                  py: 1.5,
+                  minWidth: 120,
                   boxShadow: 'none',
-                },
-                '&.Mui-disabled': {
-                  bgcolor: '#DEE2E6',
-                  color: '#ADB5BD',
-                },
-              }}
-            >
-              Lưu và thêm mới
-            </Button>
-          </Box>
+                  '&:hover': {
+                    bgcolor: '#0056b3',
+                    boxShadow: 'none',
+                  },
+                  '&.Mui-disabled': {
+                    bgcolor: '#DEE2E6',
+                    color: '#ADB5BD',
+                  },
+                }}
+              >
+                Lưu và thêm mới
+              </Button>
+            </Box>
+          )}
         </Box>
       </Container>
 
       {/* Error dialog */}
-      <ErrorDialog
+      <AlertDialog
+        variant="error"
         open={errorDialogOpen}
-        message={errorDialogMessage}
         onClose={() => setErrorDialogOpen(false)}
+        title="Lỗi"
+        description={errorDialogMessage}
+        actionText="Đóng"
+        actionColor="error"
       />
 
       {/* Mobile sticky footer */}
-      <Box
-        sx={{
-          display: { xs: 'flex', sm: 'none' },
-          position: 'fixed',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 1400,
-          gap: 1.5,
-          px: 2,
-          py: 2,
-          pb: 'calc(16px + env(safe-area-inset-bottom, 0px))',
-          bgcolor: '#ffffff',
-          boxShadow: '0 -8px 16px rgba(0,0,0,0.12)',
-        }}
-      >
-        <Button
-          fullWidth
-          variant="outlined"
-          onClick={handleSave}
-          disabled={!isFormValid() || isLoading}
+      {showActionButtons && (
+        <Box
           sx={{
-            flex: 1,
-            borderRadius: '100px',
-            textTransform: 'none',
-            fontWeight: 500,
-            fontSize: '16px',
-            borderColor: '#C5C5C5',
-            bgcolor: '#F5F5F5',
-            color: '#090909',
-            height: 56,
-            '&:hover': {
-              borderColor: '#E65A2E',
-              bgcolor: '#FFF',
-            },
+            display: { xs: 'flex', sm: 'none' },
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1400,
+            gap: 1.5,
+            px: 2,
+            py: 2,
+            pb: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+            bgcolor: '#ffffff',
+            boxShadow: '0 -8px 16px rgba(0,0,0,0.12)',
           }}
         >
-          Lưu
-        </Button>
-        <Button
-          fullWidth
-          variant="contained"
-          onClick={handleSaveAndAddNew}
-          disabled={!isFormValid() || isLoading}
-          sx={{
-            flex: 1,
-            borderRadius: '100px',
-            fontSize: '16px',
-            textTransform: 'none',
-            fontWeight: 500,
-            bgcolor: '#FB7E00',
-            color: 'white',
-            height: 56,
-            boxShadow: 'none',
-            '&:hover': {
+          <Button
+            fullWidth
+            variant="outlined"
+            onClick={handleSave}
+            disabled={!isFormValid() || isLoading}
+            sx={{
+              flex: 1,
+              borderRadius: '100px',
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: '16px',
+              borderColor: '#C5C5C5',
+              bgcolor: '#F5F5F5',
+              color: '#090909',
+              height: 56,
+              '&:hover': {
+                borderColor: '#E65A2E',
+                bgcolor: '#FFF',
+              },
+            }}
+          >
+            Lưu
+          </Button>
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={handleSaveAndAddNew}
+            disabled={!isFormValid() || isLoading}
+            sx={{
+              flex: 1,
+              borderRadius: '100px',
+              fontSize: '16px',
+              textTransform: 'none',
+              fontWeight: 500,
               bgcolor: '#FB7E00',
+              color: 'white',
+              height: 56,
               boxShadow: 'none',
-            },
-          }}
-        >
-          Lưu và thêm mới
-        </Button>
-      </Box>
+              '&:hover': {
+                bgcolor: '#FB7E00',
+                boxShadow: 'none',
+              },
+            }}
+          >
+            Lưu và thêm mới
+          </Button>
+        </Box>
+      )}
 
       {/* Confirm Dialog */}
-      <ConfirmDialog
+      <AlertDialog
+        variant="confirm"
         open={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
         title="Thay đổi chưa được lưu"
-        description="Bạn có muốn lưu thay đổi trước khi rời khỏi trang?"
-        cancelText="Hủy bỏ thay đổi"
-        confirmText="Lưu"
-        onCancel={handleConfirmLeave}
-        onConfirm={async () => {
-          await handleSave();
-          setShowConfirmDialog(false);
+        description="Bạn có muốn thoát mà không lưu lại các thay đổi?"
+        cancelText="Huỷ"
+        confirmText="Đồng ý"
+        onConfirm={handleConfirmLeave}
+      />
+
+      {/* Customer Group Selection Screen */}
+      <SubjectGroupSelectionScreen
+        open={customerGroupScreenOpen}
+        onClose={() => setCustomerGroupScreenOpen(false)}
+        onSelect={(label) => {
+          setCustomerGroup(label);
+          setHasChanges(true);
+          setCustomerGroupScreenOpen(false);
+        }}
+        type="customer"
+        onNestedOpen={(open) => setNestedSubjectCreateOpen(open)}
+      />
+
+      {/* Bank Selection Screen */}
+      <BankSelectionScreen
+        open={bankSelectionOpen}
+        onClose={() => setBankSelectionOpen(false)}
+        onSelect={(shortName) => {
+          setBankName(shortName);
+          setHasChanges(true);
+          setBankSelectionOpen(false);
         }}
       />
     </Box>

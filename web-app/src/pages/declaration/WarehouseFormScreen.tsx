@@ -4,7 +4,7 @@ import { ArrowBack } from '@mui/icons-material';
 import { ROUTES } from '../../config/constants';
 import { useEffect, useState } from 'react';
 import WarehouseForm from './WarehouseForm';
-import ConfirmDialog from '../../components/ConfirmDialog';
+import AlertDialog from '../../components/AlertDialog';
 import SuccessSnackbar from '../../components/SuccessSnackbar';
 import { apiService } from '../../services/api';
 import headerDay from '../../assets/Header_day.png';
@@ -26,6 +26,7 @@ const WarehouseFormScreen = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
+  const [isPerformingConfirmAction, setIsPerformingConfirmAction] = useState(false);
 
   // Form state
   const [code, setCode] = useState('');
@@ -250,17 +251,15 @@ const WarehouseFormScreen = () => {
         </Button>
       </Box>
 
-      <ConfirmDialog
+      <AlertDialog
+        variant="confirm"
         open={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
         title="Thay đổi chưa được lưu"
-        description="Bạn có muốn lưu thay đổi trước khi rời khỏi trang?"
-        cancelText="Hủy bỏ"
-        confirmText="Lưu"
-        onCancel={handleConfirmLeave}
-        onConfirm={async () => {
-          await handleSave();
-          setShowConfirmDialog(false);
-        }}
+        description="Bạn có muốn thoát mà không lưu lại các thay đổi?"
+        cancelText="Huỷ"
+        confirmText="Đồng ý"
+        onConfirm={handleConfirmLeave}
       />
 
       {/* Success Snackbar */}

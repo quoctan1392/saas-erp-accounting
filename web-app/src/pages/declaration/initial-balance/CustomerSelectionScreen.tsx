@@ -3,14 +3,13 @@ import {
   Box,
   Typography,
   IconButton,
-  TextField,
-  InputAdornment,
   Tabs,
   Tab,
   Button,
 } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import * as Iconsax from 'iconsax-react';
+import SearchBox from '../../../components/SearchBox';
 import { apiService } from '../../../services/api';
 import CustomerFormScreen from '../CustomerFormScreen';
 import headerDay from '../../../assets/Header_day.png';
@@ -277,28 +276,11 @@ const CustomerSelectionScreen: React.FC<CustomerSelectionScreenProps> = ({ open,
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 'sm', mx: 'auto' }}>
           {/* Search Input */}
-          <TextField
+          <SearchBox
             fullWidth
             placeholder="Tìm kiếm khách hàng..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            sx={{
-              mb: 1,
-              '& .MuiOutlinedInput-root': {
-                bgcolor: 'white',
-                borderRadius: '24px',
-                height: '48px',
-                '& fieldset': { borderColor: '#DEE2E6' },
-                '& .MuiOutlinedInput-input': { paddingLeft: '12px', paddingRight: '8px' },
-              },
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Icon name="SearchNormal" size={20} color="#6C757D" />
-                </InputAdornment>
-              ),
-            }}
+            onChange={(e: any) => setQuery(e.target.value)}
           />
 
           {/* Filter Tabs */}

@@ -1,10 +1,11 @@
 // @ts-nocheck
-import { Box, IconButton, Typography, InputAdornment, TextField, Divider } from '@mui/material';
+import { Box, IconButton, Typography, Divider } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import { useState } from 'react';
 import * as Iconsax from 'iconsax-react';
 import WarehouseCreateScreen from './WarehouseCreateScreen';
 import headerDay from '../../assets/Header_day.png';
+import SearchBox from '../../components/SearchBox';
 
 const Icon = ({ name, size = 20, color = 'currentColor', variant = 'Outline' }: any) => {
   const Comp = (Iconsax as any)[name];
@@ -119,27 +120,11 @@ const WarehouseSelectionScreen = ({ open, onClose, onSelect }: { open: boolean; 
         >
           <Box sx={{ px: 0, width: '100%' }}>
             <Box sx={{ mb: 2 }}>
-              <TextField
+              <SearchBox
                 fullWidth
                 placeholder="Tìm kiếm kho bằng tên hoặc mã"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    bgcolor: 'white',
-                    borderRadius: '24px',
-                    height: '48px',
-                    '& fieldset': { borderColor: '#DEE2E6' },
-                    '& .MuiOutlinedInput-input': { paddingLeft: '12px', paddingRight: '8px' },
-                  },
-                }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Icon name="SearchNormal" size={20} color="#6C757D" variant="Outline" />
-                    </InputAdornment>
-                  ),
-                }}
+                onChange={(e: any) => setQuery(e.target.value)}
               />
             </Box>
 

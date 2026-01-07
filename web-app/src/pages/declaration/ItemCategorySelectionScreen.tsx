@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, IconButton, Divider, TextField, InputAdornment, CircularProgress } from '@mui/material';
+import { Box, Typography, IconButton, Divider, CircularProgress } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import * as Iconsax from 'iconsax-react';
 import ItemCategoryCreateScreen from './ItemCategoryCreateScreen';
+import SearchBox from '../../components/SearchBox';
 import { apiService } from '../../services/api';
 import headerDay from '../../assets/Header_day.png';
 
@@ -110,7 +111,12 @@ const ItemCategorySelectionScreen: React.FC<Props> = ({ open, onClose, onSelect 
         <Box sx={{ borderRadius: { xs: '16px 16px 0 0', sm: '16px' }, px: 0.5, py: { xs: 2, sm: 6 }, pb: { xs: `calc(100px + env(safe-area-inset-bottom, 0px))`, sm: 6 }, position: { xs: 'fixed', sm: 'relative' }, top: { xs: '80px', sm: 'auto' }, bottom: { xs: 0, sm: 'auto' }, left: '16px', right: '16px', maxWidth: 'calc(100% - 32px)', display: 'flex', flexDirection: 'column', overflowY: { xs: 'auto', sm: 'visible' }, bgcolor: 'transparent' }}>
           <Box sx={{ px: 0, width: '100%' }}>
             <Box sx={{ mb: 2 }}>
-              <TextField fullWidth placeholder="Tìm nhóm hàng hoá..." value={query} onChange={(e) => setQuery(e.target.value)} sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'white', borderRadius: '24px', height: '48px', '& fieldset': { borderColor: '#DEE2E6' }, '& .MuiOutlinedInput-input': { paddingLeft: '12px', paddingRight: '8px' } } }} InputProps={{ startAdornment: (<InputAdornment position="start"><Icon name="SearchNormal" size={20} color="#6C757D" variant="Outline" /></InputAdornment>) }} />
+              <SearchBox
+                fullWidth
+                placeholder="Tìm nhóm hàng hoá..."
+                value={query}
+                onChange={(e: any) => setQuery(e.target.value)}
+              />
             </Box>
 
             {isLoading ? (

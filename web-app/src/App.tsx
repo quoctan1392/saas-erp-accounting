@@ -36,10 +36,8 @@ const SupplierFormScreen = lazy(() => import('./pages/declaration/SupplierFormSc
 const WarehouseFormScreen = lazy(() => import('./pages/declaration/WarehouseFormScreen'));
 const ProductFormScreen = lazy(() => import('./pages/declaration/ProductFormScreen'));
 
-// Initial Balance screens
-const InitialBalanceStep1Screen = lazy(() => import('./pages/declaration/initial-balance/InitialBalanceStep1Screen'));
-const InitialBalanceStep2Screen = lazy(() => import('./pages/declaration/initial-balance/InitialBalanceStep2Screen'));
-const InitialBalanceStep3Screen = lazy(() => import('./pages/declaration/initial-balance/InitialBalanceStep3Screen'));
+// Initial Balance flow (contains step1/2/3)
+const InitialBalanceFlow = lazy(() => import('./pages/declaration/initial-balance/InitialBalanceFlow'));
 
 const MainLayout = lazy(() => import('./components/MainLayout'));
 
@@ -111,11 +109,8 @@ function App() {
               <Route path="/declaration/products/new" element={<ProductFormScreen />} />
               <Route path="/declaration/products/:id/edit" element={<ProductFormScreen />} />
               
-              {/* Initial Balance routes */}
-              <Route path="/declaration/initial-balance" element={<Navigate to="/declaration/initial-balance/step-1" replace />} />
-              <Route path="/declaration/initial-balance/step-1" element={<InitialBalanceStep1Screen />} />
-              <Route path="/declaration/initial-balance/step-2" element={<InitialBalanceStep2Screen />} />
-              <Route path="/declaration/initial-balance/step-3" element={<InitialBalanceStep3Screen />} />
+              {/* Initial Balance flow (handles step transitions internally) */}
+              <Route path="/declaration/initial-balance/*" element={<InitialBalanceFlow />} />
               
               {/* Routes with persistent bottom navigation */}
               <Route element={<MainLayout />}>

@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import type { TransitionProps } from '@mui/material/transitions';
 import Icon from './Icon';
+import SearchBox from './SearchBox';
 import CloseIcon from '@mui/icons-material/Close';
 import taxIndustryGroups, { type TaxIndustryGroup } from '../data/taxIndustryGroups';
 import React from 'react';
@@ -156,28 +157,13 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
 
       {/* Search */}
       <Box sx={{ px: 2, py: 2 }}>
-        <TextField
+        <SearchBox
           fullWidth
-          variant="outlined"
           placeholder="Tìm kiếm ngành nghề"
           value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Icon name="SearchNormal1" size={20} color="#9E9E9E" variant="Outline" />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '24px',
-              backgroundColor: '#FFFFFF',
-              '& fieldset': {
-                borderColor: 'rgba(0,0,0,0.12)'
-              },
-            },
-          }}
+          onChange={(e: any) => setSearchText(e.target.value)}
+          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '24px', backgroundColor: '#FFFFFF', '& fieldset': { borderColor: 'rgba(0,0,0,0.12)' } } }}
+          inputProps={{}}
         />
       </Box>
 

@@ -4,8 +4,6 @@ import {
   Box,
   Container,
   Typography,
-  TextField,
-  InputAdornment,
   IconButton,
   Paper,
   Button,
@@ -17,8 +15,10 @@ import {
 import { useNavigate } from 'react-router-dom';
 import * as Iconsax from 'iconsax-react';
 import DashboardHeader from '../components/DashboardHeader';
+import SearchBox from '../components/SearchBox';
 import DateRangeBottomSheet from '../components/DateRangeBottomSheet';
 import TimeFilterSheet from '../components/TimeFilterSheet';
+import AlertDialog from '../components/AlertDialog';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { ROUTES } from '../config/constants';
@@ -58,6 +58,7 @@ const HomeScreen = () => {
   
   const [fabOpen, setFabOpen] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const [showTimeFilterModal, setShowTimeFilterModal] = useState(false);
   
   // Mock data - replace with API calls
@@ -384,6 +385,7 @@ const HomeScreen = () => {
   const handleSkipSetup = () => {
     localStorage.setItem('hasSeenSetupGuideModal', 'true');
     setShowSetupModal(false);
+    setShowInfoModal(true);
   };
 
   
@@ -445,52 +447,29 @@ const HomeScreen = () => {
           }}
         >
           {/* Search Bar with Barcode Scanner */}
-          <TextField
+          <SearchBox
             fullWidth
             placeholder="Nhập sản phẩm cần tìm..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            sx={{
-              mb: 2,
-              '& .MuiOutlinedInput-root': {
-                bgcolor: 'white',
-                borderRadius: '24px',
-                height: '48px',
-                '& fieldset': {
-                  borderColor: '#DEE2E6',
-                },
-                '& .MuiOutlinedInput-input': {
-                  paddingLeft: '12px',
-                  paddingRight: '8px',
-                },
-              },
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Icon name="SearchNormal" size={20} color="#6C757D" variant="Outline" />
-                </InputAdornment>
-              ),
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    sx={{
-                      bgcolor: '#FB7E00',
-                      color: 'white',
-                      width: 36,
-                      height: 36,
-                      borderRadius: '50%',
-                      mr: -0.5,
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      '&:hover': { bgcolor: '#E65A2E' },
-                    }}
-                    aria-label="scan-barcode"
-                  >
-                    <Icon name="ScanBarcode" size={20} color="white" variant="Outline" />
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
+            onChange={(e: any) => setSearchQuery(e.target.value)}
+            sx={{ mb: 2 }}
+            endIcon={
+              <IconButton
+                sx={{
+                  bgcolor: '#FB7E00',
+                  color: 'white',
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  mr: -0.5,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  '&:hover': { bgcolor: '#E65A2E' },
+                }}
+                aria-label="scan-barcode"
+              >
+                <Icon name="ScanBarcode" size={20} color="white" variant="Outline" />
+              </IconButton>
+            }
           />
 
           {/* Insight Banner */}
@@ -603,14 +582,17 @@ const HomeScreen = () => {
           {/* Financial Cards */}
           <Box
             sx={{
-              display: { xs: 'flex', md: 'grid' },
-              gridTemplateColumns: { md: '1fr 1fr' },
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr 1fr', md: '1fr 1fr' },
               gap: 1,
               mb: 3,
-              overflowX: { xs: 'auto', md: 'visible' },
+              overflowX: 'visible',
               WebkitOverflowScrolling: 'touch',
+              maxWidth: { md: '960px' },
+              mx: { md: 'auto' },
               '& > div': {
-                flex: { xs: '0 0 180px', md: '1 1 auto' },
+                flex: '1 1 auto',
+                minWidth: 0,
               },
             }}
           >
@@ -630,8 +612,8 @@ const HomeScreen = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <Box
                     sx={{
-                      width: 40,
-                      height: 40,
+                      width: 32,
+                      height: 32,
                       borderRadius: '50%',
                       bgcolor: '#F5F5F5',
                       display: 'flex',
@@ -647,7 +629,7 @@ const HomeScreen = () => {
                 </Box>
                 <Typography
                   sx={{
-                    fontSize: '32px',
+                    fontSize: '28px',
                     fontWeight: 700,
                     color: '#28A745',
                     mb: 1,
@@ -682,8 +664,8 @@ const HomeScreen = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <Box
                     sx={{
-                      width: 40,
-                      height: 40,
+                      width: 32,
+                      height: 32,
                       borderRadius: '50%',
                       bgcolor: '#F5F5F5',
                       display: 'flex',
@@ -699,7 +681,7 @@ const HomeScreen = () => {
                 </Box>
                 <Typography
                   sx={{
-                    fontSize: '32px',
+                    fontSize: '28px',
                     fontWeight: 700,
                     color: '#DC3545',
                     mb: 1,
@@ -1306,13 +1288,13 @@ const HomeScreen = () => {
           onClick={handleFabClick}
           sx={{
             position: 'fixed',
-            bottom: 80,
+            bottom: 100,
             right: 16,
             width: 56,
             height: 56,
             borderRadius: '50%',
             bgcolor: '#FB7E00',
-            boxShadow: '0 4px 12px rgba(251, 126, 0, 0.4)',
+            boxShadow: '0 4px 12px rgba(251, 126, 0, 0.38)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1401,7 +1383,10 @@ const HomeScreen = () => {
             </Box>
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 2,  }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: ' 12px 4px 12px 12px', borderRadius: '12px', bgcolor: '#F9F9F9' }}>
+              <Box
+                onClick={() => navigate(ROUTES.DECLARATION_CATEGORIES)}
+                sx={{ display: 'flex', alignItems: 'center', gap: 2, p: ' 12px 4px 12px 12px', borderRadius: '12px', bgcolor: '#F9F9F9', cursor: 'pointer' }}
+              >
                 <Box sx={{ width: 28, height: 28, borderRadius: '100px', bgcolor: '#FB7E00', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'white' }}>1</Typography>
                 </Box>
@@ -1413,7 +1398,10 @@ const HomeScreen = () => {
                 </IconButton>
               </Box>
 
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: ' 12px 4px 12px 12px', borderRadius: '12px', bgcolor: '#F9F9F9' }}>
+              <Box
+                onClick={() => navigate(ROUTES.DECLARATION_INITIAL_BALANCE)}
+                sx={{ display: 'flex', alignItems: 'center', gap: 2, p: ' 12px 4px 12px 12px', borderRadius: '12px', bgcolor: '#F9F9F9', cursor: 'pointer' }}
+              >
                 <Box sx={{ width: 28, height: 28, borderRadius: '100px', bgcolor: '#FB7E00', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'white' }}>2</Typography>
                 </Box>
@@ -1445,6 +1433,17 @@ const HomeScreen = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* Info Modal - Setup can be completed later */}
+        <AlertDialog
+          open={showInfoModal}
+          onClose={() => setShowInfoModal(false)}
+          variant="info"
+          title="Bạn có thể thiết lập sau"
+          description="Bạn có thể hoàn tất Khai báo danh mục và số dư ban đầu sau hoặc xem lại tại mục Hướng dẫn sử dụng > Xem lại hướng dẫn"
+          actionText="Đã hiểu"
+          actionColor="primary"
+        />
       </Box>
     </Fade>
   );

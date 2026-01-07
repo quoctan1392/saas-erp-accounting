@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, IconButton, Divider, TextField, InputAdornment } from '@mui/material';
+import { Box, Typography, IconButton, Divider } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import * as Iconsax from 'iconsax-react';
 import headerDay from '../../assets/Header_day.png';
+import SearchBox from '../../components/SearchBox';
 
 const Icon = ({ name, size = 20, color = 'currentColor', variant = 'Outline' }: any) => {
   const Comp = (Iconsax as any)[name];
@@ -205,28 +206,7 @@ const BankSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect }) => {
           <Box sx={{ px: 0, width: '100%' }}>
             {/* Search bar */}
             <Box sx={{ mb: 2 }}>
-              <TextField
-                fullWidth
-                placeholder="Tìm ngân hàng..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    bgcolor: 'white',
-                    borderRadius: '24px',
-                    height: '48px',
-                    '& fieldset': { borderColor: '#DEE2E6' },
-                    '& .MuiOutlinedInput-input': { paddingLeft: '12px', paddingRight: '8px' },
-                  },
-                }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Icon name="SearchNormal" size={20} color="#6C757D" variant="Outline" />
-                    </InputAdornment>
-                  ),
-                }}
-              />
+              <SearchBox fullWidth placeholder="Tìm ngân hàng..." value={query} onChange={(e: any) => setQuery(e.target.value)} />
             </Box>
 
             {/* Bank list */}

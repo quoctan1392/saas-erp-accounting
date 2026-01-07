@@ -3,7 +3,7 @@ import { Box, Container, Typography, Chip, CircularProgress } from '@mui/materia
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 import { BusinessType } from '../../types/onboarding';
-import PrimaryButton from '../../components/PrimaryButton';
+import AppButton from '../../components/AppButton';
 import OnboardingHeader from '../../components/OnboardingHeader';
 import ImageWithSkeleton from '../../components/ImageWithSkeleton';
 import businessTypeImg1 from '../../assets/Business Type Image 1.png';
@@ -319,15 +319,16 @@ const BusinessTypeScreen = () => {
               </Box>
 
               {/* Continue Button (hidden on mobile - shown in sticky footer) */}
-              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-                <PrimaryButton
+              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                <AppButton variantType="primary"
+                  fullWidth
                   onClick={handleContinue}
                   disabled={!selectedType}
                   loading={isLoading}
                   loadingText={isEditMode ? 'Đang cập nhật...' : 'Đang xử lý...'}
                 >
-                  {isEditMode ? 'Cập nhật' : 'Tiếp tục'}
-                </PrimaryButton>
+                  Tiếp tục
+                </AppButton>
               </Box>
             </>
           )}
@@ -350,9 +351,10 @@ const BusinessTypeScreen = () => {
           minHeight: 'calc(80px + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        <Box sx={{ width: '100%', maxWidth: 'calc(100% - 32px)' }}>
+        <Box sx={{ width: '100%', maxWidth: '100%' }}>
           <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-            <PrimaryButton
+            <AppButton variantType="primary"
+              fullWidth
               onClick={handleContinue}
               disabled={!selectedType}
               loading={isLoading}
@@ -365,8 +367,8 @@ const BusinessTypeScreen = () => {
                 boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
               }}
             >
-              {isEditMode ? 'Cập nhật' : 'Tiếp tục'}
-            </PrimaryButton>
+              Tiếp tục
+            </AppButton>
           </Box>
         </Box>
       </Box>

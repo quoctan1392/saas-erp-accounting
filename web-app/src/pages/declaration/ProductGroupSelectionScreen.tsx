@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, IconButton, Divider, TextField, InputAdornment, CircularProgress } from '@mui/material';
+import { Box, Typography, IconButton, Divider, CircularProgress } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import Icon from '../../components/Icon';
+import SearchBox from '../../components/SearchBox';
 import ProductGroupCreateScreen from './ProductGroupCreateScreen';
 import { apiService } from '../../services/api';
 import headerDay from '../../assets/Header_day.png';
@@ -133,27 +134,11 @@ const ProductGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect 
         >
           <Box sx={{ px: 0, width: '100%' }}>
             <Box sx={{ mb: 2 }}>
-              <TextField
+              <SearchBox
                 fullWidth
                 placeholder="Tìm nhóm hàng hoá dịch vụ..."
                 value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    bgcolor: 'white',
-                    borderRadius: '24px',
-                    height: '48px',
-                    '& fieldset': { borderColor: '#DEE2E6' },
-                    '& .MuiOutlinedInput-input': { paddingLeft: '12px', paddingRight: '8px' },
-                  },
-                }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Icon name="SearchNormal" size={20} color="#6C757D" variant="Outline" />
-                    </InputAdornment>
-                  ),
-                }}
+                onChange={(e: any) => setSearchText(e.target.value)}
               />
             </Box>
 

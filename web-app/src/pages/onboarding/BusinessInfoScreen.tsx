@@ -9,14 +9,14 @@ import {
   InputAdornment,
   Snackbar,
 } from '@mui/material';
-import ConfirmDialog from '../../components/ConfirmDialog';
+import AlertDialog from '../../components/AlertDialog';
 import Icon from '../../components/Icon';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 import { BusinessType } from '../../types/onboarding';
 import type { BusinessInfoForm } from '../../types/onboarding';
 import RoundedTextField from '../../components/RoundedTextField';
-import PrimaryButton from '../../components/PrimaryButton';
+import AppButton from '../../components/AppButton';
 import OnboardingHeader from '../../components/OnboardingHeader';
 import { apiService } from '../../services/api';
 import welcomeBg from '../../assets/Welcome screen.png';
@@ -655,38 +655,38 @@ const BusinessInfoScreen = () => {
                   minHeight: 'calc(80px + env(safe-area-inset-bottom, 0px))',
                 }}
               >
-                <Box sx={{ width: '100%', maxWidth: 'calc(100% - 32px)' }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                    <PrimaryButton
-                      onClick={handleSubmit}
-                      loading={isLoading}
-                      loadingText={isEditMode ? 'Đang cập nhật...' : 'Đang lưu...'}
-                      sx={{
-                        height: 56,
-                        borderRadius: '100px',
-                        backgroundColor: '#FB7E00',
-                        '&:hover': { backgroundColor: '#C96400' },
-                        boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
-                      }}
-                    >
-                      {isEditMode ? 'Cập nhật' : 'Tiếp tục'}
-                    </PrimaryButton>
+                <Box sx={{ width: '100%', maxWidth: '100%' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                      <AppButton variantType="primary" fullWidth
+                        onClick={handleSubmit}
+                        loading={isLoading}
+                        loadingText={isEditMode ? 'Đang cập nhật...' : 'Đang lưu...'}
+                        sx={{
+                          height: 56,
+                          borderRadius: '100px',
+                          backgroundColor: '#FB7E00',
+                          '&:hover': { backgroundColor: '#C96400' },
+                          boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
+                        }}
+                      >
+                        {isEditMode ? 'Cập nhật' : 'Tiếp tục'}
+                      </AppButton>
+                    </Box>
                   </Box>
-                </Box>
               </Box>
             </>
           )}
         </Box>
       </Container>
       {/* Reusable confirm dialog for unsaved changes */}
-      <ConfirmDialog
+      <AlertDialog
+        variant="confirm"
         open={showConfirmDialog}
-        title="Xác nhận rời trang"
-        description="Thông tin trên biểu mẫu chưa được lưu. Nếu bạn rời trang, các thay đổi sẽ bị mất. Bạn có chắc muốn thoát?"
-        cancelText="Hủy"
-        confirmText="Rời đi"
-        confirmColor="error"
-        onCancel={handleCancelLeave}
+        onClose={handleCancelLeave}
+        title="Thay đổi chưa được lưu"
+        description="Bạn có muốn thoát mà không lưu lại các thay đổi?"
+        cancelText="Huỷ"
+        confirmText="Đồng ý"
         onConfirm={handleConfirmLeave}
       />
 
@@ -1253,13 +1253,13 @@ export const BusinessInfoScreenDNTN = () => {
               </Box>
 
               <Box sx={{ display: { xs: 'none', sm: 'block' }, mt: 2 }}>
-                <PrimaryButton
+                <AppButton variantType="primary"
                   onClick={handleSubmit}
                   loading={isLoading}
                   loadingText={isEditMode ? 'Đang cập nhật...' : 'Đang lưu...'}
                 >
                   {isEditMode ? 'Cập nhật' : 'Tiếp tục'}
-                </PrimaryButton>
+                </AppButton>
               </Box>
             </>
           )}
@@ -1282,9 +1282,9 @@ export const BusinessInfoScreenDNTN = () => {
           minHeight: 'calc(80px + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        <Box sx={{ width: '100%', maxWidth: 'calc(100% - 32px)' }}>
+        <Box sx={{ width: '100%', maxWidth: '100%' }}>
           <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-            <PrimaryButton
+            <AppButton variantType="primary" fullWidth
               onClick={handleSubmit}
               loading={isLoading}
               loadingText={isEditMode ? 'Đang cập nhật...' : 'Đang lưu...'}
@@ -1297,19 +1297,20 @@ export const BusinessInfoScreenDNTN = () => {
               }}
             >
               {isEditMode ? 'Cập nhật' : 'Tiếp tục'}
-            </PrimaryButton>
+            </AppButton>
           </Box>
         </Box>
       </Box>
 
-      <ConfirmDialog
+      <AlertDialog
+        variant="confirm"
         open={showConfirmDialog}
+        onClose={handleCancelLeave}
         title="Xác nhận rời trang"
         description="Thông tin trên biểu mẫu chưa được lưu. Nếu bạn rời trang, các thay đổi sẽ bị mất. Bạn có chắc muốn thoát?"
         cancelText="Hủy"
         confirmText="Rời đi"
         confirmColor="error"
-        onCancel={handleCancelLeave}
         onConfirm={handleConfirmLeave}
       />
 

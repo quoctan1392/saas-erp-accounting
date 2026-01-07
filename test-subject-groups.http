@@ -1,0 +1,43 @@
+### Variables
+@baseUrl = http://localhost:3003
+@token = YOUR_TOKEN_HERE
+
+### Get all subject groups
+GET {{baseUrl}}/api/subject-groups
+Authorization: Bearer {{token}}
+
+### Create a new subject group (Customer)
+POST {{baseUrl}}/api/subject-groups
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "KH_VIP",
+  "name": "Khách VIP",
+  "type": "customer",
+  "description": "Nhóm khách hàng VIP"
+}
+
+### Create a new subject group (Vendor)
+POST {{baseUrl}}/api/subject-groups
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "NCC_TRONG_NUOC",
+  "name": "NCC Trong Nước",
+  "type": "vendor",
+  "description": "Nhà cung cấp trong nước"
+}
+
+### Create a new subject group (Both)
+POST {{baseUrl}}/api/subject-groups
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "DOI_TAC_CHIEN_LUOC",
+  "name": "Đối tác chiến lược",
+  "type": "both",
+  "description": "Đối tác quan trọng"
+}

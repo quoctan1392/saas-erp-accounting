@@ -1,5 +1,6 @@
 import React from 'react';
-import { Button, SxProps } from '@mui/material';
+import { Button, CircularProgress } from '@mui/material';
+import type { SxProps } from '@mui/material';
 
 type VariantType = 'primary' | 'secondary' | 'text';
 
@@ -9,8 +10,12 @@ interface Props {
   fullWidth?: boolean;
   onClick?: (e: any) => void;
   disabled?: boolean;
+  loading?: boolean;
+  loadingText?: string;
   sx?: SxProps;
   type?: 'button' | 'submit' | 'reset';
+  startIcon?: React.ReactNode;
+  endIcon?: React.ReactNode;
 }
 
 const AppButton: React.FC<Props> = ({
@@ -19,34 +24,51 @@ const AppButton: React.FC<Props> = ({
   fullWidth = false,
   onClick,
   disabled = false,
+  loading = false,
+  loadingText,
   sx,
   type = 'button',
+  startIcon,
+  endIcon,
 }) => {
   const common = {
     textTransform: 'none',
-    borderRadius: '12px',
+    borderRadius: '100px',
     fontSize: 16,
-    fontWeight: variantType === 'primary' ? 600 : 500,
+    fontWeight: 500,
+    height: 56,
+    py: 1.75,
   } as any;
+
+  const isDisabled = disabled || loading;
 
   if (variantType === 'primary') {
     return (
       <Button
         variant="contained"
         onClick={onClick}
-        disabled={disabled}
+        disabled={isDisabled}
         fullWidth={fullWidth}
         type={type}
+        startIcon={!loading && startIcon}
+        endIcon={!loading && endIcon}
         sx={{
           ...common,
-          bgcolor: disabled ? '#DEE2E6' : '#FB7E00',
-          color: disabled ? '#ADB5BD' : '#ffffff',
+          bgcolor: isDisabled ? '#E9ECEF' : '#FB7E00',
+          color: isDisabled ? '#ADB5BD' : '#ffffff',
           boxShadow: 'none',
-          '&:hover': { bgcolor: disabled ? '#DEE2E6' : '#FB7E00', boxShadow: 'none' },
+          '&:hover': { bgcolor: isDisabled ? '#E9ECEF' : '#E67000', boxShadow: 'none' },
           ...sx,
         }}
       >
-        {children}
+        {loading ? (
+          <>
+            <CircularProgress size={20} sx={{ mr: 1, color: '#fff' }} />
+            {loadingText || 'Đang xử lý...'}
+          </>
+        ) : (
+          children
+        )}
       </Button>
     );
   }
@@ -56,26 +78,52 @@ const AppButton: React.FC<Props> = ({
       <Button
         variant="outlined"
         onClick={onClick}
-        disabled={disabled}
+        disabled={isDisabled}
         fullWidth={fullWidth}
         type={type}
+        startIcon={!loading && startIcon}
+        endIcon={!loading && endIcon}
         sx={{
           ...common,
-          borderColor: disabled ? '#DEE2E6' : '#FB7E00',
-          color: disabled ? '#ADB5BD' : '#FB7E00',
-          bgcolor: disabled ? '#F5F5F5' : 'transparent',
-          '&:hover': { bgcolor: disabled ? '#F5F5F5' : '#FFF4E6' },
+          borderRadius: '12px',
+          borderColor: isDisabled ? '#DEE2E6' : '#FB7E00',
+          color: isDisabled ? '#ADB5BD' : '#FB7E00',
+          bgcolor: isDisabled ? '#F5F5F5' : 'transparent',
+          '&:hover': { bgcolor: isDisabled ? '#F5F5F5' : '#FFF4E6' },
           ...sx,
         }}
       >
-        {children}
+        {loading ? (
+          <>
+            <CircularProgress size={20} sx={{ mr: 1, color: '#FB7E00' }} />
+            {loadingText || 'Đang xử lý...'}
+          </>
+        ) : (
+          children
+        )}
       </Button>
     );
   }
 
   return (
-    <Button variant="text" onClick={onClick} disabled={disabled} fullWidth={fullWidth} type={type} sx={{ ...common, ...sx }}>
-      {children}
+    <Button
+      variant="text"
+      onClick={onClick}
+      disabled={isDisabled}
+      fullWidth={fullWidth}
+      type={type}
+      startIcon={!loading && startIcon}
+      endIcon={!loading && endIcon}
+      sx={{ ...common, ...sx }}
+    >
+      {loading ? (
+        <>
+          <CircularProgress size={20} sx={{ mr: 1 }} />
+          {loadingText || 'Đang xử lý...'}
+        </>
+      ) : (
+        children
+      )}
     </Button>
   );
 };

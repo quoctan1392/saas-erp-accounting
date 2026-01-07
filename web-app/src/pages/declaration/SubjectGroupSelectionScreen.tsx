@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, IconButton, Divider, TextField, InputAdornment, CircularProgress } from '@mui/material';
+import { Box, Typography, IconButton, Divider, CircularProgress } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import * as Iconsax from 'iconsax-react';
 import SubjectGroupCreateScreen from './SubjectGroupCreateScreen';
+import SearchBox from '../../components/SearchBox';
 import { apiService } from '../../services/api';
 import headerDay from '../../assets/Header_day.png';
 
@@ -17,6 +18,7 @@ interface Props {
   onClose: () => void;
   onSelect: (label: string) => void;
   type?: 'customer' | 'vendor' | 'both';
+  onNestedOpen?: (open: boolean) => void;
 }
 
 const DEFAULT_CUSTOMER_GROUPS = [
@@ -33,7 +35,7 @@ const DEFAULT_VENDOR_GROUPS = [
   { value: 'ncc_dich_vu', label: 'NCC dịch vụ' },
 ];
 
-const SubjectGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect, type = 'customer' }) => {
+const SubjectGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect, type = 'customer', onNestedOpen }) => {
   const defaultGroups = type === 'vendor' ? DEFAULT_VENDOR_GROUPS : DEFAULT_CUSTOMER_GROUPS;
   const [groups, setGroups] = useState(defaultGroups.slice());
   const [isLoading, setIsLoading] = useState(false);
@@ -49,15 +51,26 @@ const SubjectGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect,
     }
   }, [open, type]);
 
+  // notify parent when nested create screen opens/closes
+  useEffect(() => {
+    if (onNestedOpen) {
+      onNestedOpen(createOpen);
+    }
+  }, [createOpen, onNestedOpen]);
+
   const loadGroups = async () => {
     setIsLoading(true);
     try {
       const apiGroups = await apiService.getSubjectGroups();
+      console.log('[SubjectGroupSelection] Loaded groups from API:', apiGroups);
+      
       if (apiGroups && apiGroups.length > 0) {
         // Filter by type
         const filteredGroups = apiGroups.filter((g: any) => 
           g.type === type || g.type === 'both'
         );
+        console.log('[SubjectGroupSelection] Filtered groups for type', type, ':', filteredGroups);
+        
         if (filteredGroups.length > 0) {
           const formattedGroups = filteredGroups.map((g: any) => ({
             value: g.id || g.code,
@@ -78,8 +91,6 @@ const SubjectGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect,
     }
   };
 
-  if (!open) return null;
-
   const triggerClose = (cb?: () => void) => {
     setExiting(true);
     setTimeout(() => {
@@ -91,6 +102,8 @@ const SubjectGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect,
 
   const handleAdd = () => setCreateOpen(true);
 
+  if (!open) return null;
+
   const getTitle = () => {
     if (type === 'vendor') return 'Chọn nhóm nhà cung cấp';
     return 'Chọn nhóm khách hàng';
@@ -98,12 +111,12 @@ const SubjectGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect,
 
   return (
     <>
-      <Box onClick={() => triggerClose()} sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(0,0,0,0.4)', zIndex: 1200 }} />
+      <Box onClick={() => triggerClose()} sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(0,0,0,0.4)', zIndex: 1600 }} />
 
-      <Box sx={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 1201, bgcolor: '#fff', display: 'flex', flexDirection: 'column', animation: exiting ? 'slideOutToRight 0.28s ease' : 'slideInFromRight 0.28s ease', '@keyframes slideInFromRight': { from: { transform: 'translateX(100%)' }, to: { transform: 'translateX(0)' } }, '@keyframes slideOutToRight': { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(100%)' } } }}>
+      <Box sx={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 1601, bgcolor: '#fff', display: 'flex', flexDirection: 'column', animation: exiting ? 'slideOutToRight 0.28s ease' : 'slideInFromRight 0.28s ease', '@keyframes slideInFromRight': { from: { transform: 'translateX(100%)' }, to: { transform: 'translateX(0)' } }, '@keyframes slideOutToRight': { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(100%)' } } }}>
         <Box sx={{ height: { xs: 160, sm: 120 }, width: '100%', backgroundImage: `url(${headerDay})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
 
-        <Box sx={{ position: 'absolute', top: 36, left: 0, right: 0, zIndex: 1202, px: { xs: 2, sm: 3 } }}>
+        <Box sx={{ position: 'absolute', top: 36, left: 0, right: 0, zIndex: 1602, px: { xs: 2, sm: 3 } }}>
           <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: 'sm', mx: 'auto', py: 0.5 }}>
             <IconButton onClick={() => triggerClose()} sx={{ position: 'absolute', left: 0, top: 6, width: 40, height: 40, backgroundColor: '#fff', '&:hover': { backgroundColor: '#f5f5f5' } }}>
               <ArrowBack />
@@ -124,7 +137,12 @@ const SubjectGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect,
         <Box sx={{ borderRadius: { xs: '16px 16px 0 0', sm: '16px' }, px: 0.5, py: { xs: 2, sm: 6 }, pb: { xs: `calc(100px + env(safe-area-inset-bottom, 0px))`, sm: 6 }, position: { xs: 'fixed', sm: 'relative' }, top: { xs: '80px', sm: 'auto' }, bottom: { xs: 0, sm: 'auto' }, left: '16px', right: '16px', maxWidth: 'calc(100% - 32px)', display: 'flex', flexDirection: 'column', overflowY: { xs: 'auto', sm: 'visible' }, bgcolor: 'transparent' }}>
           <Box sx={{ px: 0, width: '100%' }}>
             <Box sx={{ mb: 2 }}>
-              <TextField fullWidth placeholder={`Tìm ${type === 'vendor' ? 'nhóm NCC' : 'nhóm khách hàng'}...`} value={query} onChange={(e) => setQuery(e.target.value)} sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'white', borderRadius: '24px', height: '48px', '& fieldset': { borderColor: '#DEE2E6' }, '& .MuiOutlinedInput-input': { paddingLeft: '12px', paddingRight: '8px' } } }} InputProps={{ startAdornment: (<InputAdornment position="start"><Icon name="SearchNormal" size={20} color="#6C757D" variant="Outline" /></InputAdornment>) }} />
+              <SearchBox
+                fullWidth
+                placeholder={`Tìm ${type === 'vendor' ? 'nhóm NCC' : 'nhóm khách hàng'}...`}
+                value={query}
+                onChange={(e: any) => setQuery(e.target.value)}
+              />
             </Box>
 
             {isLoading ? (
@@ -147,10 +165,12 @@ const SubjectGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect,
         <SubjectGroupCreateScreen 
           open={createOpen} 
           onClose={() => setCreateOpen(false)} 
-          onCreate={(g) => { 
-            // Snackbar đã hiển thị trong CreateScreen rồi
-            // Chỉ cần đóng selection screen và set giá trị về form cha
-            setCreateOpen(false); 
+          onCreate={async (g) => { 
+            // Đóng create screen
+            setCreateOpen(false);
+            // Reload danh sách để hiển thị group mới
+            await loadGroups();
+            // Tự động chọn group vừa tạo và đóng selection screen
             onSelect(g.label); 
             onClose(); 
           }} 

@@ -17,7 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowBack } from '@mui/icons-material';
 import { ROUTES } from '../../config/constants';
 import RoundedTextField from '../../components/RoundedTextField';
-import ConfirmDialog from '../../components/ConfirmDialog';
+import AlertDialog from '../../components/AlertDialog';
 import SuccessSnackbar from '../../components/SuccessSnackbar';
 import SubjectGroupSelectionScreen from './SubjectGroupSelectionScreen';
 import BankSelectionScreen from './BankSelectionScreen';
@@ -42,6 +42,7 @@ const SupplierFormScreen = ({ embedded = false, onClose, onSaveSuccess }: Suppli
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isPerformingConfirmAction, setIsPerformingConfirmAction] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
@@ -729,17 +730,15 @@ const SupplierFormScreen = ({ embedded = false, onClose, onSaveSuccess }: Suppli
       </Box>
 
       {/* Confirm Dialog */}
-      <ConfirmDialog
+      <AlertDialog
+        variant="confirm"
         open={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
         title="Thay đổi chưa được lưu"
-        description="Bạn có muốn lưu thay đổi trước khi rời khỏi trang?"
-        cancelText="Hủy bỏ thay đổi"
-        confirmText="Lưu"
-        onCancel={handleConfirmLeave}
-        onConfirm={async () => {
-          await handleSave();
-          setShowConfirmDialog(false);
-        }}
+        description="Bạn có muốn thoát mà không lưu lại các thay đổi?"
+        cancelText="Huỷ"
+        confirmText="Đồng ý"
+        onConfirm={handleConfirmLeave}
       />
 
       {/* Success Snackbar */}

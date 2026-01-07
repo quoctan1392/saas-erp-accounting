@@ -18,11 +18,11 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 import type { EInvoiceProvider } from '../../types/onboarding';
-import PrimaryButton from '../../components/PrimaryButton';
+import AppButton from '../../components/AppButton';
 import OnboardingHeader from '../../components/OnboardingHeader';
 import RoundedTextField from '../../components/RoundedTextField';
 import welcomeBg from '../../assets/Welcome screen.png';
-import ConfirmDialog from '../../components/ConfirmDialog';
+import AlertDialog from '../../components/AlertDialog';
 import BottomSheet from '../../components/BottomSheet';
 import Icon from '../../components/Icon';
 
@@ -343,11 +343,11 @@ const AdvancedSetupScreen = () => {
       // Ensure any previous "seen" flag is cleared so the modal will display
       localStorage.removeItem('hasSeenSetupGuideModal');
 
-      const businessName = onboardingData.businessIdentification?.businessName || 'hệ thống';
+      const businessName = onboardingData.businessIdentification?.businessName || 'Symper One';
       setSnack({
         open: true,
         severity: 'success',
-        message: `Thiết lập hoàn tất! Chào mừng đến với ${businessName}`,
+        message: `Thiết lập hoàn tất! Chào mừng bạn đến với ${businessName}`,
       });
 
       setTimeout(() => {
@@ -358,7 +358,7 @@ const AdvancedSetupScreen = () => {
       setSnack({
         open: true,
         severity: 'error',
-        message: 'Có lỗi xảy ra khi lưu thiết lập. Vui lòng thử lại.',
+        message: 'Có lỗi xảy ra. Vui lòng thử lại.',
       });
     } finally {
       setIsSubmitting(false);
@@ -548,13 +548,13 @@ const AdvancedSetupScreen = () => {
 
               {/* Fixed button at bottom - Desktop */}
               <Box sx={{ display: { xs: 'none', sm: 'block' }, mt: 4 }}>
-                <PrimaryButton
+                <AppButton variantType="primary" fullWidth
                   onClick={handleSubmit}
                   loading={isSubmitting}
                   loadingText="Đang hoàn tất..."
                 >
                   Bắt đầu sử dụng
-                </PrimaryButton>
+                </AppButton>
               </Box>
             </>
           )}
@@ -578,9 +578,9 @@ const AdvancedSetupScreen = () => {
           minHeight: 'calc(80px + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        <Box sx={{ width: '100%', maxWidth: 'calc(100% - 32px)' }}>
+        <Box sx={{ width: '100%', maxWidth: '100%' }}>
           <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-            <PrimaryButton
+            <AppButton variantType="primary" fullWidth
               onClick={handleSubmit}
               loading={isSubmitting}
               loadingText="Đang hoàn tất..."
@@ -593,7 +593,7 @@ const AdvancedSetupScreen = () => {
               }}
             >
               Bắt đầu sử dụng
-            </PrimaryButton>
+            </AppButton>
           </Box>
         </Box>
       </Box>
@@ -852,26 +852,27 @@ const AdvancedSetupScreen = () => {
       </BottomSheet>
 
       {/* Disconnect Confirm Dialog */}
-      <ConfirmDialog
+      <AlertDialog
+        variant="confirm"
         open={showDisconnectDialog}
+        onClose={() => setShowDisconnectDialog(false)}
         title="Xác nhận ngắt kết nối"
         description="Bạn có chắc muốn ngắt kết nối với đơn vị phát hành hoá đơn điện tử? Bạn có thể thiết lập lại sau trong phần Cài đặt."
         cancelText="Hủy"
         confirmText="Ngắt kết nối"
         confirmColor="error"
-        onCancel={() => setShowDisconnectDialog(false)}
         onConfirm={handleConfirmDisconnect}
       />
 
       {/* Leave Confirm Dialog */}
-      <ConfirmDialog
+      <AlertDialog
+        variant="confirm"
         open={showConfirmDialog}
-        title="Xác nhận rời trang"
-        description="Thông tin kết nối chưa được lưu. Nếu bạn rời trang, các thay đổi sẽ bị mất. Bạn có chắc muốn thoát?"
-        cancelText="Hủy"
-        confirmText="Rời đi"
-        confirmColor="error"
-        onCancel={handleCancelLeave}
+        onClose={handleCancelLeave}
+        title="Thay đổi chưa được lưu"
+        description="Bạn có muốn thoát mà không lưu lại các thay đổi?"
+        cancelText="Huỷ"
+        confirmText="Đồng ý"
         onConfirm={handleConfirmLeave}
       />
 

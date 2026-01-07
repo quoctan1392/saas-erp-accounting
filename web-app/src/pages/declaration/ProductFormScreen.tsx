@@ -7,7 +7,7 @@ import { ROUTES } from '../../config/constants';
 import { ArrowBack } from '@mui/icons-material';
 import RoundedTextField from '../../components/RoundedTextField';
 import BottomSheet from '../../components/BottomSheet';
-import ConfirmDialog from '../../components/ConfirmDialog';
+import AlertDialog from '../../components/AlertDialog';
 import SuccessSnackbar from '../../components/SuccessSnackbar';
 import ProductGroupSelectionScreen from './ProductGroupSelectionScreen';
 import UnitSelectionScreen from './UnitSelectionScreen';
@@ -33,6 +33,7 @@ const ProductFormScreen = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
+  const [isPerformingConfirmAction, setIsPerformingConfirmAction] = useState(false);
   const ANIM_MS = 280;
 
   // Form state
@@ -1092,17 +1093,15 @@ const ProductFormScreen = () => {
           )}
         </Box>
       </BottomSheet>
-      <ConfirmDialog
+      <AlertDialog
+        variant="confirm"
         open={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
         title="Thay đổi chưa được lưu"
-        description="Bạn có muốn lưu thay đổi trước khi rời khỏi trang?"
-        cancelText="Hủy thay đổi"
-        confirmText="Lưu"
-        onCancel={handleConfirmLeave}
-        onConfirm={async () => {
-          await handleSave();
-          setShowConfirmDialog(false);
-        }}
+        description="Bạn có muốn thoát mà không lưu lại các thay đổi?"
+        cancelText="Huỷ"
+        confirmText="Đồng ý"
+        onConfirm={handleConfirmLeave}
       />
 
       {/* Success Snackbar */}

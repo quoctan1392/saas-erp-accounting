@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 import mascotImage from '../../assets/Mascot 1.png';
 import welcomeBg from '../../assets/Welcome screen.png';
-import PrimaryButton from '../../components/PrimaryButton';
+import AppButton from '../../components/AppButton';
 
 const WelcomeScreen = () => {
   const navigate = useNavigate();
@@ -98,10 +98,10 @@ const WelcomeScreen = () => {
 
           {/* Desktop / tablet: in-flow CTA */}
           <Box sx={{ display: { xs: 'none', sm: 'flex' }, position: 'relative', justifyContent: 'center' }}>
-            <Box sx={{ width: { xs: '100%', sm: 'auto' }, maxWidth: { xs: 'calc(100% - 24px)', sm: '480px' } }}>
-              <PrimaryButton onClick={handleGetStarted} sx={{ height: 48, borderRadius: '100px' }}>
+            <Box sx={{ width: '100%', maxWidth: { xs: 'calc(100% - 24px)', sm: '480px' } }}>
+              <AppButton variantType="primary" fullWidth onClick={handleGetStarted} sx={{ height: 48, borderRadius: '100px', width: '100%' }}>
                 Bắt đầu thiết lập
-              </PrimaryButton>
+              </AppButton>
             </Box>
           </Box>
         </Box>
@@ -124,23 +124,25 @@ const WelcomeScreen = () => {
           boxShadow: '0 -8px 16px rgba(0,0,0,0.12)',
         }}
       >
-        <Box sx={{ width: '100%', maxWidth: 'calc(100% - 32px)' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-            <PrimaryButton
-              onClick={handleGetStarted}
-              disabled={false}
-              loading={false}
-              sx={{
-                height: 56,
-                borderRadius: '100px',
-                backgroundColor: '#FB7E00',
-                '&:hover': { backgroundColor: '#C96400' },
-                boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
-              }}
-            >
-              Bắt đầu thiết lập
-            </PrimaryButton>
-          </Box>
+        <Box sx={{ width: '100%', maxWidth: 'calc(100%)' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+              <AppButton variantType="primary"
+                fullWidth
+                onClick={handleGetStarted}
+                disabled={false}
+                loading={false}
+                sx={{
+                  height: 56,
+                  fontWeight: 500,
+                  borderRadius: '100px',
+                  backgroundColor: '#FB7E00',
+                  '&:hover': { backgroundColor: '#C96400' },
+                  boxShadow: 'none',
+                }}
+              >
+                Bắt đầu thiết lập
+              </AppButton>
+            </Box>
         </Box>
       </Box>
     </Box>

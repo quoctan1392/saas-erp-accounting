@@ -11,9 +11,10 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../config/constants';
 import { ArrowBack } from '@mui/icons-material';
 import RoundedTextField from '../../../components/RoundedTextField';
-import ConfirmDialog from '../../../components/ConfirmDialog';
+import AlertDialog from '../../../components/AlertDialog';
 import SuccessSnackbar from '../../../components/SuccessSnackbar';
 import CustomStepper from '../../../components/CustomStepper';
+import AppButton from '../../../components/AppButton';
 import CustomerSelectionScreen from './CustomerSelectionScreen';
 import headerDay from '../../../assets/Header_day.png';
 import * as Iconsax from 'iconsax-react';
@@ -50,7 +51,7 @@ interface Customer {
   idNumber?: string;
 }
 
-const InitialBalanceStep2Screen = () => {
+const InitialBalanceStep2Screen = ({ embedded = false }: { embedded?: boolean }) => {
   const navigate = useNavigate();
   const [exiting, setExiting] = useState(true);
   const [showSkipDialog, setShowSkipDialog] = useState(false);
@@ -280,8 +281,8 @@ const InitialBalanceStep2Screen = () => {
         backgroundColor: '#FFFFFF',
         position: 'relative',
         pt: 0,
-        transform: exiting ? 'translateX(100%)' : 'translateX(0)',
-        transition: `transform ${ANIM_MS}ms ease`,
+        transform: embedded ? undefined : exiting ? 'translateX(100%)' : 'translateX(0)',
+        transition: embedded ? undefined : `transform ${ANIM_MS}ms ease`,
       }}
     >
       {/* Top decorative image */}
@@ -403,26 +404,23 @@ const InitialBalanceStep2Screen = () => {
                         sx={{
                           fontSize: '16px',
                           fontWeight: 500,
-                          <Button
-                            fullWidth
-                            variant="contained"
-                            onClick={handleContinue}
-                            endIcon={<Icon name="ArrowRight" size={20} color="#FFFFFF" variant="Outline" />}
-                            sx={{
-                              bgcolor: '#FB7E00',
-                              borderRadius: '100px',
-                              height: 56,
-                              fontSize: '16px',
-                              color: '#FFFFFF',
-                              fontWeight: 600,
-                              textTransform: 'none',
-                              boxShadow: 'none',
-                              '&:hover': { bgcolor: '#E67000', boxShadow: 'none' },
-                              '&:disabled': { bgcolor: '#E9ECEF', color: '#ADB5BD' },
-                            }}
-                          >
-                            Tiếp tục
-                          </Button>
+                          color: '#212529',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {debt.customerName}
+                      </Typography>
+                      <Typography sx={{ fontSize: '14px', color: '#6C757D' }}>
+                        {debt.customerCode}
+                      </Typography>
+                      <Typography sx={{ fontSize: '14px', fontWeight: 500, color: '#1976D2' }}>
+                        {formatNumber(debt.amount)} VND
+                      </Typography>
+
+                      </Box>
+
                     {/* Actions */}
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <IconButton
@@ -498,26 +496,19 @@ const InitialBalanceStep2Screen = () => {
           zIndex: 30,
         }}
       >
-        <Container maxWidth="sm">
-          <Button
-            fullWidth
-            variant="text"
-            onClick={handleContinue}
-            endIcon={<Icon name="ArrowRight" size={20} color="#FFFFFF" variant="Outline" />}
-            sx={{
-              bgcolor: '#FB7E00',
-              borderRadius: '100px',
-              height: 48,
-              fontSize: '16px',
-              color: '#FFFFFF',
-              fontWeight: 600,
-              textTransform: 'none',
-              '&:hover': { bgcolor: '#E67000' },
-            }}
-          >
-            Tiếp tục
-          </Button>
-        </Container>
+        <Box sx={{ width: '100%', maxWidth: 'calc(100%)' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+            <AppButton
+              variantType="primary"
+              fullWidth
+              onClick={handleContinue}
+              endIcon={<Icon name="ArrowRight" size={20} color="#FFFFFF" variant="Outline" />}
+              sx={{ width: '100%' }}
+            >
+              Tiếp tục
+            </AppButton>
+          </Box>
+        </Box>
       </Box>
 
       {/* Debt Form (Slide-in Panel) */}
@@ -665,26 +656,28 @@ const InitialBalanceStep2Screen = () => {
       />
 
       {/* Skip Confirm Dialog */}
-      <ConfirmDialog
+      <AlertDialog
+        variant="confirm"
         open={showSkipDialog}
+        onClose={() => setShowSkipDialog(false)}
         title="Bỏ qua khai báo số dư?"
         description="Dữ liệu đã nhập ở các bước trước sẽ được lưu. Bạn có thể quay lại khai báo sau trong phần Cài đặt."
         confirmText="Bỏ qua"
         cancelText="Tiếp tục khai báo"
         onConfirm={handleSkipConfirm}
-        onCancel={() => setShowSkipDialog(false)}
       />
 
       {/* Delete Confirm Dialog */}
-      <ConfirmDialog
+      <AlertDialog
+        variant="confirm"
         open={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
         title="Xác nhận xóa công nợ?"
         description="Bạn chắc chắn muốn xóa công nợ này. Thao tác này không thể khôi phục."
         confirmText="Đồng ý"
         cancelText="Hủy"
-        confirmColor="#DC3545"
+        confirmColor="error"
         onConfirm={handleDeleteConfirm}
-        onCancel={() => setShowDeleteDialog(false)}
       />
 
       {/* Success Snackbar */}

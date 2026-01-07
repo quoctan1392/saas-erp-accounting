@@ -263,6 +263,60 @@ class ApiService {
     const response = await this.coreApi.post('/api/warehouses', data);
     return response.data;
   }
+
+  async getNextWarehouseCode() {
+    const response = await this.coreApi.get('/api/warehouses/next-code');
+    // handle wrapped response { success, data: { code } }
+    if (response?.data) {
+      if (response.data.data && typeof response.data.data.code === 'string') return response.data.data.code;
+      if (typeof response.data.code === 'string') return response.data.code;
+      if (typeof response.data === 'string') return response.data;
+      return response.data.data || response.data;
+    }
+    return undefined as unknown as string;
+  }
+
+  // Subject Groups
+  async createSubjectGroup(data: { code: string; name: string; type: 'customer' | 'vendor' | 'both'; description?: string }) {
+    const response = await this.coreApi.post('/api/subject-groups', data);
+    // Backend wraps response in { success, data, timestamp }
+    return response.data.data || response.data;
+  }
+
+  async getSubjectGroups() {
+    const response = await this.coreApi.get('/api/subject-groups');
+    // Backend wraps response in { success, data, timestamp }
+    return response.data.data || response.data;
+  }
+
+  // Items / Item Categories
+  async getNextItemCode() {
+    const response = await this.coreApi.get('/api/items/next-code');
+    if (response?.data) {
+      if (response.data.data && typeof response.data.data.code === 'string') return response.data.data.code;
+      if (typeof response.data.code === 'string') return response.data.code;
+      if (typeof response.data === 'string') return response.data;
+      return response.data.data || response.data;
+    }
+    return undefined as unknown as string;
+  }
+
+  async getItemCategories() {
+    const response = await this.coreApi.get('/api/item-categories');
+    return response.data.data || response.data;
+  }
+
+  async createItemCategory(data: { code: string; name: string; description?: string }) {
+    const response = await this.coreApi.post('/api/item-categories', data);
+    return response.data.data || response.data;
+  }
+
+  // Declaration Counts
+  async getDeclarationCounts() {
+    const response = await this.coreApi.get('/api/declaration/counts');
+    // Backend wraps response in { success, data, timestamp }
+    return response.data.data || response.data;
+  }
 }
 
 export const apiService = new ApiService();
