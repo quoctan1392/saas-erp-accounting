@@ -397,8 +397,8 @@ const InitialBalanceStep2Screen = () => {
                       borderRadius: '12px',
                     }}
                   >
-                    {/* Customer Info: name / code / amount stacked */}
-                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0 }}>
+                    {/* Customer Info: name / code / amount stacked (name should take remaining width) */}
+                    <Box sx={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
                       <Typography
                         sx={{
                           fontSize: '16px',
@@ -407,11 +407,13 @@ const InitialBalanceStep2Screen = () => {
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
+                          display: 'block',
+                          maxWidth: '100%',
                         }}
                       >
                         {debt.customerName}
                       </Typography>
-                      <Typography sx={{ fontSize: '12px', color: '#6C757D', mb: 0.5 }}>
+                      <Typography sx={{ fontSize: '12px', color: '#6C757D', mb: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {debt.customerCode}
                       </Typography>
                       <Typography sx={{ fontSize: '14px', fontWeight: 500, color: '#1976D2' }}>
