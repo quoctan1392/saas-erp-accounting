@@ -516,27 +516,28 @@ const InitialBalanceStep3Screen = () => {
           zIndex: 30,
         }}
       >
-        <Container maxWidth="sm">
-          <Button
-            fullWidth
-            variant="text"
-            onClick={handleComplete}
-            disabled={isSubmitting}
-            sx={{
-              bgcolor: '#FB7C00',
-              borderRadius: '100px',
-              height: 48,
-              color: '#FFFFFF',
-              fontSize: '16px',
-              fontWeight: 500,
-              textTransform: 'none',
-              '&:hover': { bgcolor: '#E67E22' },
-              '&:disabled': { bgcolor: '#6C757D' },
-            }}
-          >
-            {isSubmitting ? 'Đang xử lý...' : 'Bắt đầu sử dụng'}
-          </Button>
-        </Container>
+          <Container maxWidth="sm">
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={handleComplete}
+              disabled={isSubmitting}
+              sx={{
+                bgcolor: '#FB7E00',
+                borderRadius: '100px',
+                height: 56,
+                color: '#FFFFFF',
+                fontSize: '16px',
+                fontWeight: 600,
+                textTransform: 'none',
+                boxShadow: 'none',
+                '&:hover': { bgcolor: '#E67000', boxShadow: 'none' },
+                '&:disabled': { bgcolor: '#E9ECEF', color: '#ADB5BD' },
+              }}
+            >
+              {isSubmitting ? 'Đang xử lý...' : 'Bắt đầu sử dụng'}
+            </Button>
+          </Container>
       </Box>
 
       {/* Debt Form (Slide-in Panel) */}

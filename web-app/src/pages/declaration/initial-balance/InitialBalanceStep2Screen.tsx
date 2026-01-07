@@ -403,24 +403,26 @@ const InitialBalanceStep2Screen = () => {
                         sx={{
                           fontSize: '16px',
                           fontWeight: 500,
-                          color: '#212529',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          display: 'block',
-                          maxWidth: '100%',
-                        }}
-                      >
-                        {debt.customerName}
-                      </Typography>
-                      <Typography sx={{ fontSize: '12px', color: '#6C757D', mb: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {debt.customerCode}
-                      </Typography>
-                      <Typography sx={{ fontSize: '14px', fontWeight: 500, color: '#1976D2' }}>
-                        {formatNumber(debt.amount)} ₫
-                      </Typography>
-                    </Box>
-
+                          <Button
+                            fullWidth
+                            variant="contained"
+                            onClick={handleContinue}
+                            endIcon={<Icon name="ArrowRight" size={20} color="#FFFFFF" variant="Outline" />}
+                            sx={{
+                              bgcolor: '#FB7E00',
+                              borderRadius: '100px',
+                              height: 56,
+                              fontSize: '16px',
+                              color: '#FFFFFF',
+                              fontWeight: 600,
+                              textTransform: 'none',
+                              boxShadow: 'none',
+                              '&:hover': { bgcolor: '#E67000', boxShadow: 'none' },
+                              '&:disabled': { bgcolor: '#E9ECEF', color: '#ADB5BD' },
+                            }}
+                          >
+                            Tiếp tục
+                          </Button>
                     {/* Actions */}
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <IconButton
