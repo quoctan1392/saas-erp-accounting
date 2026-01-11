@@ -55,6 +55,7 @@ const StepTransition = ({ children, stepKey, direction = 'forward' }: StepTransi
           transition: 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
           willChange: 'transform',
         }}
+        key={displayedStep}
       >
         {children}
       </Box>

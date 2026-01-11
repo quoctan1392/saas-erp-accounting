@@ -4,6 +4,7 @@ import { ROUTES } from '../../config/constants';
 import mascotImage from '../../assets/Mascot 1.png';
 import welcomeBg from '../../assets/Welcome screen.png';
 import AppButton from '../../components/AppButton';
+import { useEffect } from 'react';
 
 const WelcomeScreen = () => {
   const navigate = useNavigate();
@@ -11,6 +12,16 @@ const WelcomeScreen = () => {
   const handleGetStarted = () => {
     navigate(ROUTES.ONBOARDING_BUSINESS_TYPE);
   };
+
+  // Prefetch the BusinessTypeScreen chunk to avoid delay when navigating
+  const prefetchBusinessType = () => {
+    // Dynamic import to warm up the code-split chunk
+    import('./BusinessTypeScreen').catch(() => {});
+  };
+
+  useEffect(() => {
+    prefetchBusinessType();
+  }, []);
 
   return (
     <Box
@@ -99,7 +110,14 @@ const WelcomeScreen = () => {
           {/* Desktop / tablet: in-flow CTA */}
           <Box sx={{ display: { xs: 'none', sm: 'flex' }, position: 'relative', justifyContent: 'center' }}>
             <Box sx={{ width: '100%', maxWidth: { xs: 'calc(100% - 24px)', sm: '480px' } }}>
-              <AppButton variantType="primary" fullWidth onClick={handleGetStarted} sx={{ height: 48, borderRadius: '100px', width: '100%' }}>
+              <AppButton
+                variantType="primary"
+                fullWidth
+                onClick={handleGetStarted}
+                onMouseEnter={prefetchBusinessType}
+                onFocus={prefetchBusinessType}
+                sx={{ height: 48, borderRadius: '100px', width: '100%' }}
+              >
                 Bắt đầu thiết lập
               </AppButton>
             </Box>
@@ -126,9 +144,12 @@ const WelcomeScreen = () => {
       >
         <Box sx={{ width: '100%', maxWidth: 'calc(100%)' }}>
             <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-              <AppButton variantType="primary"
+              <AppButton
+                variantType="primary"
                 fullWidth
                 onClick={handleGetStarted}
+                onMouseEnter={prefetchBusinessType}
+                onFocus={prefetchBusinessType}
                 disabled={false}
                 loading={false}
                 sx={{

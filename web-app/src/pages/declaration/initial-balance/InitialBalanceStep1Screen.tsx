@@ -1004,7 +1004,7 @@ const InitialBalanceStep1Screen = ({ embedded = false }: { embedded?: boolean })
                               (a.accountHolder || '').toLowerCase().includes(q)
                             );
                           })
-                          .map((account, idx, arr) => (
+                          .map((account, _idx, _arr) => (
                             <Box
                               key={account.id}
                               onClick={() => handleSelectBankAccount(account)}

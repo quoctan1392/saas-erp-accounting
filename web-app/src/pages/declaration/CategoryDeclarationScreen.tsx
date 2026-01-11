@@ -265,8 +265,9 @@ const CategoryDeclarationScreen = () => {
                 color: '#FB7E00',
                 py: 1.5,
                 height: 48,
+                bgcolor: '#transparent',
                 '&:hover': {
-                  bgcolor: '#FFF4E6',
+                  bgcolor: '#transparent',
                 },
               }}
             >
@@ -349,9 +350,9 @@ const CategoryDeclarationScreen = () => {
             fontWeight: 500,
             color: '#090909',
             height: 56,
+            bgcolor: '#transparent',
             '&:hover': {
-              borderColor: '#E65A2E',
-              bgcolor: '#FFF4E6',
+              bgcolor: '#transparent',
             },
           }}
         >

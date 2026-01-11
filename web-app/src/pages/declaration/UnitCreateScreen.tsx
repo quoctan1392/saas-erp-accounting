@@ -37,8 +37,6 @@ const UnitCreateScreen: React.FC<Props> = ({ open, onClose, onCreate }) => {
       const savedUnit = await apiService.createUnit({
         code: unitCode,
         name: name.trim(),
-        isBaseUnit: true,
-        conversionRate: 1,
       });
       
       console.log('Unit saved successfully:', savedUnit);

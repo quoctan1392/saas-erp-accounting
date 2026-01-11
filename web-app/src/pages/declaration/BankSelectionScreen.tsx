@@ -1,15 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, IconButton, Divider } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
-import * as Iconsax from 'iconsax-react';
 import headerDay from '../../assets/Header_day.png';
 import SearchBox from '../../components/SearchBox';
-
-const Icon = ({ name, size = 20, color = 'currentColor', variant = 'Outline' }: any) => {
-  const Comp = (Iconsax as any)[name];
-  if (!Comp) return null;
-  return <Comp size={size} color={color} variant={variant} />;
-};
 
 interface Bank {
   code: string;

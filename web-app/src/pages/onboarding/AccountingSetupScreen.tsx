@@ -33,6 +33,7 @@ import AlertDialog from '../../components/AlertDialog';
 import Icon from '../../components/Icon';
 import TaxIndustryGroupSelector from '../../components/TaxIndustryGroupSelector';
 import taxIndustryGroups from '../../data/taxIndustryGroups';
+import DatePickerBottomSheet from '../../components/DatePickerBottomSheet';
 
 const AccountingSetupScreen = () => {
   const navigate = useNavigate();
@@ -78,6 +79,18 @@ const AccountingSetupScreen = () => {
     }
   };
 
+  const shouldUseBottomSheet = () => {
+    if (typeof window === 'undefined') return false;
+    try {
+      // Prefer bottom sheet on touch-capable devices or small viewports
+      const hasTouch = (navigator as any)?.maxTouchPoints > 0 || 'ontouchstart' in window;
+      const smallViewport = window.innerWidth <= 768;
+      return hasTouch || smallViewport;
+    } catch (err) {
+      return false;
+    }
+  };
+
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [snack, setSnack] = useState<{
     open: boolean;
@@ -97,6 +110,7 @@ const AccountingSetupScreen = () => {
   const [usePOSDevice, setUsePOSDevice] = useState<boolean>(false);
   const [taxIndustryGroup, setTaxIndustryGroup] = useState<string>('');
   const [showTaxIndustryModal, setShowTaxIndustryModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Form state for DNTN
   const [accountingRegimeDNTN, setAccountingRegimeDNTN] = useState<AccountingRegime>(
@@ -309,7 +323,7 @@ const AccountingSetupScreen = () => {
       setSnack({
         open: true,
         severity: 'success',
-        message: 'Thiết lập thành công! Đang chuyển sang bước tiếp theo...',
+        message: 'Thiết lập dữ liệu kế toán thành công!',
       });
 
       setTimeout(() => {
@@ -473,7 +487,14 @@ const AccountingSetupScreen = () => {
                           '& .MuiOutlinedInput-input': { textAlign: 'left', paddingLeft: 0 },
                           cursor: 'pointer'
                         }}
-                        onClick={(e) => openNativeDatePicker(hkNativeDateRef, e)}
+                        onClick={(e) => {
+                          e?.stopPropagation();
+                          if (shouldUseBottomSheet()) {
+                            setShowDatePicker(true);
+                          } else {
+                            openNativeDatePicker(hkNativeDateRef, e);
+                          }
+                        }}
                         InputProps={{
                           endAdornment: (
                             <InputAdornment position="end">
@@ -481,11 +502,15 @@ const AccountingSetupScreen = () => {
                                 onMouseDown={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  openNativeDatePicker(hkNativeDateRef, e);
+                                  if (shouldUseBottomSheet()) {
+                                    setShowDatePicker(true);
+                                  } else {
+                                    openNativeDatePicker(hkNativeDateRef, e);
+                                  }
                                 }}
                                 sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                               >
-                                <Icon name="Calendar" size={20} color="#4E4E4E" variant="Outline" />
+                                <Icon name="Calendar1" size={20} color="#4E4E4E" variant="Outline" />
                               </Box>
                             </InputAdornment>
                           ),
@@ -690,7 +715,14 @@ const AccountingSetupScreen = () => {
                           '& .MuiOutlinedInput-input': { textAlign: 'left', paddingLeft: 0 },
                           cursor: 'pointer'
                         }}
-                        onClick={(e) => openNativeDatePicker(dntnNativeDateRef, e)}
+                        onClick={(e) => {
+                          e?.stopPropagation();
+                          if (shouldUseBottomSheet()) {
+                            setShowDatePicker(true);
+                          } else {
+                            openNativeDatePicker(dntnNativeDateRef, e);
+                          }
+                        }}
                         InputProps={{
                           endAdornment: (
                             <InputAdornment position="end">
@@ -698,7 +730,11 @@ const AccountingSetupScreen = () => {
                                 onMouseDown={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  openNativeDatePicker(dntnNativeDateRef, e);
+                                  if (shouldUseBottomSheet()) {
+                                    setShowDatePicker(true);
+                                  } else {
+                                    openNativeDatePicker(dntnNativeDateRef, e);
+                                  }
                                 }}
                                 sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                               >
@@ -981,6 +1017,17 @@ const AccountingSetupScreen = () => {
         onClose={() => setShowTaxIndustryModal(false)}
         value={taxIndustryGroup}
         onChange={(code) => setTaxIndustryGroup(code)}
+      />
+
+      <DatePickerBottomSheet
+        open={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        initial={dataStartDate ? new Date(dataStartDate) : new Date(new Date().getFullYear(), 0, 1)}
+        onConfirm={(d) => {
+          const iso = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString().split('T')[0];
+          setDataStartDate(iso);
+          setShowDatePicker(false);
+        }}
       />
     </Box>
   );

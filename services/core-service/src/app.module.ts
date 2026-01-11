@@ -31,6 +31,8 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
 import { DeclarationModule } from './modules/declaration/declaration.module';
 import { OpeningBalanceModule } from './modules/opening-balance/opening-balance.module';
+import { IndustriesModule } from './modules/industries/industries.module';
+import { TaxIndustryGroupsModule } from './modules/tax-industry-groups/tax-industry-groups.module';
 // import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
@@ -102,6 +104,8 @@ import { OpeningBalanceModule } from './modules/opening-balance/opening-balance.
     BankAccountsModule,
     DeclarationModule,
     OpeningBalanceModule,
+    IndustriesModule,
+    TaxIndustryGroupsModule,
     // ReportsModule,
   ],
   providers: [

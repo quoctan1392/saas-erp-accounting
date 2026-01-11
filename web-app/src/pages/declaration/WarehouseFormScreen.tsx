@@ -26,7 +26,7 @@ const WarehouseFormScreen = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
-  const [isPerformingConfirmAction, setIsPerformingConfirmAction] = useState(false);
+  const [_isPerformingConfirmAction, _setIsPerformingConfirmAction] = useState(false);
 
   // Form state
   const [code, setCode] = useState('');

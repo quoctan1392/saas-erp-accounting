@@ -162,18 +162,18 @@ const SubjectGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect,
           </Box>
         </Box>
 
-        <SubjectGroupCreateScreen 
-          open={createOpen} 
-          onClose={() => setCreateOpen(false)} 
-          onCreate={async (g) => { 
-            // Đóng create screen
+        <SubjectGroupCreateScreen
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onCreate={async (g) => {
+            // Close create screen
             setCreateOpen(false);
-            // Reload danh sách để hiển thị group mới
+            // Reload list so the new group appears
             await loadGroups();
-            // Tự động chọn group vừa tạo và đóng selection screen
-            onSelect(g.label); 
-            onClose(); 
-          }} 
+            // Immediately select the newly created group and close selection
+            onSelect(g.label);
+            onClose();
+          }}
           type={type}
         />
       </Box>

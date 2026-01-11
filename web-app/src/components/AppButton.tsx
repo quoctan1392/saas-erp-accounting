@@ -9,6 +9,8 @@ interface Props {
   variantType?: VariantType;
   fullWidth?: boolean;
   onClick?: (e: any) => void;
+  onMouseEnter?: React.MouseEventHandler<HTMLButtonElement>;
+  onFocus?: React.FocusEventHandler<HTMLButtonElement>;
   disabled?: boolean;
   loading?: boolean;
   loadingText?: string;
@@ -23,6 +25,8 @@ const AppButton: React.FC<Props> = ({
   variantType = 'primary',
   fullWidth = false,
   onClick,
+  onMouseEnter,
+  onFocus,
   disabled = false,
   loading = false,
   loadingText,
@@ -47,6 +51,8 @@ const AppButton: React.FC<Props> = ({
       <Button
         variant="contained"
         onClick={onClick}
+          onMouseEnter={onMouseEnter}
+          onFocus={onFocus}
         disabled={isDisabled}
         fullWidth={fullWidth}
         type={type}
@@ -78,6 +84,8 @@ const AppButton: React.FC<Props> = ({
       <Button
         variant="outlined"
         onClick={onClick}
+        onMouseEnter={onMouseEnter}
+        onFocus={onFocus}
         disabled={isDisabled}
         fullWidth={fullWidth}
         type={type}
@@ -109,6 +117,8 @@ const AppButton: React.FC<Props> = ({
     <Button
       variant="text"
       onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onFocus={onFocus}
       disabled={isDisabled}
       fullWidth={fullWidth}
       type={type}

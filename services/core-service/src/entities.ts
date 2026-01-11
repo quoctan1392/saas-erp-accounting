@@ -43,3 +43,7 @@ export { BankAccount } from './modules/bank-accounts/entities/bank-account.entit
 export { OpeningPeriod } from './modules/opening-balance/entities/opening-period.entity';
 export { OpeningBalance } from './modules/opening-balance/entities/opening-balance.entity';
 export { OpeningBalanceDetail } from './modules/opening-balance/entities/opening-balance-detail.entity';
+
+// Industries
+export { Industry } from './modules/industries/entities/industry.entity';
+export { TaxIndustryGroup } from './modules/tax-industry-groups/entities/tax-industry-group.entity';

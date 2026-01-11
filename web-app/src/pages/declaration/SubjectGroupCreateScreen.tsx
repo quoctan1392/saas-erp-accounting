@@ -9,7 +9,7 @@ import headerDay from '../../assets/Header_day.png';
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreate: (group: { value: string; label: string }) => void;
+  onCreate: (group: { value: string | number; label: string }) => void;
   type?: 'customer' | 'vendor' | 'both';
 }
 
@@ -47,6 +47,7 @@ const SubjectGroupCreateScreen: React.FC<Props> = ({ open, onClose, onCreate, ty
         name: name.trim(),
         type: groupType,
         description: description.trim() || undefined,
+        isActive,
       });
       
       // Call API to save subject group to database
@@ -55,15 +56,30 @@ const SubjectGroupCreateScreen: React.FC<Props> = ({ open, onClose, onCreate, ty
         name: name.trim(),
         type: groupType,
         description: description.trim() || undefined,
+        isActive,
       });
-      
+
       console.log('[SubjectGroupCreate] Subject group saved successfully:', savedGroup);
-      
-      const group = { 
-        value: savedGroup.id || savedGroup.code || groupCode, 
-        label: savedGroup.name || name.trim() 
+
+      // Defensive extraction of id/code/name in case API returns unexpected shapes
+      let value: string | number = groupCode;
+      let label: string = name.trim();
+
+      if (savedGroup && typeof savedGroup === 'object') {
+        if (savedGroup.id) value = savedGroup.id;
+        else if (savedGroup.code) value = savedGroup.code;
+
+        if (savedGroup.name) label = savedGroup.name;
+        else if (savedGroup.label) label = savedGroup.label;
+      } else if (typeof savedGroup === 'string' || typeof savedGroup === 'number') {
+        value = savedGroup as any;
+      }
+
+      const group = {
+        value,
+        label,
       };
-      
+
       console.log('[SubjectGroupCreate] Formatted group to return:', group);
       
       setIsLoading(false);

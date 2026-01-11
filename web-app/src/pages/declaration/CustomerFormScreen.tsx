@@ -29,11 +29,17 @@ const Icon = ({ name, size = 24, color = 'currentColor', variant = 'Outline' }: 
   return <Comp size={size} color={color} variant={variant} />;
 };
 
-const CustomerFormScreen = () => {
+interface Props {
+  embedded?: boolean;
+  onClose?: () => void;
+  onSaveSuccess?: (newCustomer: any) => void;
+}
+
+const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSaveSuccess }) => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [isPerformingConfirmAction, setIsPerformingConfirmAction] = useState(false);
+  const [_isPerformingConfirmAction, _setIsPerformingConfirmAction] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [exiting, setExiting] = useState(false);
   const ANIM_MS = 280;
@@ -70,10 +76,10 @@ const CustomerFormScreen = () => {
   const [nestedSubjectCreateOpen, setNestedSubjectCreateOpen] = useState(false);
   const showActionButtons = !customerGroupScreenOpen && !bankSelectionOpen && !nestedSubjectCreateOpen;
 
-  // Expandable sections
-  const [isContactExpanded, setIsContactExpanded] = useState(false);
-  const [isEInvoiceExpanded, setIsEInvoiceExpanded] = useState(false);
-  const [isBankExpanded, setIsBankExpanded] = useState(false);
+  // Expandable sections (auto-open on form load)
+  const [isContactExpanded, setIsContactExpanded] = useState(true);
+  const [isEInvoiceExpanded, setIsEInvoiceExpanded] = useState(true);
+  const [isBankExpanded, setIsBankExpanded] = useState(true);
   // Error dialog state
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [errorDialogMessage, setErrorDialogMessage] = useState('');
@@ -125,14 +131,20 @@ const CustomerFormScreen = () => {
       setShowConfirmDialog(true);
     } else {
       setExiting(true);
-      setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), ANIM_MS);
+      setTimeout(() => {
+        if (embedded && typeof onClose === 'function') onClose();
+        else navigate(ROUTES.DECLARATION_CATEGORIES);
+      }, ANIM_MS);
     }
   };
 
   const handleConfirmLeave = () => {
     setShowConfirmDialog(false);
     setExiting(true);
-    setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), ANIM_MS);
+    setTimeout(() => {
+      if (embedded && typeof onClose === 'function') onClose();
+      else navigate(ROUTES.DECLARATION_CATEGORIES);
+    }, ANIM_MS);
   };
 
   const handleTaxLookup = async () => {
@@ -164,7 +176,12 @@ const CustomerFormScreen = () => {
       console.log('Customer saved successfully:', result);
 
       setHasChanges(false);
-      navigate(ROUTES.DECLARATION_CATEGORIES);
+      if (embedded) {
+        if (typeof onSaveSuccess === 'function') onSaveSuccess(result);
+        if (typeof onClose === 'function') onClose();
+      } else {
+        navigate(ROUTES.DECLARATION_CATEGORIES);
+      }
     } catch (error: any) {
       console.error('Error saving customer:', error);
       const message =
@@ -223,6 +240,14 @@ const CustomerFormScreen = () => {
         const nextNumber = currentNumber + 1;
         const paddingLength = nextNumber > 9999 ? nextNumber.toString().length : 4;
         setCode(`KH${nextNumber.toString().padStart(paddingLength, '0')}`);
+      }
+      // Notify parent if embedded
+      if (embedded && typeof onSaveSuccess === 'function') {
+        try {
+          onSaveSuccess(result);
+        } catch (err) {
+          console.warn('onSaveSuccess callback threw', err);
+        }
       }
 
       setTaxCode('');
@@ -331,7 +356,7 @@ const CustomerFormScreen = () => {
                 fontWeight: 500,
               }}
             >
-              Thêm khách hàng
+              Thêm mới khách hàng
             </Typography>
           </Box>
         </Box>
@@ -515,20 +540,20 @@ const CustomerFormScreen = () => {
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1,
+                  justifyContent: 'space-between',
                   cursor: 'pointer',
                   py: 1,
                 }}
               >
+                <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#212529' }}>
+                  Người liên hệ
+                </Typography>
                 <Icon
                   name={isContactExpanded ? 'ArrowDown2' : 'ArrowRight2'}
                   size={20}
                   color="#6C757D"
                   variant="Outline"
                 />
-                <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#212529' }}>
-                  Người liên hệ
-                </Typography>
               </Box>
 
               {isContactExpanded && (
@@ -571,20 +596,20 @@ const CustomerFormScreen = () => {
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 1,
+                    justifyContent: 'space-between',
                     cursor: 'pointer',
                     py: 1,
                   }}
                 >
+                  <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#212529' }}>
+                    Người nhận hoá đơn điện tử
+                  </Typography>
                   <Icon
                     name={isEInvoiceExpanded ? 'ArrowDown2' : 'ArrowRight2'}
                     size={20}
                     color="#6C757D"
                     variant="Outline"
                   />
-                  <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#212529' }}>
-                    Người nhận hoá đơn điện tử
-                  </Typography>
                 </Box>
 
                 {isEInvoiceExpanded && (
@@ -627,20 +652,20 @@ const CustomerFormScreen = () => {
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 1,
+                    justifyContent: 'space-between',
                     cursor: 'pointer',
                     py: 1,
                   }}
                 >
+                  <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#212529' }}>
+                    Tài khoản ngân hàng
+                  </Typography>
                   <Icon
                     name={isBankExpanded ? 'ArrowDown2' : 'ArrowRight2'}
                     size={20}
                     color="#6C757D"
                     variant="Outline"
                   />
-                  <Typography sx={{ fontSize: '16px', fontWeight: 600, color: '#212529' }}>
-                    Tài khoản ngân hàng
-                  </Typography>
                 </Box>
 
                 {isBankExpanded && (

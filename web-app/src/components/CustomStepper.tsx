@@ -1,13 +1,5 @@
 import { Box, Typography } from '@mui/material';
 import { Check } from '@mui/icons-material';
-import * as Iconsax from 'iconsax-react';
-
-// Icon wrapper component
-const Icon = ({ name, size = 24, color = 'currentColor', variant = 'Outline' }: any) => {
-  const Comp = (Iconsax as any)[name];
-  if (!Comp) return null;
-  return <Comp size={size} color={color} variant={variant} />;
-};
 
 interface StepItem {
   label: string;

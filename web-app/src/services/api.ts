@@ -1,5 +1,7 @@
 import axios, { type AxiosInstance } from 'axios';
 import { API_CONFIG, STORAGE_KEYS } from '../config/constants';
+// Local fallback data when core service is not running locally
+import localIndustries from '../data/industries';
 
 class ApiService {
   private authApi: AxiosInstance;
@@ -117,6 +119,53 @@ class ApiService {
         return Promise.reject(error);
       },
     );
+  }
+
+  // Opening periods / opening balances (initial balance flow)
+  async getOpeningPeriods() {
+    const response = await this.coreApi.get('/api/opening-periods');
+    return response.data.data || response.data;
+  }
+
+  async createOpeningPeriod(payload: { periodName: string; openingDate: string; description?: string }) {
+    const response = await this.coreApi.post('/api/opening-periods', payload);
+    return response.data.data || response.data;
+  }
+
+  async getAccountByNumber(accountNumber: string) {
+    const response = await this.coreApi.get(`/api/accounts/by-number/${encodeURIComponent(accountNumber)}`);
+    return response.data.data || response.data;
+  }
+
+  async batchCreateOpeningBalances(payload: { periodId: string; currencyId: string; balances: any[] }) {
+    const response = await this.coreApi.post('/api/opening-balances/batch', payload);
+    return response.data.data || response.data;
+  }
+
+  async createOpeningBalance(payload: any) {
+    const response = await this.coreApi.post('/api/opening-balances', payload);
+    return response.data.data || response.data;
+  }
+
+  async batchCreateOpeningBalanceDetails(balanceId: string, payload: { details: any[] }) {
+    const response = await this.coreApi.post(`/api/opening-balances/${balanceId}/details/batch`, payload);
+    return response.data.data || response.data;
+  }
+
+  async lockOpeningPeriod(periodId: string) {
+    const response = await this.coreApi.post(`/api/opening-periods/${periodId}/lock`);
+    return response.data.data || response.data;
+  }
+
+  // Units
+  async createUnit(data: { code: string; name: string }) {
+    const response = await this.coreApi.post('/api/units', data);
+    return response.data.data || response.data;
+  }
+
+  async getUnits() {
+    const response = await this.coreApi.get('/api/units');
+    return response.data.data || response.data;
   }
 
   // Auth API
@@ -277,7 +326,7 @@ class ApiService {
   }
 
   // Subject Groups
-  async createSubjectGroup(data: { code: string; name: string; type: 'customer' | 'vendor' | 'both'; description?: string }) {
+  async createSubjectGroup(data: { code: string; name: string; type: 'customer' | 'vendor' | 'both'; description?: string; isActive?: boolean }) {
     const response = await this.coreApi.post('/api/subject-groups', data);
     // Backend wraps response in { success, data, timestamp }
     return response.data.data || response.data;
@@ -316,6 +365,38 @@ class ApiService {
     const response = await this.coreApi.get('/api/declaration/counts');
     // Backend wraps response in { success, data, timestamp }
     return response.data.data || response.data;
+  }
+
+  // Industries
+  async getIndustries() {
+    try {
+      const response = await this.coreApi.get('/api/industries');
+      return response.data.data || response.data;
+    } catch (error: any) {
+      // If request failed due to missing/invalid token, retry without auth header
+      const status = error?.response?.status;
+      if (status === 401 || status === 403) {
+        try {
+          const response = await axios.get(`${API_CONFIG.CORE_SERVICE_URL}/api/industries`);
+          return response.data.data || response.data;
+        } catch (err) {
+          console.warn('[ApiService] anonymous getIndustries failed:', err);
+          // Fallthrough to local fallback below
+        }
+      }
+
+      // If network error or server not running, return local fallback data so UI remains usable
+      if (!error?.response || error?.code === 'ERR_NETWORK' || error?.message?.includes('Network Error')) {
+        console.warn('[ApiService] getIndustries network error — returning local fallback data');
+        return localIndustries.map((d: any, idx: number) => ({ id: idx + 1, code: d.code, name: d.name, displayText: d.displayText }));
+      }
+
+      
+
+      // For other errors, log and return local fallback as a safe default
+      console.error('[ApiService] getIndustries error:', error);
+      return localIndustries.map((d: any, idx: number) => ({ id: idx + 1, code: d.code, name: d.name, displayText: d.displayText }));
+    }
   }
 }
 

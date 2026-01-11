@@ -1,10 +1,8 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import {
   Dialog,
   Box,
   Typography,
-  TextField,
-  InputAdornment,
   Radio,
   RadioGroup,
   FormControlLabel,
@@ -13,10 +11,10 @@ import {
   Slide,
 } from '@mui/material';
 import type { TransitionProps } from '@mui/material/transitions';
-import Icon from './Icon';
 import SearchBox from './SearchBox';
 import CloseIcon from '@mui/icons-material/Close';
-import taxIndustryGroups, { type TaxIndustryGroup } from '../data/taxIndustryGroups';
+import type { TaxIndustryGroup } from '../data/taxIndustryGroups';
+import localTaxIndustryGroups from '../data/taxIndustryGroups';
 import React from 'react';
 
 const Transition = React.forwardRef(function Transition(
@@ -43,13 +41,48 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
 }) => {
   const [searchText, setSearchText] = useState('');
   const [selectedCode, setSelectedCode] = useState(value);
+  const [groups, setGroups] = useState<TaxIndustryGroup[]>([]);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const nameRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [overflowMap, setOverflowMap] = useState<Record<string, boolean>>({});
+
+  // Load groups from backend (fall back to local data if fetch fails)
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/tax-industry-groups');
+        if (!res.ok) throw new Error('fetch failed');
+
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          // Received HTML (index.html) or other non-JSON response — fallback
+          throw new Error(`invalid content-type: ${contentType}`);
+        }
+
+        const data = await res.json();
+        if (mounted && Array.isArray(data)) setGroups(data as TaxIndustryGroup[]);
+      } catch (err) {
+        // If the API is not available or returns non-JSON (e.g. dev server returns index.html),
+        // fall back to the local dataset for now. TODO: remove this fallback once
+        // `/api/tax-industry-groups` is available in your backend and remove the
+        // import of `localTaxIndustryGroups`.
+        console.warn('[TaxIndustryGroupSelector] failed to fetch groups from API, using local fallback', err);
+        if (mounted) setGroups(localTaxIndustryGroups);
+      }
+    };
+
+    if (open) load();
+    return () => {
+      mounted = false;
+    };
+  }, [open]);
 
   // Filter and group items
   const filteredGroups = useMemo(() => {
-    const filtered = taxIndustryGroups.filter(
+    const filtered = groups.filter(
       (item) =>
         item.code.toLowerCase().includes(searchText.toLowerCase()) ||
         item.name.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -66,7 +99,14 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
     }, {} as Record<string, TaxIndustryGroup[]>);
 
     return grouped;
-  }, [searchText]);
+  }, [searchText, groups]);
+
+  // Debug: log data to help diagnose why list may be empty on localhost
+  useEffect(() => {
+    console.log('[TaxIndustryGroupSelector] open=', open);
+    console.log('[TaxIndustryGroupSelector] total groups=', groups.length);
+    console.log('[TaxIndustryGroupSelector] filtered groups keys=', Object.keys(filteredGroups));
+  }, [open, searchText, filteredGroups]);
 
   const toggleExpand = (code: string) => {
     setExpandedItems((prev) => {
@@ -103,6 +143,42 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
     return () => window.removeEventListener('resize', compute);
   }, [filteredGroups, searchText, open]);
 
+  // When the dialog opens, position the selected item into view immediately
+  // (no smooth animation). Use layout effect to set scrollTop before paint.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const code = selectedCode;
+    if (!code) return;
+
+    const container = scrollContainerRef.current;
+    const el = itemRefs.current[code];
+    if (container && el) {
+      // Compute desired scrollTop to center the element in the container
+      const offsetTop = el.offsetTop - (container.offsetTop || 0);
+      const desired = offsetTop - Math.floor(container.clientHeight / 2 - el.clientHeight / 2);
+      container.scrollTop = Math.max(0, desired);
+    }
+  }, [open, groups, filteredGroups, selectedCode]);
+
+  // Persist user's selection to backend and localStorage (fire-and-forget).
+  const persistSelection = async (code: string) => {
+    try {
+      await fetch('/api/user/preferred-tax-industry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+    } catch (err) {
+      console.warn('[TaxIndustryGroupSelector] failed to persist selection to API', err);
+    }
+
+    try {
+      localStorage.setItem('preferredTaxIndustry', code);
+    } catch (e) {
+      /* ignore */
+    }
+  };
+
 
 
   // (truncateText removed — not used)
@@ -113,18 +189,19 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
       onClose={onClose}
       TransitionComponent={Transition}
       fullScreen
-      sx={{
-        zIndex: 1600,
-        '& .MuiDialog-paper': {
-          borderRadius: { xs: '16px 16px 0 0', sm: '16px' },
-          margin: 0,
-          maxHeight: '90vh',
-          position: 'fixed',
-          bottom: 0,
-          width: '100%',
-          zIndex: 1600,
-        },
-      }}
+        sx={{
+          zIndex: 1670,
+          '& .MuiDialog-paper': {
+            borderRadius: { xs: '16px 16px 0 0', sm: '16px' },
+            margin: 0,
+            // Match BusinessSector bottom sheet height (leave ~24px top gap)
+            maxHeight: 'calc(100vh - 24px)',
+            position: 'fixed',
+            bottom: 0,
+            width: '100%',
+            zIndex: 1670,
+          },
+        }}
     >
       {/* Header */}
       <Box
@@ -162,17 +239,28 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
           placeholder="Tìm kiếm ngành nghề"
           value={searchText}
           onChange={(e: any) => setSearchText(e.target.value)}
-          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '24px', backgroundColor: '#FFFFFF', '& fieldset': { borderColor: 'rgba(0,0,0,0.12)' } } }}
-          inputProps={{}}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '100px',
+              height: '52px',
+              backgroundColor: '#FFFFFF',
+              '& fieldset': { borderColor: 'rgba(0,0,0,0.12)' },
+            },
+            '& .MuiOutlinedInput-input': {
+              padding: '12px 16px',
+            },
+          }}
         />
       </Box>
 
       {/* Content */}
       <Box
+        ref={scrollContainerRef}
         sx={{
           flex: 1,
           overflowY: 'auto',
           px: 2,
+          // increase bottom padding to match larger sheet and safe area
           pb: `calc(80px + env(safe-area-inset-bottom, 0px))`,
         }}
       >
@@ -181,19 +269,20 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
           onChange={(e) => {
             const code = e.target.value;
             setSelectedCode(code);
-            // Immediately propagate selection and close modal
+            // Persist selection then propagate selection and close modal
+            persistSelection(code);
             onChange(code);
             onClose();
           }}
         >
           {Object.entries(filteredGroups).map(([groupName, items]) => (
-            <Box key={groupName} sx={{ mb: 3 }}>
+            <Box key={groupName} sx={{ mb: 0 }}>
               {/* Group Header */}
               <Typography
                 sx={{
                   fontSize: '16px',
                   fontWeight: 600,
-                  mb: 2,
+                  mb: 3,
                   color: '#000',
                 }}
               >
@@ -208,13 +297,22 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
                 return (
                   <Box
                     key={item.code}
+                    ref={(el) => { itemRefs.current[item.code] = el as HTMLDivElement | null; }}
                     sx={{
                       mb: 2,
                       pb: 2,
                       borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                        <Box
+                      onClick={() => {
+                        setSelectedCode(item.code);
+                        persistSelection(item.code);
+                        onChange(item.code);
+                        onClose();
+                      }}
+                      sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, cursor: 'pointer' }}
+                    >
                       {/* Code */}
                       <Typography
                         sx={{
@@ -250,7 +348,10 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
                           <Box sx={{ mt: 0.5, width: '100%', display: 'flex' }}>
                             <Button
                               size="small"
-                              onClick={() => toggleExpand(item.code)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpand(item.code);
+                              }}
                               sx={{
                                 textTransform: 'none',
                                 p: 0,
@@ -268,11 +369,11 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
                         <Box sx={{ display: 'flex', gap: 3, mt: 1 }}>
                           {item.vatRate !== undefined && (
                             <Typography sx={{ fontSize: '14px', color: 'rgba(0, 0, 0, 0.6)' }}>
-                              % thuế GTGT: {item.vatRate.toFixed(2)}
+                              % thuế GTGT: <Box component="span" sx={{ color: '#090909' }}>{item.vatRate.toFixed(2)}</Box>
                             </Typography>
                           )}
                           <Typography sx={{ fontSize: '14px', color: 'rgba(0, 0, 0, 0.6)' }}>
-                            % thuế TNCN: {item.pitRate.toFixed(2)}
+                            % thuế TNCN: <Box component="span" sx={{ color: '#090909' }}>{item.pitRate.toFixed(2)}</Box>
                           </Typography>
                         </Box>
                       </Box>

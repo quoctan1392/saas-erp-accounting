@@ -194,6 +194,29 @@ const AdvancedSetupScreen = () => {
     setShowProviderSheet(false);
   };
 
+  // When connection sheet opens, default provider to first available if none selected
+  useEffect(() => {
+    if (showConnectionSheet && !selectedProvider && providers.length > 0) {
+      setSelectedProvider(providers[0].code);
+    }
+  }, [showConnectionSheet, providers, selectedProvider]);
+
+  // When connection sheet opens, default tax code from Business Info if not set
+  useEffect(() => {
+    if (showConnectionSheet && !taxCode) {
+      try {
+        const onboardingDataRaw = localStorage.getItem('onboardingData');
+        if (onboardingDataRaw) {
+          const parsed = JSON.parse(onboardingDataRaw);
+          const bc = parsed.businessIdentification?.taxCode;
+          if (bc) setTaxCode(bc);
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+  }, [showConnectionSheet, taxCode]);
+
   // Validate connection form
   const validateConnectionForm = (): boolean => {
     if (!selectedProvider) {
@@ -602,254 +625,225 @@ const AdvancedSetupScreen = () => {
       <BottomSheet
         open={showConnectionSheet}
         onClose={handleCancelConnection}
-        title="Thiết lập kết nối"
-        maxHeight="90vh"
+        title={showProviderSheet ? 'Chọn đơn vị phát hành' : 'Thiết lập kết nối'}
+        maxHeight="calc(var(--vh, 1vh) * 100 - 24px)"
       >
 
-          {/* Error Banner */}
-          {errorMessage && (
-            <Box
-              sx={{
-                backgroundColor: '#FFEBEE',
-                color: '#C62828',
-                borderRadius: '8px',
-                p: 1.5,
-                mb: 2,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-              }}
-            >
-              <Icon name="Warning" size={20} color="#C62828" variant="Outline" />
-              <Typography sx={{ fontSize: '14px' }}>{errorMessage}</Typography>
-            </Box>
-          )}
-
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mb: 2 }}>
-            <RoundedTextField
-              fullWidth
-              required
-              label="Đơn vị phát hành"
-              placeholder="Chọn đơn vị phát hành"
-              value={selectedProviderData?.name || ''}
-              onClick={() => setShowProviderSheet(true)}
-              inputProps={{ readOnly: true }}
-              sx={{ cursor: 'pointer' }}
-              InputProps={{
-                startAdornment: (
-                <InputAdornment position="start">
-                    <Icon name="Building" size={20} color="#4E4E4E" variant="Outline" />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <Icon name="ArrowDown2" size={20} color="#4E4E4E" variant="Outline" />
-                  </InputAdornment>
-                ),
-              }}
-            />
-
-            <RoundedTextField
-              fullWidth
-              required
-              label="Mã số thuế"
-              placeholder="Nhập mã số thuế"
-              value={taxCode}
-              onChange={(e) => setTaxCode(e.target.value)}
-              inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Icon name="ReceiptText" size={20} color="#4E4E4E" variant="Outline" />
-                  </InputAdornment>
-                ),
-              }}
-            />
-
-            <RoundedTextField
-              fullWidth
-              required
-              label="Tên tài khoản"
-              placeholder="Nhập tên đăng nhập"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                <InputAdornment position="start">
-                    <Icon name="user" size={20} color="#4E4E4E" variant="Outline" />
-                  </InputAdornment>
-                ),
-              }}
-            /> 
-            <RoundedTextField
-              fullWidth
-              required
-              label="Mật khẩu"
-              placeholder="Nhập mật khẩu"
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                <InputAdornment position="start">
-                    <Icon name="Lock" size={20} color="#4E4E4E" variant="Outline" />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <Box
-                      onClick={() => setShowPassword(!showPassword)}
-                      sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                    >
-                      <Icon name={showPassword ? 'Eye' : 'EyeSlash'} size={20} color="#4E4E4E" variant="Outline" />
-                    </Box>
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </Box>
-
-          {/* Auto-issue checkbox */}
-          <Box sx={{ mb: 2 }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={autoIssueOnSale}
-                  onChange={(e) => setAutoIssueOnSale(e.target.checked)}
-                  sx={{
-                    '&.Mui-checked': { color: '#FB7E00' },
-                  }}
-                />
-              }
-              label="Phát hành HĐĐT trên màn hình bán hàng"
-            />
-          </Box>
-
-          {/* Action buttons */}
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'row',
-              gap: '12px',
-              justifyContent: 'flex-end',
-            }}
-          >
-            <Button
-              variant="outlined"
-              onClick={handleCancelConnection}
-              disabled={isLoading}
-              sx={{
-                flex: 1,
-                textTransform: 'none',
-                fontSize: '16px',
-                minWidth: 120,
-                color: 'rgba(0, 0, 0, 0.6)',
-                borderColor: 'rgba(0, 0, 0, 0.23)',
-                borderRadius: '100px',
-                height: 48,
-                '&:hover': {
-                  borderColor: 'rgba(0, 0, 0, 0.4)',
-                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                },
-              }}
-            >
-              Huỷ
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handleConnect}
-              disabled={!isConnectionFormComplete() || isLoading}
-              sx={{
-                textTransform: 'none',
-                fontSize: '16px',
-                fontWeight: 500,
-                flex: 1,
-                minWidth: 120,
-                backgroundColor: '#FB7E00',
-                borderRadius: '100px',
-                height: 48,
-                boxShadow: 'none',
-                '&:hover': { backgroundColor: 'rgba(233, 119, 4, 1)' },
-                '&.Mui-disabled': {
-                  backgroundColor: '#F5F5F5',
-                  color: 'rgba(0,0,0,0.26)',
-                },
-              }}
-            >
-              {isLoading ? 'Đang kết nối...' : 'Kết nối'}
-            </Button>
-          </Box>
-      </BottomSheet>
-
-      {/* Provider Selection Bottom Sheet */}
-      <BottomSheet
-        open={showProviderSheet}
-        onClose={() => setShowProviderSheet(false)}
-        title="Chọn đơn vị phát hành"
-        maxHeight="60vh"
-      >
-
-          <RadioGroup value={selectedProvider} onChange={(e) => handleSelectProvider(e.target.value)}>
-            {providers.map((provider) => (
+          <Box sx={{ position: 'relative', overflow: 'hidden', pt: '8px' }}>
+            {/* Error Banner (only for connection view) */}
+            {!showProviderSheet && errorMessage && (
               <Box
-                key={provider.id}
                 sx={{
-                  p: 2,
+                  backgroundColor: '#FFEBEE',
+                  color: '#C62828',
                   borderRadius: '8px',
-                  mb: 1,
-                  cursor: 'pointer',
-                  backgroundColor:
-                    selectedProvider === provider.code
-                      ? 'rgba(251, 126, 0, 0.08)'
-                      : 'transparent',
-                  border: '1px solid',
-                  borderColor:
-                    selectedProvider === provider.code
-                      ? '#FB7E00'
-                      : 'rgba(0, 0, 0, 0.12)',
-                  '&:hover': {
-                    backgroundColor:
-                      selectedProvider === provider.code
-                        ? 'rgba(251, 126, 0, 0.08)'
-                        : 'rgba(0, 0, 0, 0.04)',
-                  },
+                  p: 1.5,
+                  mb: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
                 }}
-                onClick={() => handleSelectProvider(provider.code)}
               >
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                  <Radio
-                    value={provider.code}
-                    sx={{
-                      '&.Mui-checked': { color: '#FB7E00' },
-                      p: 0,
-                      mt: 0.5,
+                <Icon name="Warning" size={20} color="#C62828" variant="Outline" />
+                <Typography sx={{ fontSize: '14px' }}>{errorMessage}</Typography>
+              </Box>
+            )}
+
+            {/* Sliding panels container */}
+            <Box sx={{ position: 'relative', height: '100%' }}>
+              {/* Connection panel */}
+              <Box
+                sx={{
+                  transform: showProviderSheet ? 'translateX(-100%)' : 'translateX(0%)',
+                  transition: 'transform 280ms ease',
+                  width: '100%',
+                }}
+              >
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+                  <RoundedTextField
+                    fullWidth
+                    required
+                    label="Đơn vị phát hành"
+                    placeholder="Chọn đơn vị phát hành"
+                    value={selectedProviderData?.name || ''}
+                    onClick={() => setShowProviderSheet(true)}
+                    inputProps={{ readOnly: true }}
+                    sx={{ cursor: 'pointer' }}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <Icon name="ArrowDown2" size={20} color="#4E4E4E" variant="Outline" />
+                        </InputAdornment>
+                      ),
                     }}
                   />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography
-                      sx={{
-                        fontSize: '16px',
-                        fontWeight: 600,
-                        color: 'rgba(0, 0, 0, 0.87)',
-                      }}
-                    >
-                      {provider.name}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: '14px',
-                        color: 'rgba(0, 0, 0, 0.6)',
-                        mt: 0.5,
-                      }}
-                    >
-                      {provider.description}
-                    </Typography>
-                  </Box>
+
+                  <RoundedTextField
+                    fullWidth
+                    required
+                    label="Mã số thuế"
+                    placeholder="Nhập mã số thuế"
+                    value={taxCode}
+                    onChange={(e) => setTaxCode(e.target.value)}
+                    inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                  />
+
+                  <RoundedTextField
+                    fullWidth
+                    required
+                    label="Tên tài khoản"
+                    placeholder="Nhập tên đăng nhập"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                  /> 
+                  <RoundedTextField
+                    fullWidth
+                    required
+                    label="Mật khẩu"
+                    placeholder="Nhập mật khẩu"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    InputProps={{
+                      // intentionally no start adornment (removed icon)
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <Box
+                            onClick={() => setShowPassword(!showPassword)}
+                            sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                          >
+                            <Icon name={showPassword ? 'Eye' : 'EyeSlash'} size={20} color="#4E4E4E" variant="Outline" />
+                          </Box>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Box>
+
+                {/* Auto-issue checkbox */}
+                <Box sx={{ mb: 2 }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={autoIssueOnSale}
+                        onChange={(e) => setAutoIssueOnSale(e.target.checked)}
+                        sx={{
+                          '&.Mui-checked': { color: '#FB7E00' },
+                        }}
+                      />
+                    }
+                    label="Phát hành HĐĐT trên màn hình bán hàng"
+                  />
+                </Box>
+
+                {/* Action buttons */}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    gap: '12px',
+                    justifyContent: 'flex-end',
+                  }}
+                >
+                  <Button
+                    variant="outlined"
+                    onClick={handleCancelConnection}
+                    disabled={isLoading}
+                    sx={{
+                      flex: 1,
+                      textTransform: 'none',
+                      fontSize: '16px',
+                      minWidth: 120,
+                      color: 'rgba(0, 0, 0, 0.6)',
+                      borderColor: 'rgba(0, 0, 0, 0.23)',
+                      borderRadius: '100px',
+                      height: 48,
+                      '&:hover': {
+                        borderColor: 'rgba(0, 0, 0, 0.4)',
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                      },
+                    }}
+                  >
+                    Huỷ
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={handleConnect}
+                    disabled={!isConnectionFormComplete() || isLoading}
+                    sx={{
+                      textTransform: 'none',
+                      fontSize: '16px',
+                      fontWeight: 500,
+                      flex: 1,
+                      minWidth: 120,
+                      backgroundColor: '#FB7E00',
+                      borderRadius: '100px !important',
+                      height: 48,
+                      boxShadow: 'none',
+                      '&:hover': { backgroundColor: 'rgba(233, 119, 4, 1)' },
+                      '&.Mui-disabled': {
+                        backgroundColor: '#F5F5F5',
+                        color: 'rgba(0,0,0,0.26)',
+                      },
+                    }}
+                  >
+                    {isLoading ? 'Đang kết nối...' : 'Kết nối'}
+                  </Button>
                 </Box>
               </Box>
-            ))}
-          </RadioGroup>
+
+              {/* Provider panel */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: showProviderSheet ? 'translateX(0%)' : 'translateX(100%)',
+                  transition: 'transform 280ms ease',
+                }}
+              >
+                <RadioGroup value={selectedProvider} onChange={(e) => handleSelectProvider(e.target.value)} sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  {providers.map((provider, idx) => (
+                    <Box key={provider.id}>
+                      <Box
+                        onClick={() => handleSelectProvider(provider.code)}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          py: 1.5,
+                          px: 0.5,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Radio
+                            value={provider.code}
+                            sx={{ '&.Mui-checked': { color: '#FB7E00' }, p: 0 }}
+                          />
+
+                          <Box>
+                            <Typography sx={{ fontSize: 16, color: 'rgba(0, 0, 0, 0.87)', fontWeight: 600 }}>
+                              {provider.name}
+                            </Typography>
+                            <Typography sx={{ fontSize: 14, color: 'rgba(0, 0, 0, 0.6)', mt: 0.5 }}>
+                              {provider.description}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+
+                      {idx < providers.length - 1 && <Box sx={{ px: 0.5 }}><Box sx={{ borderBottom: '1px solid #F1F3F5' }} /></Box>}
+                    </Box>
+                  ))}
+                </RadioGroup>
+              </Box>
+            </Box>
+          </Box>
       </BottomSheet>
+
+      
 
       {/* Disconnect Confirm Dialog */}
       <AlertDialog

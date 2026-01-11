@@ -237,7 +237,6 @@ const ProductGroupCreateScreen: React.FC<Props> = ({ open, onClose, onCreate }) 
         open={showSuccessSnackbar}
         onClose={() => setShowSuccessSnackbar(false)}
         message="Thêm nhóm hàng hoá dịch vụ thành công"
-        variant="add"
       />
     </>
   );

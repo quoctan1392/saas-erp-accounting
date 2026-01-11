@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, IconButton, Divider, CircularProgress } from '@mui/material';
+import { Box, Typography, IconButton, Divider } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import * as Iconsax from 'iconsax-react';
 import UnitCreateScreen from './UnitCreateScreen.tsx';
@@ -34,7 +34,7 @@ const DEFAULT_UNITS = [
 
 const UnitSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect }) => {
   const [units, setUnits] = useState(DEFAULT_UNITS.slice());
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, setIsLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [exiting, setExiting] = useState(false);
@@ -83,7 +83,7 @@ const UnitSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect }) => {
 
   const handleAdd = () => setCreateOpen(true);
 
-  const handleCreate = (u: { value: string; label: string }) => {
+  const handleCreate = (_u: { value: string; label: string }) => {
     // Reload units from API to get the newly created one
     loadUnits();
   };
