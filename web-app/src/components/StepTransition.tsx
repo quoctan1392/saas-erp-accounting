@@ -29,6 +29,7 @@ const StepTransition = ({ children, stepKey, direction = 'forward' }: StepTransi
 
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [stepKey, direction]);
 
   return (

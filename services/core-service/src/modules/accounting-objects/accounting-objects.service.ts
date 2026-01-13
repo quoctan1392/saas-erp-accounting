@@ -139,10 +139,72 @@ export class AccountingObjectsService {
 
   // Subject Group methods
   async findAllGroups(tenantId: string): Promise<SubjectGroup[]> {
-    return this.subjectGroupRepository.find({
+    const groups = await this.subjectGroupRepository.find({
       where: { tenantId, isDeleted: false },
       order: { code: 'ASC' },
     });
+
+    // Helper to order results: put custom (user) groups first (alphabetical),
+    // then default system groups (alphabetical).
+    const defaultCodes = new Set([
+      'doanh_nghiep',
+      'ca_nhan',
+      'khach_vip',
+      'khach_le',
+      'ncc_trong_nuoc',
+      'ncc_nuoc_ngoai',
+      'ncc_vat_tu',
+      'ncc_dich_vu',
+    ]);
+
+    const orderGroups = (list: SubjectGroup[]) => {
+      const defaults = list.filter((g) => defaultCodes.has(g.code));
+      const customs = list.filter((g) => !defaultCodes.has(g.code));
+      const byName = (a: SubjectGroup, b: SubjectGroup) => a.name.localeCompare(b.name, 'vi');
+      customs.sort(byName);
+      defaults.sort(byName);
+      return [...customs, ...defaults];
+    };
+
+    // If there are no groups for this tenant yet, insert default groups so
+    // the frontend has the system defaults persisted and won't be overwritten
+    // when users add custom groups.
+    if (!groups || groups.length === 0) {
+      const defaultCustomerGroups = [
+        { code: 'doanh_nghiep', name: 'Doanh nghiệp', type: 'customer' as const },
+        { code: 'ca_nhan', name: 'Cá nhân', type: 'customer' as const },
+        { code: 'khach_vip', name: 'Khách VIP', type: 'customer' as const },
+        { code: 'khach_le', name: 'Khách lẻ', type: 'customer' as const },
+      ];
+
+      const defaultVendorGroups = [
+        { code: 'ncc_trong_nuoc', name: 'NCC trong nước', type: 'vendor' as const },
+        { code: 'ncc_nuoc_ngoai', name: 'NCC nước ngoài', type: 'vendor' as const },
+        { code: 'ncc_vat_tu', name: 'NCC vật tư', type: 'vendor' as const },
+        { code: 'ncc_dich_vu', name: 'NCC dịch vụ', type: 'vendor' as const },
+      ];
+
+      const toInsert = [...defaultCustomerGroups, ...defaultVendorGroups].map((g) =>
+        this.subjectGroupRepository.create({
+          code: g.code,
+          name: g.name,
+          type: g.type,
+          tenantId,
+        }),
+      );
+
+      try {
+        await this.subjectGroupRepository.save(toInsert);
+      } catch (err) {
+        // ignore unique constraint errors if another process inserted concurrently
+      }
+
+      // return the newly inserted groups in the desired order
+      const inserted = await this.subjectGroupRepository.find({ where: { tenantId, isDeleted: false } });
+      return orderGroups(inserted);
+    }
+
+    return orderGroups(groups);
   }
 
   async createGroup(

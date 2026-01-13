@@ -96,7 +96,7 @@ class ApiService {
       return config;
     });
 
-    // Response interceptor for debugging
+    // Response interceptor for debugging and token-retry handling
     this.coreApi.interceptors.response.use(
       (response) => {
         console.log('[CoreAPI Response]', response.config.url, 'Status:', response.status);
@@ -107,15 +107,64 @@ class ApiService {
         console.log('[CoreAPI Response] Type of response.data:', typeof response.data);
         return response;
       },
-      (error) => {
-        console.error(
-          '[CoreAPI Response Error]',
-          error.config?.url,
-          'Status:',
-          error.response?.status,
-          'Data:',
-          error.response?.data,
-        );
+      async (error) => {
+        const originalRequest = error.config;
+        const status = error.response?.status;
+
+        console.error('[CoreAPI Response Error]', originalRequest?.url, 'Status:', status, 'Data:', error.response?.data);
+
+        // If token invalid and we used tenantAccessToken, try retrying with user accessToken
+        try {
+          const tenantToken = localStorage.getItem('tenantAccessToken');
+          const userToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+
+          const usedToken = originalRequest?.headers?.Authorization?.toString().replace('Bearer ', '');
+
+          const looksLikeTenantToken = tenantToken && usedToken && usedToken === tenantToken;
+
+          if ((status === 401 || status === 403) && looksLikeTenantToken && userToken) {
+            console.warn('[CoreAPI] tenant token invalid — retrying request with user accessToken');
+            originalRequest.headers.Authorization = `Bearer ${userToken}`;
+            // Use axios directly to avoid re-entering this interceptor
+            const retryResp = await axios({
+              ...originalRequest,
+              baseURL: undefined, // preserve full URL from original config
+              url: originalRequest.url,
+            });
+            return retryResp;
+          }
+
+          // If still unauthorized and we have a refresh token, attempt refresh once
+          if ((status === 401 || status === 403) && localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN)) {
+            console.warn('[CoreAPI] attempting token refresh via auth API');
+            try {
+              const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN) as string;
+              if (refreshToken) {
+                const refreshResp = await this.authApi.post('/auth/refresh', { refreshToken });
+                const newAccessToken = refreshResp.data?.accessToken || refreshResp.data?.data?.accessToken;
+                const newRefreshToken = refreshResp.data?.refreshToken || refreshResp.data?.data?.refreshToken;
+                if (newAccessToken) {
+                  localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, newAccessToken);
+                  if (newRefreshToken) localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, newRefreshToken);
+                  // Set header and retry original request
+                  originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                  const retryResp2 = await axios({
+                    ...originalRequest,
+                    baseURL: undefined,
+                    url: originalRequest.url,
+                  });
+                  return retryResp2;
+                }
+              }
+            } catch (refreshErr) {
+              console.warn('[CoreAPI] token refresh failed', refreshErr);
+              // fall through to reject
+            }
+          }
+        } catch (err) {
+          console.error('[CoreAPI] error in response error handler', err);
+        }
+
         return Promise.reject(error);
       },
     );
@@ -123,12 +172,12 @@ class ApiService {
 
   // Opening periods / opening balances (initial balance flow)
   async getOpeningPeriods() {
-    const response = await this.coreApi.get('/api/opening-periods');
+    const response = await this.coreApi.get('/api/opening-balance/periods');
     return response.data.data || response.data;
   }
 
   async createOpeningPeriod(payload: { periodName: string; openingDate: string; description?: string }) {
-    const response = await this.coreApi.post('/api/opening-periods', payload);
+    const response = await this.coreApi.post('/api/opening-balance/periods', payload);
     return response.data.data || response.data;
   }
 
@@ -138,22 +187,27 @@ class ApiService {
   }
 
   async batchCreateOpeningBalances(payload: { periodId: string; currencyId: string; balances: any[] }) {
-    const response = await this.coreApi.post('/api/opening-balances/batch', payload);
+    const response = await this.coreApi.post('/api/opening-balance/batch', payload);
+    return response.data.data || response.data;
+  }
+
+  async getOpeningBalances(params: Record<string, any> = {}) {
+    const response = await this.coreApi.get('/api/opening-balance', { params });
     return response.data.data || response.data;
   }
 
   async createOpeningBalance(payload: any) {
-    const response = await this.coreApi.post('/api/opening-balances', payload);
+    const response = await this.coreApi.post('/api/opening-balance', payload);
     return response.data.data || response.data;
   }
 
   async batchCreateOpeningBalanceDetails(balanceId: string, payload: { details: any[] }) {
-    const response = await this.coreApi.post(`/api/opening-balances/${balanceId}/details/batch`, payload);
+    const response = await this.coreApi.post(`/api/opening-balance/${balanceId}/details/batch`, payload);
     return response.data.data || response.data;
   }
 
   async lockOpeningPeriod(periodId: string) {
-    const response = await this.coreApi.post(`/api/opening-periods/${periodId}/lock`);
+    const response = await this.coreApi.post(`/api/opening-balance/periods/${periodId}/lock`);
     return response.data.data || response.data;
   }
 
@@ -164,8 +218,22 @@ class ApiService {
   }
 
   async getUnits() {
-    const response = await this.coreApi.get('/api/units');
-    return response.data.data || response.data;
+    try {
+      // Ensure numeric page/limit are provided to satisfy backend parsing if required
+      const response = await this.coreApi.get('/api/units', { params: { page: 1, limit: 200 } });
+      // Backend may return either an array, or a wrapper { data: [...] }, or nested wrappers
+      if (response?.data) {
+        if (Array.isArray(response.data)) return response.data;
+        if (response.data.data && Array.isArray(response.data.data)) return response.data.data;
+        if (response.data.data && response.data.data.data && Array.isArray(response.data.data.data)) return response.data.data.data;
+        return response.data.data || response.data;
+      }
+      return [];
+    } catch (error: any) {
+      console.warn('[ApiService] getUnits error - returning empty list so caller can fallback to defaults:', error?.message || error);
+      // Return empty list so callers (UI) can use local defaults instead of failing
+      return [];
+    }
   }
 
   // Auth API
@@ -246,6 +314,30 @@ class ApiService {
     return response.data;
   }
 
+  async saveBusinessSector(tenantId: string, data: any) {
+    const response = await this.tenantApi.post(
+      `/tenants/${tenantId}/onboarding/business-sector`,
+      data,
+    );
+    return response.data;
+  }
+
+  async saveAccountingSetup(tenantId: string, data: any) {
+    const response = await this.tenantApi.post(
+      `/tenants/${tenantId}/onboarding/accounting-setup`,
+      data,
+    );
+    return response.data;
+  }
+
+  async saveAdvancedSetup(tenantId: string, data: any) {
+    const response = await this.tenantApi.post(
+      `/tenants/${tenantId}/onboarding/advanced-setup`,
+      data,
+    );
+    return response.data;
+  }
+
   async completeOnboarding(tenantId: string) {
     const response = await this.tenantApi.post(`/tenants/${tenantId}/onboarding/complete`);
     return response.data;
@@ -253,8 +345,33 @@ class ApiService {
 
   // Accounting Objects (customers/vendors/employees)
   async createAccountingObject(data: any) {
-    const response = await this.coreApi.post('/api/objects', data);
-    return response.data;
+    try {
+      const response = await this.coreApi.post('/api/objects', data);
+      return response.data;
+    } catch (error: any) {
+      const status = error?.response?.status;
+      // If unauthorized, attempt explicit refresh + retry as a fallback
+      if ((status === 401 || status === 403) && localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN)) {
+        try {
+          const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN) as string;
+          const refreshResp = await this.authApi.post('/auth/refresh', { refreshToken });
+          const newAccessToken = refreshResp.data?.accessToken || refreshResp.data?.data?.accessToken;
+          const newRefreshToken = refreshResp.data?.refreshToken || refreshResp.data?.data?.refreshToken;
+          if (newAccessToken) {
+            localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, newAccessToken);
+            if (newRefreshToken) localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, newRefreshToken);
+            // Retry request with new token
+            const retryResp = await this.coreApi.post('/api/objects', data);
+            return retryResp.data;
+          }
+        } catch (refreshErr) {
+          console.warn('[ApiService] createAccountingObject refresh retry failed', refreshErr);
+        }
+      }
+
+      // Re-throw original error if we couldn't recover
+      throw error;
+    }
   }
 
   async getAccountingObjects(query: Record<string, any> = {}) {
@@ -325,6 +442,27 @@ class ApiService {
     return undefined as unknown as string;
   }
 
+  async getWarehouses() {
+    try {
+      // Ensure numeric page/limit are provided to satisfy backend ParseIntPipe
+      const response = await this.coreApi.get('/api/warehouses', { params: { page: 1, limit: 100 } });
+      // Backend returns { data, total, page, limit } or array
+      if (response?.data) {
+        // If wrapped response with data array
+        if (Array.isArray(response.data)) return response.data;
+        if (response.data.data && Array.isArray(response.data.data)) return response.data.data;
+        // If response.data itself is object with fields, try to normalize
+        if (response.data.data && response.data.data.data && Array.isArray(response.data.data.data)) return response.data.data.data;
+        return response.data.data || response.data;
+      }
+      return [];
+    } catch (error: any) {
+      console.error('[ApiService] getWarehouses error:', error);
+      // If network/auth error, propagate so caller can handle and show fallback
+      throw error;
+    }
+  }
+
   // Subject Groups
   async createSubjectGroup(data: { code: string; name: string; type: 'customer' | 'vendor' | 'both'; description?: string; isActive?: boolean }) {
     const response = await this.coreApi.post('/api/subject-groups', data);
@@ -357,6 +495,31 @@ class ApiService {
 
   async createItemCategory(data: { code: string; name: string; description?: string }) {
     const response = await this.coreApi.post('/api/item-categories', data);
+    return response.data.data || response.data;
+  }
+
+  async createItem(data: any) {
+    const response = await this.coreApi.post('/api/items', data);
+    return response.data.data || response.data;
+  }
+
+  async updateItem(id: string, data: any) {
+    const response = await this.coreApi.put(`/api/items/${id}`, data);
+    return response.data.data || response.data;
+  }
+
+  async getItems(params?: any) {
+    const response = await this.coreApi.get('/api/items', { params });
+    return response.data.data || response.data;
+  }
+
+  async getItem(id: string) {
+    const response = await this.coreApi.get(`/api/items/${id}`);
+    return response.data.data || response.data;
+  }
+
+  async deleteItem(id: string) {
+    const response = await this.coreApi.delete(`/api/items/${id}`);
     return response.data.data || response.data;
   }
 

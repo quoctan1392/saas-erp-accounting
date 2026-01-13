@@ -3,8 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Tenant, BusinessType } from '../tenants/entities/tenant.entity';
 import { TenantBusinessInfo } from '../tenants/entities/tenant-business-info.entity';
+import { TenantAccountingSetup } from '../tenants/entities/tenant-accounting-setup.entity';
+import { TenantBusinessSector } from '../tenants/entities/tenant-business-sector.entity';
+import { TenantAdvancedSetup } from '../tenants/entities/tenant-advanced-setup.entity';
 import { OnboardingAuditLog, OnboardingAction } from '../tenants/entities/onboarding-audit-log.entity';
 import { SaveBusinessInfoDto } from './dto/save-business-info.dto';
+import { SaveAccountingSetupDto } from './dto/save-accounting-setup.dto';
+import { SaveBusinessSectorDto } from './dto/save-business-sector.dto';
+import { SaveAdvancedSetupDto } from './dto/save-advanced-setup.dto';
 import {
   OnboardingStatusResponseDto,
   BusinessTypeResponseDto,
@@ -23,7 +29,7 @@ export class OnboardingService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async getOnboardingStatus(tenantId: string): Promise<OnboardingStatusResponseDto & { businessInfo?: any }> {
+  async getOnboardingStatus(tenantId: string): Promise<OnboardingStatusResponseDto & { businessInfo?: any; businessSector?: any; accountingSetup?: any; advancedSetup?: any }> {
     const tenant = await this.tenantRepository.findOne({
       where: { id: tenantId },
     });
@@ -56,6 +62,55 @@ export class OnboardingService {
       }
     }
 
+    // Get business sector if it exists
+    let businessSector = null;
+    const tenantBusinessSector = await this.dataSource.getRepository(TenantBusinessSector).findOne({
+      where: { tenantId },
+    });
+    if (tenantBusinessSector) {
+      businessSector = {
+        sector: tenantBusinessSector.sector,
+        industryCode: tenantBusinessSector.industryCode,
+        industryName: tenantBusinessSector.industryName,
+      };
+    }
+
+    // Get accounting setup if it exists
+    let accountingSetup = null;
+    const tenantAccountingSetup = await this.dataSource.getRepository(TenantAccountingSetup).findOne({
+      where: { tenantId },
+    });
+    if (tenantAccountingSetup) {
+      accountingSetup = {
+        dataStartDate: tenantAccountingSetup.dataStartDate,
+        taxFilingFrequency: tenantAccountingSetup.taxFilingFrequency,
+        usePOSDevice: tenantAccountingSetup.usePOSDevice,
+        taxIndustryGroup: tenantAccountingSetup.taxIndustryGroup,
+        accountingRegime: tenantAccountingSetup.accountingRegime,
+        taxCalculationMethod: tenantAccountingSetup.taxCalculationMethod,
+        baseCurrency: tenantAccountingSetup.baseCurrency,
+        hasForeignCurrency: tenantAccountingSetup.hasForeignCurrency,
+        inventoryValuationMethod: tenantAccountingSetup.inventoryValuationMethod,
+      };
+    }
+
+    // Get advanced setup if it exists
+    let advancedSetup = null;
+    const tenantAdvancedSetup = await this.dataSource.getRepository(TenantAdvancedSetup).findOne({
+      where: { tenantId },
+    });
+    if (tenantAdvancedSetup) {
+      advancedSetup = {
+        eInvoiceEnabled: tenantAdvancedSetup.eInvoiceEnabled,
+        eInvoiceProvider: tenantAdvancedSetup.eInvoiceProvider,
+        eInvoiceProviderName: tenantAdvancedSetup.eInvoiceProviderName,
+        eInvoiceTaxCode: tenantAdvancedSetup.eInvoiceTaxCode,
+        eInvoiceUsername: tenantAdvancedSetup.eInvoiceUsername,
+        eInvoiceAutoIssue: tenantAdvancedSetup.eInvoiceAutoIssue,
+        eInvoiceConnectedAt: tenantAdvancedSetup.eInvoiceConnectedAt,
+      };
+    }
+
     return {
       tenantId: tenant.id,
       onboardingCompleted: tenant.onboardingCompleted,
@@ -65,6 +120,9 @@ export class OnboardingService {
       startedAt: tenant.onboardingStartedAt,
       completedAt: tenant.onboardingCompletedAt,
       businessInfo,
+      businessSector,
+      accountingSetup,
+      advancedSetup,
     };
   }
 
@@ -192,6 +250,181 @@ export class OnboardingService {
       onboardingStep: tenant.onboardingStep,
       onboardingCompleted: tenant.onboardingCompleted,
       createdAt: result.createdAt,
+    };
+  }
+
+  async saveBusinessSector(
+    tenantId: string,
+    userId: string,
+    dto: SaveBusinessSectorDto,
+  ): Promise<any> {
+    console.log('[saveBusinessSector] Called with:', { tenantId, userId, dto });
+    
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
+
+    if (!tenant) {
+      console.error('[saveBusinessSector] Tenant not found:', tenantId);
+      throw new NotFoundException('Tenant not found');
+    }
+
+    // Upsert business sector
+    let businessSector = await this.dataSource.getRepository(TenantBusinessSector).findOne({
+      where: { tenantId },
+    });
+    
+    console.log('[saveBusinessSector] Existing businessSector:', businessSector);
+
+    if (businessSector) {
+      // Update existing
+      businessSector.sector = dto.sector;
+      businessSector.industryCode = dto.industryCode || null;
+      businessSector.industryName = dto.industryName || null;
+    } else {
+      // Create new
+      businessSector = new TenantBusinessSector();
+      businessSector.tenantId = tenantId;
+      businessSector.sector = dto.sector;
+      businessSector.industryCode = dto.industryCode || null;
+      businessSector.industryName = dto.industryName || null;
+    }
+
+    businessSector = await this.dataSource.getRepository(TenantBusinessSector).save(businessSector);
+
+    console.log('[saveBusinessSector] Saved businessSector:', businessSector);
+
+    // Log audit
+    await this.logAudit(tenantId, userId, 'business_sector', OnboardingAction.COMPLETED, dto);
+
+    return {
+      id: businessSector.id,
+      tenantId: businessSector.tenantId,
+      sector: businessSector.sector,
+      industryCode: businessSector.industryCode,
+      industryName: businessSector.industryName,
+    };
+  }
+
+  async saveAccountingSetup(
+    tenantId: string,
+    userId: string,
+    dto: SaveAccountingSetupDto,
+  ): Promise<any> {
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    // Upsert accounting setup
+    let accountingSetup = await this.dataSource.getRepository(TenantAccountingSetup).findOne({
+      where: { tenantId },
+    });
+
+    if (accountingSetup) {
+      // Update existing
+      if (dto.dataStartDate) accountingSetup.dataStartDate = new Date(dto.dataStartDate);
+      if (dto.taxFilingFrequency !== undefined) accountingSetup.taxFilingFrequency = dto.taxFilingFrequency || null;
+      if (dto.usePOSDevice !== undefined) accountingSetup.usePOSDevice = dto.usePOSDevice;
+      if (dto.taxIndustryGroup !== undefined) accountingSetup.taxIndustryGroup = dto.taxIndustryGroup || null;
+      if (dto.accountingRegime !== undefined) accountingSetup.accountingRegime = dto.accountingRegime || null;
+      if (dto.taxCalculationMethod !== undefined) accountingSetup.taxCalculationMethod = dto.taxCalculationMethod || null;
+      if (dto.baseCurrency !== undefined) accountingSetup.baseCurrency = dto.baseCurrency || null;
+      if (dto.hasForeignCurrency !== undefined) accountingSetup.hasForeignCurrency = dto.hasForeignCurrency;
+      if (dto.inventoryValuationMethod !== undefined) accountingSetup.inventoryValuationMethod = dto.inventoryValuationMethod || null;
+    } else {
+      // Create new
+      accountingSetup = new TenantAccountingSetup();
+      accountingSetup.tenantId = tenantId;
+      accountingSetup.dataStartDate = dto.dataStartDate ? new Date(dto.dataStartDate) : null;
+      accountingSetup.taxFilingFrequency = dto.taxFilingFrequency || null;
+      accountingSetup.usePOSDevice = dto.usePOSDevice || false;
+      accountingSetup.taxIndustryGroup = dto.taxIndustryGroup || null;
+      accountingSetup.accountingRegime = dto.accountingRegime || null;
+      accountingSetup.taxCalculationMethod = dto.taxCalculationMethod || null;
+      accountingSetup.baseCurrency = dto.baseCurrency || null;
+      accountingSetup.hasForeignCurrency = dto.hasForeignCurrency || false;
+      accountingSetup.inventoryValuationMethod = dto.inventoryValuationMethod || null;
+    }
+
+    accountingSetup = await this.dataSource.getRepository(TenantAccountingSetup).save(accountingSetup);
+
+    // Log audit
+    await this.logAudit(tenantId, userId, 'accounting_setup', OnboardingAction.COMPLETED, dto);
+
+    return {
+      id: accountingSetup.id,
+      tenantId: accountingSetup.tenantId,
+      dataStartDate: accountingSetup.dataStartDate,
+      taxFilingFrequency: accountingSetup.taxFilingFrequency,
+      usePOSDevice: accountingSetup.usePOSDevice,
+      taxIndustryGroup: accountingSetup.taxIndustryGroup,
+      accountingRegime: accountingSetup.accountingRegime,
+      taxCalculationMethod: accountingSetup.taxCalculationMethod,
+      baseCurrency: accountingSetup.baseCurrency,
+      hasForeignCurrency: accountingSetup.hasForeignCurrency,
+      inventoryValuationMethod: accountingSetup.inventoryValuationMethod,
+    };
+  }
+
+  async saveAdvancedSetup(
+    tenantId: string,
+    userId: string,
+    dto: SaveAdvancedSetupDto,
+  ): Promise<any> {
+    const tenant = await this.tenantRepository.findOne({
+      where: { id: tenantId },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    // Upsert advanced setup
+    let advancedSetup = await this.dataSource.getRepository(TenantAdvancedSetup).findOne({
+      where: { tenantId },
+    });
+
+    if (advancedSetup) {
+      // Update existing
+      if (dto.eInvoiceEnabled !== undefined) advancedSetup.eInvoiceEnabled = dto.eInvoiceEnabled;
+      if (dto.eInvoiceProvider !== undefined) advancedSetup.eInvoiceProvider = dto.eInvoiceProvider || null;
+      if (dto.eInvoiceProviderName !== undefined) advancedSetup.eInvoiceProviderName = dto.eInvoiceProviderName || null;
+      if (dto.eInvoiceTaxCode !== undefined) advancedSetup.eInvoiceTaxCode = dto.eInvoiceTaxCode || null;
+      if (dto.eInvoiceUsername !== undefined) advancedSetup.eInvoiceUsername = dto.eInvoiceUsername || null;
+      if (dto.eInvoiceAutoIssue !== undefined) advancedSetup.eInvoiceAutoIssue = dto.eInvoiceAutoIssue;
+      if (dto.eInvoiceConnectedAt !== undefined) advancedSetup.eInvoiceConnectedAt = dto.eInvoiceConnectedAt ? new Date(dto.eInvoiceConnectedAt) : null;
+    } else {
+      // Create new
+      advancedSetup = new TenantAdvancedSetup();
+      advancedSetup.tenantId = tenantId;
+      advancedSetup.eInvoiceEnabled = dto.eInvoiceEnabled || false;
+      advancedSetup.eInvoiceProvider = dto.eInvoiceProvider || null;
+      advancedSetup.eInvoiceProviderName = dto.eInvoiceProviderName || null;
+      advancedSetup.eInvoiceTaxCode = dto.eInvoiceTaxCode || null;
+      advancedSetup.eInvoiceUsername = dto.eInvoiceUsername || null;
+      advancedSetup.eInvoiceAutoIssue = dto.eInvoiceAutoIssue || false;
+      advancedSetup.eInvoiceConnectedAt = dto.eInvoiceConnectedAt ? new Date(dto.eInvoiceConnectedAt) : null;
+    }
+
+    advancedSetup = await this.dataSource.getRepository(TenantAdvancedSetup).save(advancedSetup);
+
+    // Log audit
+    await this.logAudit(tenantId, userId, 'advanced_setup', OnboardingAction.COMPLETED, dto);
+
+    return {
+      id: advancedSetup.id,
+      tenantId: advancedSetup.tenantId,
+      eInvoiceEnabled: advancedSetup.eInvoiceEnabled,
+      eInvoiceProvider: advancedSetup.eInvoiceProvider,
+      eInvoiceProviderName: advancedSetup.eInvoiceProviderName,
+      eInvoiceTaxCode: advancedSetup.eInvoiceTaxCode,
+      eInvoiceUsername: advancedSetup.eInvoiceUsername,
+      eInvoiceAutoIssue: advancedSetup.eInvoiceAutoIssue,
+      eInvoiceConnectedAt: advancedSetup.eInvoiceConnectedAt,
     };
   }
 

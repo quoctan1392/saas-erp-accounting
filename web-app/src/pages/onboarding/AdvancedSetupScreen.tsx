@@ -25,6 +25,7 @@ import welcomeBg from '../../assets/Welcome screen.png';
 import AlertDialog from '../../components/AlertDialog';
 import BottomSheet from '../../components/BottomSheet';
 import Icon from '../../components/Icon';
+import { apiService } from '../../services/api';
 
 const AdvancedSetupScreen = () => {
   const navigate = useNavigate();
@@ -98,9 +99,13 @@ const AdvancedSetupScreen = () => {
             data = parsed;
           }
           
-          // Auto-fill tax code from business identification
-          if (data?.businessIdentification?.taxCode) {
-            setTaxCode(data.businessIdentification.taxCode);
+          // Auto-fill tax code from businessIdentification or businessInfo (legacy/key differences)
+          const bc =
+            data?.businessIdentification?.taxCode ||
+            data?.businessInfo?.taxId ||
+            data?.businessInfo?.taxCode;
+          if (bc) {
+            setTaxCode(bc);
           }
           
           // Load saved advanced setup if exists
@@ -208,7 +213,10 @@ const AdvancedSetupScreen = () => {
         const onboardingDataRaw = localStorage.getItem('onboardingData');
         if (onboardingDataRaw) {
           const parsed = JSON.parse(onboardingDataRaw);
-          const bc = parsed.businessIdentification?.taxCode;
+          const bc =
+            parsed.businessIdentification?.taxCode ||
+            parsed.businessInfo?.taxId ||
+            parsed.businessInfo?.taxCode;
           if (bc) setTaxCode(bc);
         }
       } catch (e) {
@@ -299,12 +307,47 @@ const AdvancedSetupScreen = () => {
   };
 
   // Handle back
-  const handleBack = () => {
+  const handleBack = async () => {
     if (showConnectionSheet && !isConnected) {
       setShowConfirmDialog(true);
-    } else {
-      navigate(ROUTES.ONBOARDING_ACCOUNTING_SETUP);
+      return;
     }
+
+    try {
+      // Ensure we persist an explicit "off" advancedSetup when user leaves without enabling
+      const onboardingData = JSON.parse(localStorage.getItem('onboardingData') || '{}');
+
+      const advancedSetupPayload: any = {
+        eInvoiceEnabled,
+      };
+
+      const updatedData = {
+        ...onboardingData,
+        advancedSetup: advancedSetupPayload,
+        completedAt: new Date().toISOString(),
+      };
+
+      // Try to mark onboarding completed on server if tenant available
+      const currentTenant = JSON.parse(localStorage.getItem('currentTenant') || '{}');
+      if (currentTenant && currentTenant.id) {
+        try {
+          await apiService.completeOnboarding(currentTenant.id);
+          const updatedTenant = { ...currentTenant, onboardingCompleted: true };
+          localStorage.setItem('currentTenant', JSON.stringify(updatedTenant));
+        } catch (e) {
+          console.warn('Failed to call completeOnboarding API:', e);
+        }
+      }
+
+      // Clear cached onboardingData and set flags so UI treats onboarding as completed
+      localStorage.removeItem('onboardingData');
+      localStorage.setItem('justCompletedOnboarding', 'true');
+      localStorage.removeItem('hasSeenSetupGuideModal');
+    } catch (e) {
+      console.warn('Error finalizing onboarding on back:', e);
+    }
+
+    navigate(ROUTES.ONBOARDING_ACCOUNTING_SETUP);
   };
 
   const handleConfirmLeave = () => {
@@ -325,8 +368,25 @@ const AdvancedSetupScreen = () => {
 
     try {
       const onboardingData = JSON.parse(localStorage.getItem('onboardingData') || '{}');
+      const currentTenant = JSON.parse(localStorage.getItem('currentTenant') || '{}');
 
-      // Prepare advanced setup payload
+      // Prepare advanced setup payload for API
+      const advancedSetupApiPayload: any = {
+        eInvoiceEnabled,
+        eInvoiceProvider: eInvoiceEnabled && isConnected ? selectedProvider : null,
+        eInvoiceProviderName: eInvoiceEnabled && isConnected ? providers.find((p) => p.code === selectedProvider)?.name : null,
+        eInvoiceTaxCode: eInvoiceEnabled && isConnected ? taxCode : null,
+        eInvoiceUsername: eInvoiceEnabled && isConnected ? username : null,
+        eInvoiceAutoIssue: eInvoiceEnabled && isConnected ? autoIssueOnSale : false,
+        eInvoiceConnectedAt: eInvoiceEnabled && isConnected ? new Date().toISOString() : null,
+      };
+
+      // Save advanced setup to server
+      if (currentTenant.id) {
+        await apiService.saveAdvancedSetup(currentTenant.id, advancedSetupApiPayload);
+      }
+
+      // Prepare advanced setup for localStorage (with nested structure for backward compatibility)
       let advancedSetupPayload: any = {
         eInvoiceEnabled,
       };
@@ -351,12 +411,10 @@ const AdvancedSetupScreen = () => {
 
       console.log('[AdvancedSetupScreen] Complete onboarding payload:', updatedData);
 
-      // TODO: Call API to complete onboarding
-      // const currentTenant = JSON.parse(localStorage.getItem('currentTenant') || '{}');
-      // await apiService.completeOnboarding(currentTenant.id, updatedData);
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Complete onboarding on server
+      if (currentTenant.id) {
+        await apiService.completeOnboarding(currentTenant.id);
+      }
 
       // Clean up localStorage
       localStorage.removeItem('onboardingData');
@@ -514,7 +572,7 @@ const AdvancedSetupScreen = () => {
                 >
                   <Box sx={{ flex: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0 }}>
-                      <Typography sx={{ fontSize: '16px', fontWeight: 600 }}>
+                      <Typography sx={{ fontSize: '16px', fontWeight: 500 }}>
                         Hoá đơn điện tử
                       </Typography>
                     </Box>
@@ -612,7 +670,7 @@ const AdvancedSetupScreen = () => {
                 borderRadius: '100px',
                 backgroundColor: '#FB7E00',
                 '&:hover': { backgroundColor: '#C96400' },
-                boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
+                boxShadow: 'none',
               }}
             >
               Bắt đầu sử dụng

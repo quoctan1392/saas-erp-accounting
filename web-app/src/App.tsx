@@ -42,19 +42,22 @@ const InitialBalanceFlow = lazy(() => import('./pages/declaration/initial-balanc
 const MainLayout = lazy(() => import('./components/MainLayout'));
 
 // Loading component for lazy loaded pages
-const PageLoader = () => (
-  <Box
-    sx={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    }}
-  >
-    <CircularProgress sx={{ color: 'white' }} />
-  </Box>
-);
+const PageLoader = () => {
+  console.log('PageLoader is rendering');
+  return (
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      }}
+    >
+      <CircularProgress sx={{ color: 'white' }} />
+    </Box>
+  );
+};
 
 const theme = createTheme({
   palette: {

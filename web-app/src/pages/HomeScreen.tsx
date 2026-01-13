@@ -172,13 +172,15 @@ const HomeScreen = () => {
       const response = await apiService.getOnboardingStatus(currentTenant.id);
 
       if (response.success && response.data) {
-        const { onboardingCompleted, businessType, businessInfo } = response.data;
+        const { onboardingCompleted, businessType, businessInfo, businessSector, accountingSetup } = response.data;
 
         // Store full onboarding data in localStorage for screens to use (caching)
         const onboardingData = {
           isEdit: !!(onboardingCompleted || businessType || businessInfo),
           businessType,
           businessInfo,
+          businessSector,
+          accountingSetup,
           onboardingCompleted,
           cachedAt: Date.now(),
         };

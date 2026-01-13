@@ -666,7 +666,7 @@ const BusinessInfoScreen = () => {
                           borderRadius: '100px',
                           backgroundColor: '#FB7E00',
                           '&:hover': { backgroundColor: '#C96400' },
-                          boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
+                          boxShadow: 'none',
                         }}
                       >
                         {isEditMode ? 'Cập nhật' : 'Tiếp tục'}

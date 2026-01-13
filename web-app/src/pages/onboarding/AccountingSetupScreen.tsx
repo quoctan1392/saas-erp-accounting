@@ -9,7 +9,6 @@ import {
   FormControl,
   Checkbox,
   FormGroup,
-  CircularProgress,
   Snackbar,
   Alert,
   Chip,
@@ -34,12 +33,12 @@ import Icon from '../../components/Icon';
 import TaxIndustryGroupSelector from '../../components/TaxIndustryGroupSelector';
 import taxIndustryGroups from '../../data/taxIndustryGroups';
 import DatePickerBottomSheet from '../../components/DatePickerBottomSheet';
+import { apiService } from '../../services/api';
 
 const AccountingSetupScreen = () => {
   const navigate = useNavigate();
   const [businessType, setBusinessType] = useState<BusinessType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isDataLoading, setIsDataLoading] = useState(true);
   const hkDateRef = useRef<HTMLInputElement | null>(null);
   const dntnDateRef = useRef<HTMLInputElement | null>(null);
   const hkNativeDateRef = useRef<HTMLInputElement | null>(null);
@@ -131,63 +130,58 @@ const AccountingSetupScreen = () => {
   // Load onboarding data and update state
   useEffect(() => {
     const loadOnboardingData = () => {
-      setIsDataLoading(true);
       try {
         const onboardingData = localStorage.getItem('onboardingData');
         if (onboardingData) {
-          try {
-            const data = JSON.parse(onboardingData);
-            setBusinessType(data.businessType || null);
+          const data = JSON.parse(onboardingData);
+          setBusinessType(data.businessType || null);
 
-            // Set default date to first day of current year
-            const currentYear = new Date().getFullYear();
-            const defaultDate = `${currentYear}-01-01`;
-            setDataStartDate(defaultDate);
+          // Set default date to first day of current year
+          const currentYear = new Date().getFullYear();
+          const defaultDate = `${currentYear}-01-01`;
+          setDataStartDate(defaultDate);
 
-            if (data.accountingSetup) {
-              const setup = data.accountingSetup;
+          if (data.accountingSetup) {
+            const setup = data.accountingSetup;
 
-              if (setup.dataStartDate) {
-                const date = new Date(setup.dataStartDate);
-                if (!isNaN(date.getTime())) {
-                  setDataStartDate(date.toISOString().split('T')[0]);
-                }
-              }
-
-              // HKD fields
-              if (setup.taxFilingFrequency) {
-                setTaxFilingFrequency(setup.taxFilingFrequency);
-              }
-              if (setup.usePOSDevice !== undefined) {
-                setUsePOSDevice(setup.usePOSDevice);
-              }
-              if (setup.taxIndustryGroup) {
-                setTaxIndustryGroup(setup.taxIndustryGroup);
-              }
-
-              // DNTN fields
-              if (setup.accountingRegime) {
-                setAccountingRegimeDNTN(setup.accountingRegime);
-              }
-              if (setup.taxCalculationMethod) {
-                setTaxCalculationMethod(setup.taxCalculationMethod);
-              }
-              if (setup.baseCurrency) {
-                setBaseCurrency(setup.baseCurrency);
-              }
-              if (setup.hasForeignCurrency !== undefined) {
-                setHasForeignCurrency(setup.hasForeignCurrency);
-              }
-              if (setup.inventoryValuationMethod) {
-                setInventoryValuationMethod(setup.inventoryValuationMethod);
+            if (setup.dataStartDate) {
+              const date = new Date(setup.dataStartDate);
+              if (!isNaN(date.getTime())) {
+                setDataStartDate(date.toISOString().split('T')[0]);
               }
             }
-          } catch (error) {
-            console.error('Error parsing onboarding data:', error);
+
+            // HKD fields
+            if (setup.taxFilingFrequency) {
+              setTaxFilingFrequency(setup.taxFilingFrequency);
+            }
+            if (setup.usePOSDevice !== undefined) {
+              setUsePOSDevice(setup.usePOSDevice);
+            }
+            if (setup.taxIndustryGroup) {
+              setTaxIndustryGroup(setup.taxIndustryGroup);
+            }
+
+            // DNTN fields
+            if (setup.accountingRegime) {
+              setAccountingRegimeDNTN(setup.accountingRegime);
+            }
+            if (setup.taxCalculationMethod) {
+              setTaxCalculationMethod(setup.taxCalculationMethod);
+            }
+            if (setup.baseCurrency) {
+              setBaseCurrency(setup.baseCurrency);
+            }
+            if (setup.hasForeignCurrency !== undefined) {
+              setHasForeignCurrency(setup.hasForeignCurrency);
+            }
+            if (setup.inventoryValuationMethod) {
+              setInventoryValuationMethod(setup.inventoryValuationMethod);
+            }
           }
         }
-      } finally {
-        setIsDataLoading(false);
+      } catch (error) {
+        console.error('Error loading onboarding data:', error);
       }
     };
 
@@ -196,21 +190,18 @@ const AccountingSetupScreen = () => {
 
   // Set initial form snapshot after state updates
   useEffect(() => {
-    if (!isDataLoading) {
-      initialFormRef.current = {
-        dataStartDate,
-        taxFilingFrequency,
-        usePOSDevice,
-        taxIndustryGroup,
-        accountingRegimeDNTN,
-        taxCalculationMethod,
-        baseCurrency,
-        hasForeignCurrency,
-        inventoryValuationMethod,
-      };
-    }
+    initialFormRef.current = {
+      dataStartDate,
+      taxFilingFrequency,
+      usePOSDevice,
+      taxIndustryGroup,
+      accountingRegimeDNTN,
+      taxCalculationMethod,
+      baseCurrency,
+      hasForeignCurrency,
+      inventoryValuationMethod,
+    };
   }, [
-    isDataLoading,
     dataStartDate,
     taxFilingFrequency,
     usePOSDevice,
@@ -308,6 +299,12 @@ const AccountingSetupScreen = () => {
 
       console.log('[AccountingSetupScreen] Payload:', accountingSetupPayload);
 
+      // Use the already validated currentTenant
+      const currentTenant = JSON.parse(currentTenantStr);
+
+      // Save to server
+      await apiService.saveAccountingSetup(currentTenant.id, accountingSetupPayload);
+
       // Save to localStorage
       const onboardingData = JSON.parse(localStorage.getItem('onboardingData') || '{}');
       const updatedData = {
@@ -316,9 +313,6 @@ const AccountingSetupScreen = () => {
         cachedAt: Date.now(),
       };
       localStorage.setItem('onboardingData', JSON.stringify(updatedData));
-
-      // TODO: Call API to save accounting setup
-      // await apiService.saveAccountingSetup(currentTenant.id, accountingSetupPayload);
 
       setSnack({
         open: true,
@@ -411,30 +405,17 @@ const AccountingSetupScreen = () => {
             minHeight: { xs: 'auto', sm: 'auto' },
           }}
         >
-          {isDataLoading ? (
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                minHeight: '300px',
-              }}
-            >
-              <CircularProgress />
-            </Box>
-          ) : (
-            <>
-              {/* Scrollable content area */}
-              <Box
-                sx={{
-                  flex: 1,
-                  overflowY: { xs: 'auto', sm: 'visible' },
-                  pr: 0,
-                  WebkitOverflowScrolling: 'touch',
-                }}
-              >
-                {/* HKD Form */}
-                {isHKD && (
+          {/* Scrollable content area */}
+          <Box
+            sx={{
+              flex: 1,
+              overflowY: { xs: 'auto', sm: 'visible' },
+              pr: 0,
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
+            {/* HKD Form */}
+            {isHKD && (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {/* Accounting Regime - display as a radio (HKD only) */}
                     <FormControl component="fieldset">
@@ -944,8 +925,6 @@ const AccountingSetupScreen = () => {
                   Tiếp tục
                 </AppButton>
               </Box>
-            </>
-          )}
         </Box>
       </Container>
 
@@ -978,7 +957,7 @@ const AccountingSetupScreen = () => {
                 borderRadius: '100px',
                 backgroundColor: '#FB7E00',
                 '&:hover': { backgroundColor: '#C96400' },
-                boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
+                boxShadow: 'none',
               }}
             >
               Tiếp tục

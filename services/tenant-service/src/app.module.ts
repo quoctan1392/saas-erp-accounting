@@ -13,6 +13,9 @@ import { TenantMember } from './modules/tenants/entities/tenant-member.entity';
 import { TenantBusinessInfo } from './modules/tenants/entities/tenant-business-info.entity';
 import { OnboardingAuditLog } from './modules/tenants/entities/onboarding-audit-log.entity';
 import { Subscription } from './modules/subscriptions/entities/subscription.entity';
+import { TenantBusinessSector } from './modules/tenants/entities/tenant-business-sector.entity';
+import { TenantAccountingSetup } from './modules/tenants/entities/tenant-accounting-setup.entity';
+import { TenantAdvancedSetup } from './modules/tenants/entities/tenant-advanced-setup.entity';
 
 @Module({
   imports: [
@@ -26,7 +29,16 @@ import { Subscription } from './modules/subscriptions/entities/subscription.enti
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
         url: configService.get('DATABASE_URL'),
-        entities: [Tenant, TenantMember, TenantBusinessInfo, OnboardingAuditLog, Subscription],
+        entities: [
+          Tenant,
+          TenantMember,
+          TenantBusinessInfo,
+          OnboardingAuditLog,
+          Subscription,
+          TenantBusinessSector,
+          TenantAccountingSetup,
+          TenantAdvancedSetup,
+        ],
         synchronize: configService.get('NODE_ENV') === 'development',
         logging: configService.get('NODE_ENV') === 'development',
         ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,

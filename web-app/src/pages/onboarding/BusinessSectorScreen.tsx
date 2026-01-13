@@ -257,27 +257,26 @@ const BusinessSectorScreen = () => {
         return;
       }
 
-      // Parse tenant for future API calls
-      JSON.parse(currentTenantStr); // Validate JSON format
+      const currentTenant = JSON.parse(currentTenantStr);
+
+      // Prepare payload
+      const businessSectorPayload = {
+        sector: selectedSector,
+        industryCode: selectedIndustry.code,
+        industryName: selectedIndustry.name,
+      };
+
+      // Save to server
+      await apiService.saveBusinessSector(currentTenant.id, businessSectorPayload);
 
       // Save to localStorage
       const onboardingData = JSON.parse(localStorage.getItem('onboardingData') || '{}');
       const updatedData = {
         ...onboardingData,
-        businessSector: {
-          sector: selectedSector,
-          industryCode: selectedIndustry.code,
-          industryName: selectedIndustry.name,
-        },
+        businessSector: businessSectorPayload,
         cachedAt: Date.now(),
       };
       localStorage.setItem('onboardingData', JSON.stringify(updatedData));
-
-      // TODO: Call API to save business sector
-      // await apiService.saveBusinessSector(currentTenant.id, {
-      //   sector: selectedSector,
-      //   industryCode: selectedIndustry.code,
-      // });
 
       console.log('[BusinessSectorScreen] Saved business sector:', {
         sector: selectedSector,

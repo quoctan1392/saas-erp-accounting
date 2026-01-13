@@ -11,6 +11,7 @@
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    "noEmit": true,
     "composite": true,
     "removeComments": true,
     "esModuleInterop": true,

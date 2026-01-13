@@ -392,10 +392,85 @@ export class ItemsService {
 
   // ==================== UNITS ====================
   async findAllUnits(tenantId: string): Promise<Unit[]> {
-    return this.unitRepository.find({
-      where: { tenantId, isDeleted: false },
-      order: { code: 'ASC' },
+    const defaultUnits = [
+      { code: 'cai', name: 'Cái' },
+      { code: 'chiec', name: 'Chiếc' },
+      { code: 'con', name: 'Con' },
+      { code: 'bo', name: 'Bộ' },
+      { code: 'cap', name: 'Cặp' },
+      { code: 'doi', name: 'Đôi' },
+      { code: 'goi', name: 'Gói' },
+      { code: 'hop', name: 'Hộp' },
+      { code: 'thung', name: 'Thùng' },
+      { code: 'bao', name: 'Bao' },
+      { code: 'bich', name: 'Bịch' },
+      { code: 'chai', name: 'Chai' },
+      { code: 'lo', name: 'Lọ' },
+      { code: 'hu', name: 'Hủ' },
+      { code: 'tui', name: 'Túi' },
+      { code: 'kg', name: 'Kg' },
+      { code: 'g', name: 'Gam' },
+      { code: 'tan', name: 'Tấn' },
+      { code: 'yen', name: 'Yến' },
+      { code: 'ta', name: 'Tạ' },
+      { code: 'lit', name: 'Lít' },
+      { code: 'ml', name: 'Ml' },
+      { code: 'met', name: 'Mét' },
+      { code: 'cm', name: 'Cm' },
+      { code: 'km', name: 'Km' },
+      { code: 'm2', name: 'M²' },
+      { code: 'm3', name: 'M³' },
+      { code: 'pack', name: 'Pack' },
+      { code: 'thot', name: 'Thớt' },
+      { code: 'qua', name: 'Quả' },
+      { code: 'trai', name: 'Trái' },
+      { code: 'quen', name: 'Quẹn' },
+      { code: 'cuon', name: 'Cuộn' },
+      { code: 'to', name: 'Tờ' },
+      { code: 'ram', name: 'Rạm' },
+      { code: 'chau', name: 'Chậu' },
+      { code: 'cay', name: 'Cây' },
+      { code: 'cum', name: 'Cụm' },
+      { code: 'hanh', name: 'Hành' },
+      { code: 'lot', name: 'Lốc' },
+      { code: 'tam', name: 'Tấm' },
+      { code: 'thanh', name: 'Thanh' },
+      { code: 'vien', name: 'Viên' },
+    ];
+
+    const defaultCodes = defaultUnits.map((d) => d.code);
+
+    // Ensure default units exist for tenant (insert any missing ones)
+    const existingDefaults = await this.unitRepository.find({
+      where: { tenantId, code: In(defaultCodes), isDeleted: false },
     });
+
+    const existingCodes = existingDefaults.map((e) => e.code);
+    const missing = defaultUnits.filter((d) => !existingCodes.includes(d.code));
+
+    if (missing.length > 0) {
+      const created = missing.map((u) =>
+        this.unitRepository.create({
+          code: u.code,
+          name: u.name,
+          tenantId,
+        }),
+      );
+      await this.unitRepository.save(created);
+    }
+
+    // Fetch all units for tenant and return ordered list
+    const allUnits = await this.unitRepository.find({
+      where: { tenantId, isDeleted: false },
+    });
+
+    const userCreated = allUnits.filter((u) => !defaultCodes.includes(u.code));
+    const defaults = allUnits.filter((u) => defaultCodes.includes(u.code));
+
+    userCreated.sort((a, b) => a.name.localeCompare(b.name));
+    defaults.sort((a, b) => a.name.localeCompare(b.name));
+
+    return [...userCreated, ...defaults];
   }
 
   async findOneUnit(id: string, tenantId: string): Promise<Unit> {

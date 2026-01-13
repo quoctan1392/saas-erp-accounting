@@ -42,9 +42,35 @@ const ProductGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect 
       if (apiGroups && apiGroups.length > 0) {
         const formattedGroups = apiGroups.map((g: any) => ({
           value: g.id || g.code,
+          code: g.code || g.id || (g.id ? String(g.id) : undefined),
           label: g.name,
         }));
-        setGroups(formattedGroups);
+
+        // Default codes from UI defaults
+        const defaultCodes = DEFAULT_GROUPS.map((d) => d.value);
+
+        // Separate user-created (custom) groups and defaults returned from API
+        const userCreated = formattedGroups.filter((u: any) => !defaultCodes.includes(u.code));
+        const defaultsFromApi = formattedGroups.filter((u: any) => defaultCodes.includes(u.code));
+
+        // Find defaults missing from API and keep local default entries
+        const returnedDefaultCodes = defaultsFromApi.map((d: any) => d.code);
+        const missingDefaults = DEFAULT_GROUPS
+          .filter((d) => !returnedDefaultCodes.includes(d.value))
+          .map((d) => ({ value: d.value, code: d.value, label: d.label }));
+
+        // Sort each section alphabetically by label (vi locale)
+        userCreated.sort((a: any, b: any) => a.label.localeCompare(b.label, 'vi'));
+        defaultsFromApi.sort((a: any, b: any) => a.label.localeCompare(b.label, 'vi'));
+        missingDefaults.sort((a: any, b: any) => a.label.localeCompare(b.label, 'vi'));
+
+        const final = [
+          ...userCreated.map((u: any) => ({ value: u.value, label: u.label })),
+          ...defaultsFromApi.map((d: any) => ({ value: d.value, label: d.label })),
+          ...missingDefaults.map((d: any) => ({ value: d.value, label: d.label })),
+        ];
+
+        setGroups(final.length ? final : DEFAULT_GROUPS.slice());
       } else {
         setGroups(DEFAULT_GROUPS.slice());
       }
@@ -167,10 +193,12 @@ const ProductGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect 
         <ProductGroupCreateScreen
           open={createOpen}
           onClose={() => setCreateOpen(false)}
-          onCreate={(grp) => {
-            // Snackbar đã hiển thị trong CreateScreen rồi
-            // Chỉ cần đóng selection screen và set giá trị về form cha
+          onCreate={async (grp) => {
+            // Close create screen
             setCreateOpen(false);
+            // Reload groups so defaults and newly created groups are merged
+            await loadGroups();
+            // Immediately select the newly created group and close selection
             onSelect(grp.label);
             onClose();
           }}

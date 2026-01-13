@@ -165,8 +165,28 @@ const CustomerSelectionScreen: React.FC<CustomerSelectionScreenProps> = ({ open,
   const handleCustomerFormSave = (newCustomer: any) => {
     // Reload customer list to include the newly created customer
     loadCustomers();
-    // Auto-select the newly created customer
-    onSelect(newCustomer);
+    // Normalize the API result into the shape expected by onSelect
+    const payload = newCustomer?.data || newCustomer?.data?.data || newCustomer?.accountingObject || newCustomer?.accounting_object || newCustomer?.result || newCustomer;
+    const normalized: Customer = {
+      id: payload?.id || payload?._id || newCustomer?.id || newCustomer?._id || '',
+      name:
+        payload?.accountObjectName || payload?.account_object_name || payload?.name || newCustomer?.accountObjectName || newCustomer?.name || '',
+      code:
+        payload?.accountObjectCode || payload?.account_object_code || payload?.code || newCustomer?.accountObjectCode || newCustomer?.code || '',
+      type: (payload?.companyTaxCode || payload?.taxCode || newCustomer?.companyTaxCode || newCustomer?.taxCode) ? 'organization' : 'individual',
+      taxCode: payload?.companyTaxCode || payload?.taxCode || newCustomer?.companyTaxCode || newCustomer?.taxCode,
+      idNumber: payload?.identityNumber || payload?.idNumber || newCustomer?.identityNumber || newCustomer?.idNumber,
+    };
+
+    // Auto-select the newly created customer with normalized fields
+    try {
+      onSelect(normalized);
+    } catch (err) {
+      console.warn('onSelect callback threw when selecting new customer', err);
+      // Fallback: pass raw object if normalization fails
+      onSelect(newCustomer as any);
+    }
+
     setShowCustomerForm(false);
     triggerClose();
   };
@@ -320,9 +340,8 @@ const CustomerSelectionScreen: React.FC<CustomerSelectionScreenProps> = ({ open,
                 py: 4,
               }}
             >
-              <Icon name="Profile" size={48} color="#ADB5BD" variant="Outline" />
               <Typography sx={{ fontSize: '16px', color: '#495057', mt: 2 }}>
-                {query ? 'Không tìm thấy khách hàng' : 'Chưa có khách hàng nào'}
+                {query ? 'Không tìm thấy khách hàng' : 'Chưa có khách hàng nào. Vui lòng thêm mới để tiếp tục'}
               </Typography>
               <Button
                 variant="text"

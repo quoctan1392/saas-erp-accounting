@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiService } from '../../../services/api';
 import {
   Box,
   Container,
@@ -19,14 +20,12 @@ import SupplierSelectionScreen from './SupplierSelectionScreen';
 import headerDay from '../../../assets/Header_day.png';
 import * as Iconsax from 'iconsax-react';
 
-// Icon wrapper component
 const Icon = ({ name, size = 24, color = 'currentColor', variant = 'Outline' }: any) => {
   const Comp = (Iconsax as any)[name];
   if (!Comp) return null;
   return <Comp size={size} color={color} variant={variant} />;
 };
 
-// Format number with thousand separators (using comma)
 const formatNumber = (value: number): string => {
   return value.toLocaleString('en-US');
 };
@@ -41,7 +40,6 @@ interface SupplierDebt {
   debtDate?: string;
   note?: string;
 }
-
 interface Supplier {
   id: string;
   name: string;
@@ -80,19 +78,80 @@ const InitialBalanceStep3Screen = ({ embedded = false }: { embedded?: boolean })
   });
   const [showSupplierSelection, setShowSupplierSelection] = useState(false);
 
-  // Load saved data from localStorage on mount
+  // Load saved data from server (preferred) or tenant-scoped localStorage on mount
   useEffect(() => {
-    const savedData = localStorage.getItem('initial_balance_draft_step3');
-    if (savedData) {
+    const getTenantId = () => {
       try {
-        const parsed = JSON.parse(savedData);
-        if (parsed.supplierDebts) {
-          setSupplierDebts(parsed.supplierDebts);
+        const sel = localStorage.getItem('selectedTenant');
+        if (sel) return JSON.parse(sel).id;
+        const cur = localStorage.getItem('currentTenant');
+        if (cur) return JSON.parse(cur).id;
+        const token = localStorage.getItem('tenantAccessToken');
+        if (token) {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1]));
+            if (payload && (payload.tenantId || payload.tenant)) return payload.tenantId || payload.tenant;
+          }
         }
-      } catch (e) {
-        console.error('Error loading saved data:', e);
+      } catch (err) {
+        console.warn('getTenantId parse error', err);
       }
-    }
+      return null;
+    };
+
+    (async () => {
+      const tenantId = getTenantId();
+      try {
+        const periods = await apiService.getOpeningPeriods();
+        if (periods && periods.length > 0) {
+          // Only use server data if there's a locked (finalized) period
+          const period = (periods as any[]).find((p) => p.isLocked || p.is_locked) || null;
+          if (period) {
+            try {
+              const balances = await apiService.getOpeningBalances({ periodId: period.id, page: 1, limit: 200 });
+              const list = Array.isArray(balances) ? balances : balances?.data || balances || [];
+              const serverSuppliers: SupplierDebt[] = [];
+              for (const b of list) {
+                const acct = (b.accountNumber || b.account_number || '').toString();
+                const credit = b.creditBalance ?? b.credit ?? b.amount ?? 0;
+                if (acct === '331') {
+                  serverSuppliers.push({
+                    id: b.id || `sup_${Date.now()}_${Math.random()}`,
+                    supplierId: b.accountObjectId || b.account_object_id || '',
+                    supplierName: b.note || b.accountObjectName || 'Nhà cung cấp',
+                    supplierCode: b.accountObjectCode || b.account_object_code || '',
+                    supplierType: 'organization',
+                    amount: Number(credit) || 0,
+                    debtDate: undefined,
+                    note: b.note || '',
+                  });
+                }
+              }
+              if (serverSuppliers.length > 0) {
+                setSupplierDebts(serverSuppliers);
+                return;
+              }
+            } catch (err) {
+              console.warn('Failed to load opening balances from server', err);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch opening periods', err);
+      }
+
+      const draftKey = tenantId ? `initial_balance_draft_step3_${tenantId}` : 'initial_balance_draft_step3';
+      const savedData = localStorage.getItem(draftKey);
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData);
+          if (parsed.supplierDebts) setSupplierDebts(parsed.supplierDebts);
+        } catch (e) {
+          console.error('Error loading saved data:', e);
+        }
+      }
+    })();
   }, []);
 
   // Play entrance animation: start off-screen to the right, then animate to 0
@@ -100,15 +159,35 @@ const InitialBalanceStep3Screen = ({ embedded = false }: { embedded?: boolean })
     requestAnimationFrame(() => setExiting(false));
   }, []);
 
+  const tenantIdForUI = (() => {
+    try {
+      const s = localStorage.getItem('selectedTenant');
+      if (s) return JSON.parse(s).id;
+      const c = localStorage.getItem('currentTenant');
+      if (c) return JSON.parse(c).id;
+    } catch (e) {}
+    return null;
+  })();
+  const completedStepsForUI = JSON.parse(localStorage.getItem(tenantIdForUI ? `initial_balance_completed_steps_${tenantIdForUI}` : 'initial_balance_completed_steps') || '[]');
+
   // Calculate total debt (BR01 for US07)
   const totalDebt = supplierDebts.reduce((sum, debt) => sum + debt.amount, 0);
 
   // Handle back navigation
   const handleBack = () => {
-    // Save current data
+    const tenantId = (() => {
+      try {
+        const s = localStorage.getItem('selectedTenant');
+        if (s) return JSON.parse(s).id;
+        const c = localStorage.getItem('currentTenant');
+        if (c) return JSON.parse(c).id;
+      } catch (e) {}
+      return null;
+    })();
+    const draftKey = tenantId ? `initial_balance_draft_step3_${tenantId}` : 'initial_balance_draft_step3';
     const draftData = { supplierDebts };
-    localStorage.setItem('initial_balance_draft_step3', JSON.stringify(draftData));
-    
+    localStorage.setItem(draftKey, JSON.stringify(draftData));
+
     setExiting(true);
     setTimeout(() => navigate(ROUTES.DECLARATION_INITIAL_BALANCE_STEP2), ANIM_MS);
   };
@@ -119,10 +198,20 @@ const InitialBalanceStep3Screen = ({ embedded = false }: { embedded?: boolean })
   };
 
   const handleSkipConfirm = () => {
-    // Save current data before skipping
+    const tenantId = (() => {
+      try {
+        const s = localStorage.getItem('selectedTenant');
+        if (s) return JSON.parse(s).id;
+        const c = localStorage.getItem('currentTenant');
+        if (c) return JSON.parse(c).id;
+      } catch (e) {}
+      return null;
+    })();
+    const draftKey = tenantId ? `initial_balance_draft_step3_${tenantId}` : 'initial_balance_draft_step3';
+    const skippedKey = tenantId ? `initialBalanceSkipped_${tenantId}` : 'initialBalanceSkipped';
     const draftData = { supplierDebts };
-    localStorage.setItem('initial_balance_draft_step3', JSON.stringify(draftData));
-    localStorage.setItem('initialBalanceSkipped', 'true');
+    localStorage.setItem(draftKey, JSON.stringify(draftData));
+    localStorage.setItem(skippedKey, 'true');
     setShowSkipDialog(false);
     setExiting(true);
     setTimeout(() => navigate(ROUTES.HOME), ANIM_MS);
@@ -134,20 +223,33 @@ const InitialBalanceStep3Screen = ({ embedded = false }: { embedded?: boolean })
     
     try {
       // Save step 3 data
+      const tenantId = (() => {
+        try {
+          const s = localStorage.getItem('selectedTenant');
+          if (s) return JSON.parse(s).id;
+          const c = localStorage.getItem('currentTenant');
+          if (c) return JSON.parse(c).id;
+        } catch (e) {}
+        return null;
+      })();
+      const draftKey = tenantId ? `initial_balance_draft_step3_${tenantId}` : 'initial_balance_draft_step3';
+      const completedKey = tenantId ? `initial_balance_completed_steps_${tenantId}` : 'initial_balance_completed_steps';
+      const stepKey = tenantId ? `initialBalanceStep_${tenantId}` : 'initialBalanceStep';
+      const skippedKey = tenantId ? `initialBalanceSkipped_${tenantId}` : 'initialBalanceSkipped';
+
       const draftData = { supplierDebts };
-      localStorage.setItem('initial_balance_draft_step3', JSON.stringify(draftData));
-      
-      // Mark step 3 as completed (not skipped)
-      const completedSteps = JSON.parse(localStorage.getItem('initial_balance_completed_steps') || '[]');
+      localStorage.setItem(draftKey, JSON.stringify(draftData));
+
+      const completedSteps = JSON.parse(localStorage.getItem(completedKey) || '[]');
       if (!completedSteps.includes(2)) {
         completedSteps.push(2);
-        localStorage.setItem('initial_balance_completed_steps', JSON.stringify(completedSteps));
+        localStorage.setItem(completedKey, JSON.stringify(completedSteps));
       }
-      
+
       // Mark initial balance as completed
-      localStorage.setItem('initialBalanceStep', 'completed');
+      localStorage.setItem(stepKey, 'completed');
       localStorage.setItem('declarationCompleted', 'true');
-      localStorage.removeItem('initialBalanceSkipped');
+      localStorage.removeItem(skippedKey);
       
       // Show success message
       setSuccessMessage('Hoàn tất khai báo số dư ban đầu');
@@ -368,7 +470,7 @@ const InitialBalanceStep3Screen = ({ embedded = false }: { embedded?: boolean })
                 { label: 'Công nợ', subLabel: 'nhà cung cấp' },
               ]}
               activeStep={2}
-              completedSteps={JSON.parse(localStorage.getItem('initial_balance_completed_steps') || '[]')}
+              completedSteps={completedStepsForUI}
             />
           </Box>
 
@@ -655,8 +757,9 @@ const InitialBalanceStep3Screen = ({ embedded = false }: { embedded?: boolean })
                   borderRadius: '100px',
                   height: 48,
                   fontSize: '16px',
-                  fontWeight: 600,
+                  fontWeight: 500,
                   textTransform: 'none',
+                  boxShadow: 'none',
                   '&:hover': { bgcolor: '#E67000' },
                   '&:disabled': { bgcolor: '#E9ECEF', color: '#ADB5BD' },
                 }}

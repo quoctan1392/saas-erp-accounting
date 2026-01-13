@@ -17,7 +17,7 @@ import { QueryStockLevelDto } from './dto/query-stock-level.dto';
 import { AdjustInventoryDto } from './dto/adjust-inventory.dto';
 import { TransferInventoryDto } from './dto/transfer-inventory.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { TenantId, UserId } from '../../common/decorators/tenant.decorator';
+import { TenantId } from '../../common/decorators/tenant.decorator';
 
 @Controller('inventory')
 @UseGuards(JwtAuthGuard)

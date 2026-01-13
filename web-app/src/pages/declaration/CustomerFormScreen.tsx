@@ -11,6 +11,7 @@ import {
   InputAdornment,
   IconButton,
 } from '@mui/material';
+import SuccessSnackbar from '../../components/SuccessSnackbar';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
 import { ArrowBack } from '@mui/icons-material';
@@ -83,6 +84,7 @@ const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSave
   // Error dialog state
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [errorDialogMessage, setErrorDialogMessage] = useState('');
+  const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
 
   // Auto-generate customer code on mount
   useEffect(() => {
@@ -137,7 +139,6 @@ const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSave
       }, ANIM_MS);
     }
   };
-
   const handleConfirmLeave = () => {
     setShowConfirmDialog(false);
     setExiting(true);
@@ -174,14 +175,18 @@ const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSave
 
       const result = await apiService.createAccountingObject(accountingObjectData);
       console.log('Customer saved successfully:', result);
+      // Show success snackbar when saving and adding new
+      setShowSuccessSnackbar(true);
 
-      setHasChanges(false);
-      if (embedded) {
-        if (typeof onSaveSuccess === 'function') onSaveSuccess(result);
-        if (typeof onClose === 'function') onClose();
-      } else {
-        navigate(ROUTES.DECLARATION_CATEGORIES);
-      }
+        setHasChanges(false);
+        if (embedded) {
+          if (typeof onSaveSuccess === 'function') onSaveSuccess(result);
+          if (typeof onClose === 'function') onClose();
+        } else {
+          // Show success snackbar briefly before navigating so the user sees confirmation
+          setShowSuccessSnackbar(true);
+          setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), 800);
+        }
     } catch (error: any) {
       console.error('Error saving customer:', error);
       const message =
@@ -215,7 +220,8 @@ const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSave
 
       const result = await apiService.createAccountingObject(accountingObjectData);
       console.log('Customer saved successfully:', result);
-
+      // Show success snackbar for Save-and-Add flow
+      setShowSuccessSnackbar(true);
       try {
         const nextCode = await apiService.getNextObjectCode('customer');
         if (typeof nextCode === 'string' && nextCode.trim().length > 0) {
@@ -720,56 +726,62 @@ const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSave
               sx={{ display: { xs: 'none', sm: 'flex' }, gap: 2, mt: 4, justifyContent: 'flex-end' }}
             >
               <Button
-                variant="outlined"
+                variant={embedded ? 'contained' : 'outlined'}
                 onClick={handleSave}
                 disabled={!isFormValid() || isLoading}
                 sx={{
                   borderRadius: '12px',
                   textTransform: 'none',
                   fontWeight: 500,
-                  borderColor: '#FB7E00',
-                  color: '#FB7E00',
                   px: 4,
                   py: 1.5,
                   minWidth: 120,
-                  '&:hover': {
-                    borderColor: '#E65A2E',
-                    bgcolor: '#FFF4E6',
-                  },
-                  '&.Mui-disabled': {
-                    borderColor: '#DEE2E6',
-                    color: '#ADB5BD',
-                  },
+                  ...(embedded
+                    ? {
+                        bgcolor: '#FB7E00',
+                        color: 'white',
+                        boxShadow: 'none',
+                        '&:hover': { bgcolor: '#E67000', boxShadow: 'none' },
+                        '&.Mui-disabled': { bgcolor: '#DEE2E6', color: '#ADB5BD' },
+                      }
+                    : {
+                        borderColor: '#FB7E00',
+                        color: '#FB7E00',
+                        '&:hover': { borderColor: '#E65A2E', bgcolor: '#FFF4E6' },
+                        '&.Mui-disabled': { borderColor: '#DEE2E6', color: '#ADB5BD' },
+                      }),
                 }}
               >
                 Lưu
               </Button>
-              <Button
-                variant="contained"
-                onClick={handleSaveAndAddNew}
-                disabled={!isFormValid() || isLoading}
-                sx={{
-                  borderRadius: '12px',
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  bgcolor: '#007DFB',
-                  color: 'white',
-                  px: 4,
-                  py: 1.5,
-                  minWidth: 120,
-                  boxShadow: 'none',
-                  '&:hover': {
-                    bgcolor: '#0056b3',
+              {!embedded && (
+                <Button
+                  variant="contained"
+                  onClick={handleSaveAndAddNew}
+                  disabled={!isFormValid() || isLoading}
+                  sx={{
+                    borderRadius: '12px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    bgcolor: '#007DFB',
+                    color: 'white',
+                    px: 4,
+                    py: 1.5,
+                    minWidth: 120,
                     boxShadow: 'none',
-                  },
-                  '&.Mui-disabled': {
-                    bgcolor: '#DEE2E6',
-                    color: '#ADB5BD',
-                  },
-                }}
-              >
-                Lưu và thêm mới
-              </Button>
+                    '&:hover': {
+                      bgcolor: '#0056b3',
+                      boxShadow: 'none',
+                    },
+                    '&.Mui-disabled': {
+                      bgcolor: '#DEE2E6',
+                      color: '#ADB5BD',
+                    },
+                  }}
+                >
+                  Lưu và thêm mới
+                </Button>
+              )}
             </Box>
           )}
         </Box>
@@ -806,7 +818,7 @@ const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSave
         >
           <Button
             fullWidth
-            variant="outlined"
+            variant={embedded ? 'contained' : 'outlined'}
             onClick={handleSave}
             disabled={!isFormValid() || isLoading}
             sx={{
@@ -815,41 +827,49 @@ const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSave
               textTransform: 'none',
               fontWeight: 500,
               fontSize: '16px',
-              borderColor: '#C5C5C5',
-              bgcolor: '#F5F5F5',
-              color: '#090909',
               height: 56,
-              '&:hover': {
-                borderColor: '#E65A2E',
-                bgcolor: '#FFF',
-              },
+              ...(embedded
+                ? {
+                    bgcolor: '#FB7E00',
+                    color: 'white',
+                    boxShadow: 'none',
+                    '&:hover': { bgcolor: '#E67000', boxShadow: 'none' },
+                  }
+                : {
+                    borderColor: '#C5C5C5',
+                    bgcolor: '#F5F5F5',
+                    color: '#090909',
+                    '&:hover': { borderColor: '#E65A2E', bgcolor: '#FFF' },
+                  }),
             }}
           >
             Lưu
           </Button>
-          <Button
-            fullWidth
-            variant="contained"
-            onClick={handleSaveAndAddNew}
-            disabled={!isFormValid() || isLoading}
-            sx={{
-              flex: 1,
-              borderRadius: '100px',
-              fontSize: '16px',
-              textTransform: 'none',
-              fontWeight: 500,
-              bgcolor: '#FB7E00',
-              color: 'white',
-              height: 56,
-              boxShadow: 'none',
-              '&:hover': {
-                bgcolor: '#FB7E00',
-                boxShadow: 'none',
-              },
-            }}
-          >
-            Lưu và thêm mới
-          </Button>
+            {!embedded && (
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={handleSaveAndAddNew}
+                disabled={!isFormValid() || isLoading}
+                sx={{
+                  flex: 1,
+                  borderRadius: '100px',
+                  fontSize: '16px',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  bgcolor: '#FB7E00',
+                  color: 'white',
+                  height: 56,
+                  boxShadow: 'none',
+                  '&:hover': {
+                    bgcolor: '#FB7E00',
+                    boxShadow: 'none',
+                  },
+                }}
+              >
+                Lưu và thêm mới
+              </Button>
+            )}
         </Box>
       )}
 
@@ -863,6 +883,13 @@ const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSave
         cancelText="Huỷ"
         confirmText="Đồng ý"
         onConfirm={handleConfirmLeave}
+      />
+
+      {/* Success Snackbar */}
+      <SuccessSnackbar
+        open={showSuccessSnackbar}
+        message="Thêm khách hàng mới thành công"
+        onClose={() => setShowSuccessSnackbar(false)}
       />
 
       {/* Customer Group Selection Screen */}

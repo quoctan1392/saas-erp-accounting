@@ -1,9 +1,10 @@
 // @ts-nocheck
 import { Box, IconButton, Typography, Divider } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import * as Iconsax from 'iconsax-react';
 import WarehouseCreateScreen from './WarehouseCreateScreen';
+import { apiService } from '../../services/api';
 import headerDay from '../../assets/Header_day.png';
 import SearchBox from '../../components/SearchBox';
 
@@ -34,6 +35,50 @@ const WarehouseSelectionScreen = ({ open, onClose, onSelect }: { open: boolean; 
   const [query, setQuery] = useState('');
   const [warehouses, setWarehouses] = useState(demoWarehouses);
   const [createOpen, setCreateOpen] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const normalize = (w: any) => {
+      return {
+        id: w.id || w.code || w.warehouseCode || w.warehouseId || String(w._id || w.uuid || ''),
+        name: w.name || w.warehouseName || w.label || w.warehouse_name || ''
+      };
+    };
+
+    const fetchWarehouses = async () => {
+      try {
+        const data = await apiService.getWarehouses();
+        if (!mounted || !Array.isArray(data)) return;
+
+        const fetched = data.map(normalize).filter((f) => f.name && f.id);
+
+        // Separate user-created (those not equal to demo defaults by id)
+        const defaultIds = demoWarehouses.map((d) => d.id);
+        const userCreated = fetched.filter((f) => !defaultIds.includes(f.id));
+        const defaultsFromServer = fetched.filter((f) => defaultIds.includes(f.id));
+
+        // Merge: user-created first (alphabetical), then defaults (either from server or local)
+        userCreated.sort((a, b) => a.name.localeCompare(b.name));
+        const remainingDefaults = demoWarehouses
+          .map((d) => ({ id: d.id, name: d.name }))
+          .filter((d) => !userCreated.some((u) => u.id === d.id));
+        remainingDefaults.sort((a, b) => a.name.localeCompare(b.name));
+
+        const finalList = [...userCreated, ...defaultsFromServer, ...remainingDefaults];
+        setWarehouses(finalList.length ? finalList : demoWarehouses);
+      } catch (err) {
+        console.warn('Failed to fetch warehouses, using demo list', err);
+        setWarehouses(demoWarehouses);
+      }
+    };
+
+    fetchWarehouses();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const filtered = warehouses.filter((w) => w.name.toLowerCase().includes(query.toLowerCase()) || w.id.toLowerCase().includes(query.toLowerCase()));
 

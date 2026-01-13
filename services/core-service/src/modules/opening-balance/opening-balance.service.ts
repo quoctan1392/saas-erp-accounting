@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, In } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { OpeningPeriod } from './entities/opening-period.entity';
 import { OpeningBalance } from './entities/opening-balance.entity';
 import { OpeningBalanceDetail } from './entities/opening-balance-detail.entity';
@@ -141,8 +141,8 @@ export class OpeningBalanceService {
     }
 
     period.isLocked = false;
-    period.lockedAt = null;
-    period.lockedBy = null;
+    period.lockedAt = null as any;
+    period.lockedBy = null as any;
 
     return this.periodRepo.save(period);
   }
@@ -223,9 +223,9 @@ export class OpeningBalanceService {
       hasDetails: dto.hasDetails || false,
       note: dto.note,
       createdBy: userId,
-    });
+    } as any);
 
-    return this.balanceRepo.save(balance);
+    return await this.balanceRepo.save(balance) as unknown as OpeningBalance;
   }
 
   async findAllBalances(
@@ -405,7 +405,7 @@ export class OpeningBalanceService {
             balance.debitBalance = item.debitBalance;
             balance.creditBalance = item.creditBalance;
             balance.hasDetails = item.hasDetails || false;
-            balance.note = item.note;
+            balance.note = item.note ?? balance.note;
             balance.updatedBy = userId;
             balance.updatedAt = new Date();
 
@@ -432,7 +432,7 @@ export class OpeningBalanceService {
               hasDetails: item.hasDetails || false,
               note: item.note,
               createdBy: userId,
-            });
+            } as any);
 
             await queryRunner.manager.save(balance);
 
@@ -476,16 +476,17 @@ export class OpeningBalanceService {
             }
           }
         } catch (error) {
+          const errMsg = (error as any)?.message ?? String(error);
           failed++;
           results.push({
             accountNumber: item.accountNumber || 'unknown',
             accountName: item.accountName || 'unknown',
             status: 'failed',
-            error: error.message,
+            error: errMsg,
           });
           errors.push({
             field: 'balances',
-            message: error.message,
+            message: errMsg,
             accountNumber: item.accountNumber,
           });
 
@@ -589,9 +590,10 @@ export class OpeningBalanceService {
         // Update existing detail
         existing.debitBalance = item.debitBalance;
         existing.creditBalance = item.creditBalance;
-        existing.description = item.description;
+        existing.description = item.description ?? existing.description;
         existing.updatedBy = userId;
-        results.push(await this.detailRepo.save(existing));
+        const savedExisting = await this.detailRepo.save(existing);
+        results.push(savedExisting);
       } else {
         // Create new detail
         const detail = this.detailRepo.create({
@@ -609,10 +611,11 @@ export class OpeningBalanceService {
           statisticalCodeId: item.statisticalCodeId,
           debitBalance: item.debitBalance,
           creditBalance: item.creditBalance,
-          description: item.description,
+          description: item.description ?? '',
           createdBy: userId,
-        });
-        results.push(await this.detailRepo.save(detail));
+        } as any);
+        const saved = await this.detailRepo.save(detail) as unknown as OpeningBalanceDetail;
+        results.push(saved);
       }
     }
 

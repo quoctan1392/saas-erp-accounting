@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiService } from '../../../services/api';
 import {
   Box,
   Container,
@@ -111,29 +112,114 @@ const InitialBalanceStep1Screen = ({ embedded = false }: { embedded?: boolean })
   });
 
   useEffect(() => {
-    const savedData = localStorage.getItem('initial_balance_draft_step1');
-    if (savedData) {
+    // Load tenant-aware draft or server data. Prefer server data when a period exists.
+    const getTenantId = () => {
       try {
-        const parsed = JSON.parse(savedData);
-        if (parsed.cashBalance !== undefined) {
-          setCashBalance(parsed.cashBalance);
-          setCashBalanceInput(parsed.cashBalance > 0 ? formatNumber(parsed.cashBalance) : '');
+        const sel = localStorage.getItem('selectedTenant');
+        if (sel) {
+          const t = JSON.parse(sel);
+          if (t && t.id) return t.id;
         }
-        if (parsed.bankDeposits) {
-          setBankDeposits(parsed.bankDeposits);
+        const cur = localStorage.getItem('currentTenant');
+        if (cur) {
+          const t = JSON.parse(cur);
+          if (t && t.id) return t.id;
         }
-      } catch (e) {
-        console.error('Error loading saved data:', e);
+        const token = localStorage.getItem('tenantAccessToken');
+        if (token) {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1]));
+            if (payload && (payload.tenantId || payload.tenant)) return payload.tenantId || payload.tenant;
+          }
+        }
+      } catch (err) {
+        console.warn('getTenantId parse error', err);
       }
-    }
-    const savedAccounts = localStorage.getItem('bank_accounts');
-    if (savedAccounts) {
+      return null;
+    };
+
+    (async () => {
+      const tenantId = getTenantId();
+
+      const stepKey = tenantId ? `initialBalanceStep_${tenantId}` : 'initialBalanceStep';
+      const completedKey = tenantId ? `initial_balance_completed_steps_${tenantId}` : 'initial_balance_completed_steps';
+      const completedSteps = JSON.parse(localStorage.getItem(completedKey) || '[]');
+      const hasCompletedSteps = Array.isArray(completedSteps) && completedSteps.length > 0;
+      const hasVisited = localStorage.getItem(stepKey) === 'completed' || hasCompletedSteps;
+
       try {
-        setBankAccounts(JSON.parse(savedAccounts));
-      } catch (e) {
-        console.error('Error loading bank accounts:', e);
+        // Only fetch server data when tenant has previously progressed in initial-balance
+        if (hasVisited) {
+          const periods = await apiService.getOpeningPeriods();
+          if (periods && periods.length > 0) {
+            // Prefer only locked (finalized) periods — treat unlocked/in-progress as no server data
+            const period = (periods as any[]).find((p) => p.isLocked || p.is_locked) || null;
+            if (period) {
+              try {
+                const balances = await apiService.getOpeningBalances({ periodId: period.id, page: 1, limit: 200 });
+                const list = Array.isArray(balances) ? balances : balances?.data || balances || [];
+                let serverCash = 0;
+                const serverBanks: BankDeposit[] = [];
+                for (const b of list) {
+                  const acct = (b.accountNumber || b.account_number || '').toString();
+                  const debit = b.debitBalance ?? b.debit ?? b.amount ?? 0;
+                  if (acct === '1111') {
+                    serverCash = Number(debit) || 0;
+                  }
+                  if (acct === '1121') {
+                    serverBanks.push({
+                      id: b.id || `bal_${Date.now()}`,
+                      bankAccountId: b.accountObjectId || acct,
+                      bankShortName: b.note || 'Tài khoản ngân hàng',
+                      accountNumber: b.accountNumber || b.account_number || '',
+                      bankLogo: '',
+                      balance: Number(debit) || 0,
+                    });
+                  }
+                }
+                setCashBalance(serverCash);
+                setCashBalanceInput(serverCash > 0 ? formatNumber(serverCash) : '');
+                setBankDeposits(serverBanks);
+                return; // loaded from server, skip tenant-local draft
+              } catch (err) {
+                console.warn('Failed to load opening balances from server', err);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch opening periods', err);
       }
-    }
+
+      // No server data — load tenant-scoped draft (if present)
+      const draftKey = tenantId ? `initial_balance_draft_step1_${tenantId}` : 'initial_balance_draft_step1';
+      const savedData = localStorage.getItem(draftKey);
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData);
+          if (parsed.cashBalance !== undefined) {
+            setCashBalance(parsed.cashBalance);
+            setCashBalanceInput(parsed.cashBalance > 0 ? formatNumber(parsed.cashBalance) : '');
+          }
+          if (parsed.bankDeposits) {
+            setBankDeposits(parsed.bankDeposits);
+          }
+        } catch (e) {
+          console.error('Error loading saved data:', e);
+        }
+      }
+
+      const accountsKey = tenantId ? `bank_accounts_${tenantId}` : 'bank_accounts';
+      const savedAccounts = localStorage.getItem(accountsKey);
+      if (savedAccounts) {
+        try {
+          setBankAccounts(JSON.parse(savedAccounts));
+        } catch (e) {
+          console.error('Error loading bank accounts:', e);
+        }
+      }
+    })();
   }, []);
 
   // Play entrance animation: start off-screen to the right, then animate to 0
@@ -159,24 +245,45 @@ const InitialBalanceStep1Screen = ({ embedded = false }: { embedded?: boolean })
   const handleSkipClick = () => setShowSkipDialog(true);
 
   const handleSkipConfirm = () => {
+    const tenantId = (() => {
+      try {
+        const s = localStorage.getItem('selectedTenant');
+        if (s) return JSON.parse(s).id;
+        const c = localStorage.getItem('currentTenant');
+        if (c) return JSON.parse(c).id;
+      } catch (e) {}
+      return null;
+    })();
+    const draftKey = tenantId ? `initial_balance_draft_step1_${tenantId}` : 'initial_balance_draft_step1';
+    const skippedKey = tenantId ? `initialBalanceSkipped_${tenantId}` : 'initialBalanceSkipped';
     const draftData = { cashBalance, bankDeposits };
-    localStorage.setItem('initial_balance_draft_step1', JSON.stringify(draftData));
-    localStorage.setItem('initialBalanceSkipped', 'true');
+    localStorage.setItem(draftKey, JSON.stringify(draftData));
+    localStorage.setItem(skippedKey, 'true');
     setShowSkipDialog(false);
     setExiting(true);
     setTimeout(() => navigate(ROUTES.HOME), ANIM_MS);
   };
 
   const handleContinue = () => {
+    const tenantId = (() => {
+      try {
+        const s = localStorage.getItem('selectedTenant');
+        if (s) return JSON.parse(s).id;
+        const c = localStorage.getItem('currentTenant');
+        if (c) return JSON.parse(c).id;
+      } catch (e) {}
+      return null;
+    })();
+    const draftKey = tenantId ? `initial_balance_draft_step1_${tenantId}` : 'initial_balance_draft_step1';
+    const stepKey = tenantId ? `initialBalanceStep_${tenantId}` : 'initialBalanceStep';
+    const completedKey = tenantId ? `initial_balance_completed_steps_${tenantId}` : 'initial_balance_completed_steps';
     const draftData = { cashBalance, bankDeposits };
-    localStorage.setItem('initial_balance_draft_step1', JSON.stringify(draftData));
-    localStorage.setItem('initialBalanceStep', '2');
-    const completedSteps = JSON.parse(
-      localStorage.getItem('initial_balance_completed_steps') || '[]',
-    );
+    localStorage.setItem(draftKey, JSON.stringify(draftData));
+    localStorage.setItem(stepKey, '2');
+    const completedSteps = JSON.parse(localStorage.getItem(completedKey) || '[]');
     if (!completedSteps.includes(0)) {
       completedSteps.push(0);
-      localStorage.setItem('initial_balance_completed_steps', JSON.stringify(completedSteps));
+      localStorage.setItem(completedKey, JSON.stringify(completedSteps));
     }
     // Navigate immediately so the next route (Step2) can handle its slide-in animation.
     navigate(ROUTES.DECLARATION_INITIAL_BALANCE_STEP2);
@@ -325,7 +432,16 @@ const InitialBalanceStep1Screen = ({ embedded = false }: { embedded?: boolean })
     };
     const updatedAccounts = [...bankAccounts, newAccount];
     setBankAccounts(updatedAccounts);
-    localStorage.setItem('bank_accounts', JSON.stringify(updatedAccounts));
+    // tenant-scoped bank accounts
+    try {
+      const s = localStorage.getItem('selectedTenant');
+      const c = localStorage.getItem('currentTenant');
+      const tenantId = s ? JSON.parse(s).id : c ? JSON.parse(c).id : null;
+      const accountsKey = tenantId ? `bank_accounts_${tenantId}` : 'bank_accounts';
+      localStorage.setItem(accountsKey, JSON.stringify(updatedAccounts));
+    } catch (e) {
+      localStorage.setItem('bank_accounts', JSON.stringify(updatedAccounts));
+    }
     setDepositFormData((prev) => ({
       ...prev,
       bankAccountId: newAccount.id,
@@ -578,7 +694,7 @@ const InitialBalanceStep1Screen = ({ embedded = false }: { embedded?: boolean })
                       <Typography
                         sx={{
                           fontSize: '16px',
-                          fontWeight: 600,
+                          fontWeight: 500,
                           color: '#212529',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',

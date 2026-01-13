@@ -11,6 +11,9 @@ import {
 import { OnboardingService } from './onboarding.service';
 import { UpdateBusinessTypeDto } from './dto/update-business-type.dto';
 import { SaveBusinessInfoDto } from './dto/save-business-info.dto';
+import { SaveAccountingSetupDto } from './dto/save-accounting-setup.dto';
+import { SaveBusinessSectorDto } from './dto/save-business-sector.dto';
+import { SaveAdvancedSetupDto } from './dto/save-advanced-setup.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { UserId } from '../../common/decorators/user.decorator';
 
@@ -52,6 +55,57 @@ export class OnboardingController {
     @Body() dto: SaveBusinessInfoDto,
   ) {
     const data = await this.onboardingService.saveBusinessInfo(
+      tenantId,
+      userId,
+      dto,
+    );
+    return {
+      success: true,
+      data,
+    };
+  }
+
+  @Post('business-sector')
+  async saveBusinessSector(
+    @Param('tenantId') tenantId: string,
+    @UserId() userId: string,
+    @Body() dto: SaveBusinessSectorDto,
+  ) {
+    const data = await this.onboardingService.saveBusinessSector(
+      tenantId,
+      userId,
+      dto,
+    );
+    return {
+      success: true,
+      data,
+    };
+  }
+
+  @Post('accounting-setup')
+  async saveAccountingSetup(
+    @Param('tenantId') tenantId: string,
+    @UserId() userId: string,
+    @Body() dto: SaveAccountingSetupDto,
+  ) {
+    const data = await this.onboardingService.saveAccountingSetup(
+      tenantId,
+      userId,
+      dto,
+    );
+    return {
+      success: true,
+      data,
+    };
+  }
+
+  @Post('advanced-setup')
+  async saveAdvancedSetup(
+    @Param('tenantId') tenantId: string,
+    @UserId() userId: string,
+    @Body() dto: SaveAdvancedSetupDto,
+  ) {
+    const data = await this.onboardingService.saveAdvancedSetup(
       tenantId,
       userId,
       dto,

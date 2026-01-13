@@ -32,7 +32,6 @@ function findParentAccountNumber(accountNumber: string): string | null {
 
 function determineAccountNature(
   accountNumber: string,
-  description?: string,
 ): 'debit' | 'credit' | 'both' {
   const firstDigit = accountNumber.charAt(0);
 
@@ -127,7 +126,7 @@ function parseExcelFile(filePath: string, accountingRegime: '200' | '133'): Acco
       }
 
       const accountLevel = determineAccountLevel(accountNumber);
-      const parentAccountNumber = findParentAccountNumber(accountNumber);
+      const parentAccountNumber = findParentAccountNumber(accountNumber) || undefined;
       const accountNature = determineAccountNature(accountNumber);
 
       accounts.push({
@@ -150,17 +149,14 @@ function parseExcelFile(filePath: string, accountingRegime: '200' | '133'): Acco
 
       // Find account number (check columns 1 and 2)
       let accountNumber: string | null = null;
-      let accountNumberCol = -1;
 
       // Check column 1 (Level 1 accounts like 111, 112, etc.)
       if (row[1] && /^\d+$/.test(row[1].toString().trim())) {
         accountNumber = row[1].toString().trim();
-        accountNumberCol = 1;
       }
       // Check column 2 (Level 2 accounts like 1111, 1112, etc.)
       else if (row[2] && /^\d+$/.test(row[2].toString().trim())) {
         accountNumber = row[2].toString().trim();
-        accountNumberCol = 2;
       }
 
       if (!accountNumber) continue;
@@ -173,7 +169,7 @@ function parseExcelFile(filePath: string, accountingRegime: '200' | '133'): Acco
       }
 
       const accountLevel = determineAccountLevel(accountNumber);
-      const parentAccountNumber = findParentAccountNumber(accountNumber);
+      const parentAccountNumber = findParentAccountNumber(accountNumber) || undefined;
       const accountNature = determineAccountNature(accountNumber);
 
       accounts.push({

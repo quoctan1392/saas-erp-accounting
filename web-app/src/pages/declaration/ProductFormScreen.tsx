@@ -211,7 +211,10 @@ const ProductFormScreen = () => {
   };
 
   const formatCurrency = (value: string) => {
-    const num = value.replace(/\D/g, '');
+    let num = value.replace(/\D/g, '');
+    // strip leading zeros when user types (e.g. prevent "05") but keep single "0" when empty
+    num = num.replace(/^0+(?=\d)/, '');
+    if (num === '') return '';
     return num.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 

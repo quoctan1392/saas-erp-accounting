@@ -65,21 +65,41 @@ const SubjectGroupSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect,
       console.log('[SubjectGroupSelection] Loaded groups from API:', apiGroups);
       
       if (apiGroups && apiGroups.length > 0) {
-        // Filter by type
-        const filteredGroups = apiGroups.filter((g: any) => 
-          g.type === type || g.type === 'both'
-        );
-        console.log('[SubjectGroupSelection] Filtered groups for type', type, ':', filteredGroups);
-        
-        if (filteredGroups.length > 0) {
-          const formattedGroups = filteredGroups.map((g: any) => ({
-            value: g.id || g.code,
-            label: g.name,
-          }));
-          setGroups(formattedGroups);
-        } else {
-          setGroups(defaultGroups.slice());
-        }
+        // Filter by type (keep groups with type === type OR type === 'both')
+        const filteredGroups = apiGroups.filter((g: any) => g.type === type || g.type === 'both');
+
+        // Normalize API groups
+        const formatted = filteredGroups.map((g: any) => ({
+          value: g.id || g.code,
+          code: g.code || g.id || (g.id ? String(g.id) : undefined),
+          label: g.name,
+        }));
+
+        // Default codes from UI defaults
+        const defaultCodes = defaultGroups.map((d) => d.value);
+
+        // Separate user-created (custom) groups and defaults returned from API
+        const userCreated = formatted.filter((u: any) => !defaultCodes.includes(u.code));
+        const defaultsFromApi = formatted.filter((u: any) => defaultCodes.includes(u.code));
+
+        // Find any default groups missing from API and keep local default entries
+        const returnedDefaultCodes = defaultsFromApi.map((d: any) => d.code);
+        const missingDefaults = defaultGroups
+          .filter((d) => !returnedDefaultCodes.includes(d.value))
+          .map((d) => ({ value: d.value, code: d.value, label: d.label }));
+
+        // Sort each section alphabetically by label for consistent presentation
+        userCreated.sort((a: any, b: any) => a.label.localeCompare(b.label, 'vi'));
+        defaultsFromApi.sort((a: any, b: any) => a.label.localeCompare(b.label, 'vi'));
+        missingDefaults.sort((a: any, b: any) => a.label.localeCompare(b.label, 'vi'));
+
+        const final = [
+          ...userCreated.map((u: any) => ({ value: u.value, label: u.label })),
+          ...defaultsFromApi.map((d: any) => ({ value: d.value, label: d.label })),
+          ...missingDefaults.map((d: any) => ({ value: d.value, label: d.label })),
+        ];
+
+        setGroups(final.length ? final : defaultGroups.slice());
       } else {
         setGroups(defaultGroups.slice());
       }

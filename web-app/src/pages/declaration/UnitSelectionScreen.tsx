@@ -22,14 +22,47 @@ interface Props {
 const DEFAULT_UNITS = [
   { value: 'cai', label: 'Cái' },
   { value: 'chiec', label: 'Chiếc' },
+  { value: 'con', label: 'Con' },
   { value: 'bo', label: 'Bộ' },
-  { value: 'kg', label: 'Kg' },
-  { value: 'g', label: 'Gam' },
-  { value: 'lit', label: 'Lít' },
+  { value: 'cap', label: 'Cặp' },
+  { value: 'doi', label: 'Đôi' },
+  { value: 'goi', label: 'Gói' },
   { value: 'hop', label: 'Hộp' },
   { value: 'thung', label: 'Thùng' },
+  { value: 'bao', label: 'Bao' },
+  { value: 'bich', label: 'Bịch' },
+  { value: 'chai', label: 'Chai' },
+  { value: 'lo', label: 'Lọ' },
+  { value: 'hu', label: 'Hủ' },
+  { value: 'tui', label: 'Túi' },
+  { value: 'kg', label: 'Kg' },
+  { value: 'g', label: 'Gam' },
+  { value: 'tan', label: 'Tấn' },
+  { value: 'yen', label: 'Yến' },
+  { value: 'ta', label: 'Tạ' },
+  { value: 'lit', label: 'Lít' },
+  { value: 'ml', label: 'Ml' },
   { value: 'met', label: 'Mét' },
+  { value: 'cm', label: 'Cm' },
+  { value: 'km', label: 'Km' },
+  { value: 'm2', label: 'M²' },
+  { value: 'm3', label: 'M³' },
   { value: 'pack', label: 'Pack' },
+  { value: 'thot', label: 'Thớt' },
+  { value: 'qua', label: 'Quả' },
+  { value: 'trai', label: 'Trái' },
+  { value: 'quen', label: 'Quẹn' },
+  { value: 'cuon', label: 'Cuộn' },
+  { value: 'to', label: 'Tờ' },
+  { value: 'ram', label: 'Rạm' },
+  { value: 'chau', label: 'Chậu' },
+  { value: 'cay', label: 'Cây' },
+  { value: 'cum', label: 'Cụm' },
+  { value: 'hanh', label: 'Hành' },
+  { value: 'lot', label: 'Lốc' },
+  { value: 'tam', label: 'Tấm' },
+  { value: 'thanh', label: 'Thanh' },
+  { value: 'vien', label: 'Viên' },
 ];
 
 const UnitSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect }) => {
@@ -54,16 +87,40 @@ const UnitSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect }) => {
       if (apiUnits && apiUnits.length > 0) {
         const formattedUnits = apiUnits.map((u: any) => ({
           value: u.id || u.code,
+          code: u.code || u.id || u.value,
           label: u.name,
         }));
-        setUnits(formattedUnits);
+
+        // Determine default codes from DEFAULT_UNITS
+        const defaultCodes = DEFAULT_UNITS.map((d) => d.value);
+
+        // Separate user-created (not default codes) and defaults
+        const userCreated = formattedUnits.filter((u: any) => !defaultCodes.includes(u.code));
+        const defaultsFromApi = formattedUnits.filter((u: any) => defaultCodes.includes(u.code));
+
+        // Missing defaults that API didn't return
+        const returnedDefaultCodes = defaultsFromApi.map((d: any) => d.code);
+        const missingDefaults = DEFAULT_UNITS.filter((d) => !returnedDefaultCodes.includes(d.value)).map((d) => ({ value: d.value, code: d.value, label: d.label }));
+
+        // Sort userCreated and defaults alphabetically
+        userCreated.sort((a: any, b: any) => a.label.localeCompare(b.label));
+        defaultsFromApi.sort((a: any, b: any) => a.label.localeCompare(b.label));
+        missingDefaults.sort((a: any, b: any) => a.label.localeCompare(b.label));
+
+        const final = [
+          ...userCreated.map((u: any) => ({ value: u.value, label: u.label })),
+          ...defaultsFromApi.map((d: any) => ({ value: d.value, label: d.label })),
+          ...missingDefaults.map((d: any) => ({ value: d.value, label: d.label })),
+        ];
+
+        setUnits(final.length ? final : DEFAULT_UNITS.slice());
       } else {
-        // Keep default units if no API data
+        // Fallback to default units if API returns empty
         setUnits(DEFAULT_UNITS.slice());
       }
     } catch (error) {
-      console.error('Error loading units:', error);
-      // Keep default units on error
+      console.warn('Error loading units from API, using local defaults:', error);
+      // Use default units on error
       setUnits(DEFAULT_UNITS.slice());
     } finally {
       setIsLoading(false);
