@@ -1,4 +1,4 @@
-import { IsEnum, IsString, IsNotEmpty, IsArray, IsDate, IsBoolean, IsOptional, IsNumber } from 'class-validator';
+import { IsEnum, IsString, IsNotEmpty, IsArray, IsDate, IsBoolean, IsOptional, IsNumber, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 import { BusinessType, AccountingRegime, TaxCalculationMethod, TaxFrequency, InventoryMethod } from '../entities/business-profile.entity';
 
@@ -86,4 +86,8 @@ export class CreateBusinessProfileDto {
   @IsString()
   @IsOptional()
   logoUrl?: string;
+
+  @IsUUID()
+  @IsOptional()
+  taxIndustryGroupId?: string;
 }

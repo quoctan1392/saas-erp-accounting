@@ -2,8 +2,8 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 
 @Entity('tax_industry_groups')
 export class TaxIndustryGroup {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
   @Column({ length: 20, unique: true })
   code: string;
@@ -17,8 +17,8 @@ export class TaxIndustryGroup {
   @Column({ name: 'vat_rate', type: 'numeric', precision: 5, scale: 2, nullable: true })
   vatRate: number | null;
 
-  @Column({ name: 'pit_rate', type: 'numeric', precision: 5, scale: 2, nullable: true })
-  pitRate: number | null;
+  @Column({ name: 'pit_rate', type: 'numeric', precision: 5, scale: 2, nullable: false })
+  pitRate: number;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

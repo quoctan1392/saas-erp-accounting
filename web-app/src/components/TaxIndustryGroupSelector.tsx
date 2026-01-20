@@ -16,6 +16,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import type { TaxIndustryGroup } from '../data/taxIndustryGroups';
 import localTaxIndustryGroups from '../data/taxIndustryGroups';
 import React from 'react';
+import { API_CONFIG } from '../config/constants';
 
 const Transition = React.forwardRef(function Transition(
   props: TransitionProps & {
@@ -53,7 +54,7 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
     let mounted = true;
     const load = async () => {
       try {
-        const res = await fetch('/api/tax-industry-groups');
+        const res = await fetch(`${API_CONFIG.CORE_SERVICE_URL}/api/tax-industry-groups`);
         if (!res.ok) throw new Error('fetch failed');
 
         const contentType = res.headers.get('content-type') || '';
@@ -63,10 +64,12 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
         }
 
         const data = await res.json();
-        if (mounted && Array.isArray(data)) setGroups(data as TaxIndustryGroup[]);
+        console.log(data);
+        
+        if (mounted && data?.data && Array.isArray(data?.data)) setGroups(data?.data as TaxIndustryGroup[]);
       } catch (err) {
         // If the API is not available or returns non-JSON (e.g. dev server returns index.html),
-        // fall back to the local dataset for now. TODO: remove this fallback once
+        // fall back to the lo.dâtcal dataset for now. TODO: remove this fallback once
         // `/api/tax-industry-groups` is available in your backend and remove the
         // import of `localTaxIndustryGroups`.
         console.warn('[TaxIndustryGroupSelector] failed to fetch groups from API, using local fallback', err);
@@ -160,24 +163,7 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
     }
   }, [open, groups, filteredGroups, selectedCode]);
 
-  // Persist user's selection to backend and localStorage (fire-and-forget).
-  const persistSelection = async (code: string) => {
-    try {
-      await fetch('/api/user/preferred-tax-industry', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
-      });
-    } catch (err) {
-      console.warn('[TaxIndustryGroupSelector] failed to persist selection to API', err);
-    }
-
-    try {
-      localStorage.setItem('preferredTaxIndustry', code);
-    } catch (e) {
-      /* ignore */
-    }
-  };
+  // NOTE: Do not call backend here. Selection persistence is handled by parent on submit.
 
 
 
@@ -269,8 +255,7 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
           onChange={(e) => {
             const code = e.target.value;
             setSelectedCode(code);
-            // Persist selection then propagate selection and close modal
-            persistSelection(code);
+            // Only propagate selection to parent; do not call API here
             onChange(code);
             onClose();
           }}
@@ -307,7 +292,7 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
                         <Box
                       onClick={() => {
                         setSelectedCode(item.code);
-                        persistSelection(item.code);
+                        // Propagate selection to parent; persist on submit
                         onChange(item.code);
                         onClose();
                       }}
@@ -369,11 +354,11 @@ const TaxIndustryGroupSelector: React.FC<TaxIndustryGroupSelectorProps> = ({
                         <Box sx={{ display: 'flex', gap: 3, mt: 1 }}>
                           {item.vatRate !== undefined && (
                             <Typography sx={{ fontSize: '14px', color: 'rgba(0, 0, 0, 0.6)' }}>
-                              % thuế GTGT: <Box component="span" sx={{ color: '#090909' }}>{item.vatRate.toFixed(2)}</Box>
+                              % thuế GTGT: <Box component="span" sx={{ color: '#090909' }}>{item?.vatRate?.toFixed(2)}</Box>
                             </Typography>
                           )}
                           <Typography sx={{ fontSize: '14px', color: 'rgba(0, 0, 0, 0.6)' }}>
-                            % thuế TNCN: <Box component="span" sx={{ color: '#090909' }}>{item.pitRate.toFixed(2)}</Box>
+                            % thuế TNCN: <Box component="span" sx={{ color: '#090909' }}>{item?.pitRate?.toFixed(2)}</Box>
                           </Typography>
                         </Box>
                       </Box>

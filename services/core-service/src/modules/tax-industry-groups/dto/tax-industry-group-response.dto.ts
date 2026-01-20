@@ -1,8 +1,8 @@
 export class TaxIndustryGroupResponseDto {
-  id: number;
+  id: string;
   code: string;
   name: string;
   groupName: string;
   vatRate?: number | null;
-  pitRate?: number | null;
+  pitRate: number;
 }

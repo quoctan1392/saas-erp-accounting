@@ -948,6 +948,9 @@ Các bảng chính:
 - sale_voucher, sale_voucher_detail (Chứng từ bán hàng)
 - outward_voucher, outward_voucher_detail (Phiếu xuất kho)
 - receipt_voucher, receipt_voucher_detail (Phiếu thu tiền)
+- purchase_voucher, purchase_voucher_detail (Chứng từ mua hàng)
+- inward_voucher, inward_voucher_detail (Phiếu nhập kho)
+- payment_voucher, payment_voucher_detail (Phiếu chi tiền)
 - invoice, invoice_detail (Hóa đơn)
 - bank_account, einvoice_provider (Ngân hàng & hóa đơn điện tử)
 
@@ -1364,6 +1367,134 @@ Business Rules:
 - Tự động sinh số hóa đơn khi publish
 
 ═══════════════════════════════════════════════════════════════════
+MODULE 7A: PURCHASES - Mua hàng (Đối xứng với Sales)
+═══════════════════════════════════════════════════════════════════
+
+Endpoints:
+# Chứng từ mua hàng
+GET    /purchases/vouchers                  # Danh sách chứng từ mua
+POST   /purchases/vouchers                  # Tạo chứng từ mua
+GET    /purchases/vouchers/:id              # Chi tiết chứng từ
+PUT    /purchases/vouchers/:id              # Cập nhật chứng từ
+DELETE /purchases/vouchers/:id              # Xóa chứng từ (nếu chưa ghi sổ)
+POST   /purchases/vouchers/:id/post         # Ghi sổ
+
+# Phiếu nhập kho
+GET    /purchases/inward-vouchers           # Danh sách phiếu nhập
+POST   /purchases/inward-vouchers           # Tạo phiếu nhập
+GET    /purchases/inward-vouchers/:id       # Chi tiết phiếu nhập
+PUT    /purchases/inward-vouchers/:id       # Cập nhật
+DELETE /purchases/inward-vouchers/:id       # Xóa
+POST   /purchases/inward-vouchers/:id/post  # Ghi sổ
+
+# Phiếu chi tiền
+GET    /purchases/payment-vouchers          # Danh sách phiếu chi
+POST   /purchases/payment-vouchers          # Tạo phiếu chi
+GET    /purchases/payment-vouchers/:id      # Chi tiết
+PUT    /purchases/payment-vouchers/:id      # Cập nhật
+DELETE /purchases/payment-vouchers/:id      # Xóa
+POST   /purchases/payment-vouchers/:id/post # Ghi sổ
+
+Query Params:
+?status=draft|posted                         # Lọc theo trạng thái
+?fromDate=2024-01-01&toDate=2024-12-31      # Lọc theo ngày
+?objectId=xxx                                # Lọc theo nhà cung cấp
+?page=1&limit=20                             # Phân trang
+
+Data Model - Purchase Voucher:
+{
+  code: string,                              // Mã chứng từ
+  transactionNo: string,                     // Số chứng từ
+  transactionDate: Date,                     // Ngày giao dịch
+  postedDate: Date,                          // Ngày ghi sổ
+  transactionCode: string,                   // Mã nghiệp vụ
+  paymentType: 'pay_later' | 'pay_now',      // Loại thanh toán
+  paymentMethod: 'cash' | 'bank_transfer',   // Phương thức
+  isPurchaseWithInward: boolean,             // Lập phiếu nhập
+  accountObjectId: string,                   // Nhà cung cấp
+  accountObjectName: string,
+  accountObjectAddress: string,
+  accountObjectTaxCode: string,
+  currencyId: string,                        // Loại tiền
+  exchangeRate: number,                      // Tỷ giá
+  totalPurchaseAmountOc: number,             // Tổng tiền nguyên tệ
+  totalPurchaseAmount: number,               // Tổng tiền nội tệ
+  totalAmount: number,                       // Tổng thanh toán
+  totalDiscountAmount: number,               // Tổng chiết khấu
+  discountType: 'not_discount' | 'by_item' | 'by_invoice_amount' | 'by_percent',
+  totalVatAmount: number,                    // Tổng thuế GTGT
+  totalImportTaxAmount: number,              // Tổng thuế nhập khẩu
+  employeeId: string,                        // Nhân viên mua
+  discountRate: number,                      // Tỷ lệ CK
+  attachedFileIds: string[],                 // File đính kèm
+  details: [                                 // Chi tiết
+    {
+      itemId: string,
+      itemName: string,
+      itemCode: string,
+      quantity: number,
+      unitPrice: number,
+      amount: number,
+      discountRate: number,
+      discountAmount: number,
+      vatAmount: number,
+      importTaxAmount: number,
+      description: string
+    }
+  ]
+}
+
+Data Model - Inward Voucher:
+{
+  code: string,
+  purchaseVoucherRefId: string,              // Link chứng từ mua
+  transactionNo: string,
+  transactionDate: Date,
+  postedDate: Date,
+  accountObjectId: string,
+  employeeId: string,
+  description: string,
+  details: [
+    {
+      itemId: string,
+      quantity: number,
+      unitPrice: number,                     // Giá mua
+      amount: number,                        // Tiền hàng
+      warehouseId: string,                   // Kho nhập
+      description: string
+    }
+  ]
+}
+
+Data Model - Payment Voucher:
+{
+  purchaseVoucherRefId: string,
+  transactionNo: string,
+  transactionDate: Date,
+  postedDate: Date,
+  accountObjectId: string,
+  employeeId: string,
+  description: string,
+  details: [
+    {
+      debitAccountId: string,                // TK Nợ (331 - Phải trả NCC)
+      creditAccountId: string,               // TK Có (111/112 - Tiền mặt/Ngân hàng)
+      accountBankId: string,                 // TK ngân hàng (nếu CK)
+      amount: number,
+      description: string
+    }
+  ]
+}
+
+Business Rules:
+- Chỉ xóa chứng từ ở trạng thái draft
+- Khi ghi sổ (post): tạo bút toán kế toán tự động
+- Nếu isPurchaseWithInward=true: tự động tạo phiếu nhập kho
+- Phiếu nhập kho tăng tồn kho
+- Phiếu chi tiền giảm công nợ nhà cung cấp
+- Tự động cập nhật giá mua gần nhất (purchase_last_unit_price) trong bảng item
+
+═══════════════════════════════════════════════════════════════════
 MODULE 8: INVENTORY - Xuất nhập tồn kho
 ═══════════════════════════════════════════════════════════════════
 
@@ -1486,11 +1617,14 @@ EVENT PUBLISHING - Tích hợp với các services khác
 Events Published:
 - sale.created                               # Khi tạo đơn bán hàng
 - sale.posted                                # Khi ghi sổ đơn bán
+- purchase.created                           # Khi tạo đơn mua hàng
+- purchase.posted                            # Khi ghi sổ đơn mua
 - invoice.created                            # Khi tạo hóa đơn
 - invoice.published                          # Khi phát hành hóa đơn
 - inventory.out                              # Khi xuất kho
 - inventory.in                               # Khi nhập kho
-- payment.received                           # Khi thu tiền
+- payment.received                           # Khi thu tiền (từ khách)
+- payment.sent                               # Khi chi tiền (cho NCC)
 - low.stock.alert                            # Cảnh báo tồn kho thấp
 
 Events Subscribed:

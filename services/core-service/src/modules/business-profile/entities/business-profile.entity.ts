@@ -1,5 +1,6 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
+import { TaxIndustryGroup } from '../../tax-industry-groups/entities/tax-industry-group.entity';
 
 export enum BusinessType {
   BUSINESS = 'business',
@@ -107,4 +108,11 @@ export class BusinessProfile extends BaseEntity {
 
   @Column({ name: 'logo_url', nullable: true })
   logoUrl?: string;
+
+  @Column({ name: 'tax_industry_group_id', type: 'uuid', nullable: true })
+  taxIndustryGroupId: string;
+
+  @ManyToOne(() => TaxIndustryGroup, { nullable: true })
+  @JoinColumn({ name: 'tax_industry_group_id' })
+  taxIndustryGroup: TaxIndustryGroup;
 }

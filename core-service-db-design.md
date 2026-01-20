@@ -579,4 +579,211 @@ erDiagram
     invoice ||--|{ object : "account_object_id"
     invoice_detail ||--|{ item : "item_id"
     invoice_detail ||--|{ invoice : "invoice_refid"
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% MODULE PURCHASES - Mua hàng (Đối xứng với Sales)
+    %% ═══════════════════════════════════════════════════════════════════════
+
+    %% Chứng từ mua hàng
+    purchase_voucher {
+        string id "ID"
+        string tenant_id "ID của tenant"
+        string created_at "Ngày tạo"
+        string updated_at "Ngày cập nhật"
+        
+        string code "Mã chứng từ"
+        datetime posted_date "Ngày hạch toán - phải ghi sổ mới có"
+        datetime transaction_date "Ngày giao dịch"
+        string transaction_no "Số chứng từ"
+        string transaction_code "Mã nghiệp vụ (Lấy theo policy)"
+        string payment_type "Loại thanh toán: pay_later | pay_now"
+        string payment_method "Phương thức thanh toán: cash (tiền mặt) | bank_transfer (chuyển khoản)"
+        bool is_purchase_with_inward "Có lập luôn phiếu nhập không"
+        
+        string account_object_id "ID của nhà cung cấp, link sang bảng object"
+        string account_object_name "Tên nhà cung cấp"
+        string account_object_address "Địa chỉ nhà cung cấp"
+        string account_object_tax_code "Mã số thuế nhà cung cấp"
+        string account_object_code "Mã nhà cung cấp"
+
+        string currency_id "ID của đồng tiền: vnd | usd | ..."
+        number exchange_rate "Tỷ giá"
+        number total_purchase_amount_oc "Tổng số tiền mua nguyên tệ"
+        number total_purchase_amount "Tổng số tiền mua nội tệ"
+        number total_amount_oc "Tổng số tiền nguyên tệ"
+        number total_amount "Tổng số tiền nội tệ"
+        number total_discount_amount_oc "Tổng số tiền chiết khấu nguyên tệ"
+        number total_discount_amount "Tổng số tiền chiết khấu nội tệ"
+        string discount_type "Loại chiết khấu: not_discount | by_item | by_invoice_amount | by_percent"
+        number total_vat_amount_oc "Tổng số tiền thuế GTGT nguyên tệ"
+        number total_vat_amount "Tổng số tiền thuế GTGT nội tệ"
+        number total_import_tax_amount "Tổng số tiền thuế nhập khẩu"
+
+        string employee_id "ID của nhân viên, link sang bảng object"
+        string employee_name "Tên nhân viên"
+        string employee_code "Mã nhân viên"
+
+        number discount_rate "Tỷ lệ chiết khấu"
+        string[] attached_file_ids "Danh sách link file đính kèm"
+    }
+
+    %% Chi tiết mua hàng
+    purchase_voucher_detail {
+        string id "ID"
+        string tenant_id "ID của tenant"
+        string created_at "Ngày tạo"
+        string updated_at "Ngày cập nhật"
+        
+        string item_id "ID của hàng hóa, link sang bảng item"
+        string item_name "Tên hàng hóa"
+        string item_code "Mã hàng hóa"
+        string item_type "Loại hàng hóa: goods | service | material | finished_goods | tool_and_equipment"
+
+        string purchase_voucher_refid "ID của chứng từ mua hàng"
+        
+        number display_order "Thứ tự hiển thị khi user nhập"
+        number quantity "Số lượng"
+        number unit_price "Giá / đơn vị"
+        number unit_price_after_tax "Giá đơn vị sau thuế"
+        number unit_price_after_discount "Giá đơn vị sau chiết khấu"
+        number amount_oc "Số tiền nguyên tệ"
+        number amount "Số tiền nội tệ"
+        number discount_rate "Tỷ lệ chiết khấu"
+        number discount_amount_oc "Số tiền chiết khấu nguyên tệ"
+        number discount_amount "Số tiền chiết khấu"
+        number amount_after_tax "Số tiền sau thuế"
+        number vat_amount_oc "Số tiền thuế GTGT nguyên tệ"
+        number vat_amount "Số tiền thuế GTGT"
+
+        number import_tax_rate "Thuế nhập khẩu, đã chia 100"
+        number import_tax_amount "Số tiền thuế nhập khẩu"
+
+        number exchange_rate "Tỉ giá"
+        string description "Mô tả"
+
+        datetime posted_date "Ngày hạch toán"
+    }
+
+    %% Chứng từ nhập kho
+    inward_voucher {
+        string id "ID"
+        string tenant_id "ID của tenant"
+        string created_at "Ngày tạo"
+        string updated_at "Ngày cập nhật"
+        
+        string purchase_voucher_refid "ID của chứng từ mua hàng"
+        string code "Mã chứng từ"
+        datetime posted_date "Ngày hạch toán - phải ghi sổ mới có"
+        datetime transaction_date "Ngày giao dịch"
+        string transaction_no "Số chứng từ"
+        string transaction_code "Mã nghiệp vụ (Lấy theo policy)"
+        
+        string account_object_id "ID của nhà cung cấp, link sang bảng object"
+        string account_object_name "Tên nhà cung cấp"
+        string account_object_address "Địa chỉ nhà cung cấp"
+        string account_object_tax_code "Mã số thuế nhà cung cấp"
+        string account_object_code "Mã nhà cung cấp"
+
+        string employee_id "ID của nhân viên, link sang bảng object"
+        string employee_name "Tên nhân viên"
+        string employee_code "Mã nhân viên"
+
+        string description "Mô tả"
+        string[] attached_file_ids "Danh sách link file đính kèm"
+    }
+
+    %% Chứng từ nhập kho chi tiết
+    inward_voucher_detail {
+        string id "ID"
+        string tenant_id "ID của tenant"
+        string created_at "Ngày tạo"
+        string updated_at "Ngày cập nhật"
+        
+        string item_id "ID của hàng hóa, link sang bảng item"
+        string item_name "Tên hàng hóa"
+        string item_code "Mã hàng hóa"
+        string item_type "Loại hàng hóa: goods | service | material | finished_goods | tool_and_equipment"
+
+        string object_id "ID của nhà cung cấp, link sang bảng object"
+        string object_name "Tên nhà cung cấp"
+        string object_code "Mã nhà cung cấp"
+        string object_address "Địa chỉ nhà cung cấp"
+
+        string inward_refid "ID của chứng từ nhập kho"
+
+        number quantity "Số lượng"
+        number unit_price "Giá mua / đơn vị"
+        number amount "Tiền hàng"
+        
+        number display_order "Thứ tự hiển thị khi user nhập"
+        
+        string warehouse_id "ID của kho nhập, link sang bảng warehouse"
+        string description "Mô tả"
+
+        datetime posted_date "Ngày hạch toán"
+    }
+
+    %% Chứng từ chi tiền
+    payment_voucher {
+        string id "ID"
+        string tenant_id "ID của tenant"
+        string created_at "Ngày tạo"
+        string updated_at "Ngày cập nhật"
+
+        string purchase_voucher_refid "ID của chứng từ mua hàng"
+
+        string account_object_id "ID của nhà cung cấp, link sang bảng object"
+        string account_object_name "Tên nhà cung cấp"
+        string account_object_address "Địa chỉ nhà cung cấp"
+        string account_object_tax_code "Mã số thuế nhà cung cấp"
+        string account_object_code "Mã nhà cung cấp"
+
+        string employee_id "ID của nhân viên, link sang bảng object"
+        string employee_name "Tên nhân viên"
+        string employee_code "Mã nhân viên"
+
+        string description "Mô tả"
+        string[] attached_file_ids "Danh sách link file đính kèm"
+
+        datetime posted_date "Ngày hạch toán"
+        datetime transaction_datetime "Ngày giao dịch"
+        string transaction_no "Số chứng từ"
+        string transaction_code "Mã nghiệp vụ (Lấy theo policy)"
+    }
+
+    %% Chứng từ chi tiền chi tiết
+    payment_voucher_detail {
+        string id "ID"
+        string tenant_id "ID của tenant"
+        string created_at "Ngày tạo"
+        string updated_at "Ngày cập nhật"
+        
+        string description "Mô tả"
+        string payment_voucher_refid "ID của chứng từ chi tiền"
+
+        string debit_account_id "ID của tài khoản công nợ phải trả (331), link sang bảng chart_of_accounts_custom"
+        string credit_account_id "ID của tài khoản tiền mặt/ngân hàng (111/112), link sang bảng chart_of_accounts_custom"
+
+        string account_bank_id "ID của tài khoản ngân hàng, link sang bảng bank_account"
+        number amount "Số tiền"
+
+        datetime posted_date "Ngày hạch toán"
+    }
+
+    %% Relations for Purchase module
+    purchase_voucher ||--|{ object : "account_object_id, employee_id"
+    purchase_voucher_detail ||--|{ purchase_voucher : "purchase_voucher_refid"
+    purchase_voucher_detail ||--|{ item : "item_id"
+    
+    inward_voucher ||--|{ purchase_voucher : "purchase_voucher_refid"
+    inward_voucher ||--|{ object : "account_object_id, employee_id"
+    inward_voucher_detail ||--|{ inward_voucher : "inward_refid"
+    inward_voucher_detail ||--|{ item : "item_id"
+    inward_voucher_detail ||--|{ warehouse : "warehouse_id"
+    
+    payment_voucher ||--|{ purchase_voucher : "purchase_voucher_refid"
+    payment_voucher ||--|{ object : "account_object_id, employee_id"
+    payment_voucher_detail ||--|{ payment_voucher : "payment_voucher_refid"
+    payment_voucher_detail ||--|{ chart_of_accounts_custom : "debit_account_id, credit_account_id"
+    payment_voucher_detail ||--|{ bank_account : "account_bank_id"
 ```

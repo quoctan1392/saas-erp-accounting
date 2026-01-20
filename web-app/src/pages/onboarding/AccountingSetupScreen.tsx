@@ -303,6 +303,25 @@ const AccountingSetupScreen = () => {
       const currentTenant = JSON.parse(currentTenantStr);
 
       // Save to server
+      // Persist preferred tax industry on Continue (only when user clicks Continue)
+      // if (taxIndustryGroup) {
+      //   try {
+      //     await fetch('/api/user/preferred-tax-industry', {
+      //       method: 'POST',
+      //       headers: { 'Content-Type': 'application/json' },
+      //       body: JSON.stringify({ code: taxIndustryGroup }),
+      //     });
+      //   } catch (err) {
+      //     console.warn('[AccountingSetupScreen] failed to persist preferred tax industry', err);
+      //   }
+
+      //   try {
+      //     localStorage.setItem('preferredTaxIndustry', taxIndustryGroup);
+      //   } catch (e) {
+      //     /* ignore */
+      //   }
+      // }
+
       await apiService.saveAccountingSetup(currentTenant.id, accountingSetupPayload);
 
       // Save to localStorage
