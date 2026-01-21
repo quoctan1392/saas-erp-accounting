@@ -60,7 +60,7 @@ export class AccountingObject extends BaseEntity {
   @Column({ name: 'contact_email', nullable: true })
   contactEmail?: string;
 
-  @Column({ name: 'list_bank_account_ids', type: 'uuid', array: true, nullable: true })
+  @Column({ name: 'list_bank_account_ids', type: 'text', array: true, nullable: true })
   listBankAccountIds?: string[];
 
   @Column({ name: 'identity_number', nullable: true })

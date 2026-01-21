@@ -23,17 +23,4 @@ export class CreateWarehouseDto {
   @IsOptional()
   inventoryAccountId?: string;
 
-  @IsString()
-  @IsOptional()
-  description?: string;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(100)
-  managerName?: string;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(20)
-  managerPhone?: string;
 }

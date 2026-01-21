@@ -23,9 +23,16 @@ import AlertDialog from '../../components/AlertDialog';
 import headerDay from '../../assets/Header_day.png';
 import * as Iconsax from 'iconsax-react';
 
+interface IconProps {
+  name: string;
+  size?: number;
+  color?: string;
+  variant?: 'Outline' | 'Bold' | 'Broken' | 'Bulk' | 'Linear' | 'TwoTone';
+}
+
 // Icon wrapper component
-const Icon = ({ name, size = 24, color = 'currentColor', variant = 'Outline' }: any) => {
-  const Comp = (Iconsax as any)[name];
+const Icon = ({ name, size = 24, color = 'currentColor', variant = 'Outline' }: IconProps) => {
+  const Comp = (Iconsax as Record<string, React.ComponentType<{ size?: number; color?: string; variant?: string }>>)[name];
   if (!Comp) return null;
   return <Comp size={size} color={color} variant={variant} />;
 };
@@ -33,14 +40,13 @@ const Icon = ({ name, size = 24, color = 'currentColor', variant = 'Outline' }: 
 interface Props {
   embedded?: boolean;
   onClose?: () => void;
-  onSaveSuccess?: (newCustomer: any) => void;
+  onSaveSuccess?: (newCustomer: unknown) => void;
 }
 
 const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSaveSuccess }) => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [_isPerformingConfirmAction, _setIsPerformingConfirmAction] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [exiting, setExiting] = useState(false);
   const ANIM_MS = 280;
@@ -123,7 +129,7 @@ const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSave
     fetchNextCustomerCode();
   }, []);
 
-  const handleFieldChange = (setter: any) => (value: any) => {
+  const handleFieldChange = <T,>(setter: (value: T) => void) => (value: T) => {
     setHasChanges(true);
     setter(value);
   };
@@ -156,7 +162,7 @@ const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSave
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      const accountingObjectData: any = {
+      const accountingObjectData: Record<string, unknown> = {
         accountObjectCode: code,
         accountObjectName: name,
         address,
@@ -187,10 +193,11 @@ const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSave
           setShowSuccessSnackbar(true);
           setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), 800);
         }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving customer:', error);
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
       const message =
-        error?.response?.data?.message || error?.message || 'Không thể lưu khách hàng. Vui lòng thử lại.';
+        err?.response?.data?.message || err?.message || 'Không thể lưu khách hàng. Vui lòng thử lại.';
       setErrorDialogMessage(message);
       setErrorDialogOpen(true);
     } finally {
@@ -201,7 +208,7 @@ const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSave
   const handleSaveAndAddNew = async () => {
     setIsLoading(true);
     try {
-      const accountingObjectData: any = {
+      const accountingObjectData: Record<string, unknown> = {
         accountObjectCode: code,
         accountObjectName: name,
         address,
@@ -275,9 +282,10 @@ const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSave
       setIsEInvoiceExpanded(false);
       setIsBankExpanded(false);
       setHasChanges(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving customer:', error);
-      const message = error?.response?.data?.message || error?.message || 'Không thể lưu khách hàng. Vui lòng thử lại.';
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      const message = err?.response?.data?.message || err?.message || 'Không thể lưu khách hàng. Vui lòng thử lại.';
       setErrorDialogMessage(message);
       setErrorDialogOpen(true);
     } finally {
@@ -401,7 +409,7 @@ const CustomerFormScreen: React.FC<Props> = ({ embedded = false, onClose, onSave
               </Typography>
               <RadioGroup
                 value={customerType}
-                onChange={(e) => handleFieldChange(setCustomerType)(e.target.value)}
+                onChange={(e) => handleFieldChange(setCustomerType)(e.target.value as 'organization' | 'individual')}
                 sx={{ display: 'flex', flexDirection: 'row', gap: 2, mb: 1 }}
               >
                 <FormControlLabel

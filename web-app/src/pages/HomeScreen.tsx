@@ -345,6 +345,9 @@ const HomeScreen = () => {
   const handleSpeedDialAction = (action: string) => {
     setFabOpen(false);
     switch (action) {
+      case 'sale':
+        navigate('/sales/new');
+        break;
       case 'invoice':
         navigate('/invoices/new');
         break;
@@ -725,7 +728,7 @@ const HomeScreen = () => {
             >
               {/* 1. Lên đơn (Bán hàng) */}
               <Box
-                onClick={() => navigate('/invoices/new')}
+                onClick={() => navigate('/sales/orders/new')}
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -1074,6 +1077,53 @@ const HomeScreen = () => {
               zIndex: 1000,
             }}
           >
+            {/* Hóa đơn bán hàng */}
+            <Box
+              onClick={() => handleSpeedDialAction('sale')}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                cursor: 'pointer',
+                animation: 'slideIn 0.2s ease',
+                animationDelay: '0.05s',
+                animationFillMode: 'both',
+                '@keyframes slideIn': {
+                  from: { opacity: 0, transform: 'translateY(10px)' },
+                  to: { opacity: 1, transform: 'translateY(0)' },
+                },
+              }}
+            >
+              <Typography
+                sx={{
+                  bgcolor: 'white',
+                  px: 2,
+                  py: 1,
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#212529',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                }}
+              >
+                Hóa đơn bán hàng
+              </Typography>
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
+                  bgcolor: 'primary.main',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                }}
+              >
+                <Icon name="Receipt1" size={24} color="white" variant="Bold" />
+              </Box>
+            </Box>
+
             {/* Lên đơn */}
             <Box
               onClick={() => handleSpeedDialAction('invoice')}
@@ -1083,6 +1133,8 @@ const HomeScreen = () => {
                 gap: 1.5,
                 cursor: 'pointer',
                 animation: 'slideIn 0.2s ease',
+                animationDelay: '0.1s',
+                animationFillMode: 'both',
                 '@keyframes slideIn': {
                   from: { opacity: 0, transform: 'translateY(10px)' },
                   to: { opacity: 1, transform: 'translateY(0)' },

@@ -19,12 +19,4 @@ export class Warehouse extends BaseEntity {
   @Column({ name: 'inventory_account_id', type: 'uuid', nullable: true })
   inventoryAccountId: string; // Link to chart_of_accounts_custom (TK 15x)
 
-  @Column({ type: 'text', nullable: true })
-  description: string;
-
-  @Column({ name: 'manager_name', type: 'varchar', length: 100, nullable: true })
-  managerName: string; // Người quản lý kho
-
-  @Column({ name: 'manager_phone', type: 'varchar', length: 20, nullable: true })
-  managerPhone: string;
 }

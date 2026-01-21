@@ -405,14 +405,13 @@ VALUES
 -- =====================================================
 -- TRIGGER: Update updated_at timestamp
 -- =====================================================
-CREATE
-OR REPLACE FUNCTION update_updated_at_column() RETURNS TRIGGER AS $ $ BEGIN NEW.updated_at = CURRENT_TIMESTAMP;
-
-RETURN NEW;
-
+CREATE OR REPLACE FUNCTION update_updated_at_column() 
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
 END;
-
-$ $ LANGUAGE 'plpgsql';
+$$ LANGUAGE 'plpgsql';
 
 -- Apply trigger to all tables with updated_at column
 CREATE TRIGGER update_business_profile_updated_at BEFORE

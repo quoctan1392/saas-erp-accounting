@@ -74,18 +74,12 @@ class ApiService {
         localStorage.getItem('tenantAccessToken') ||
         localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
 
-      console.log(
-        '[CoreAPI Interceptor] tenantAccessToken:',
-        localStorage.getItem('tenantAccessToken'),
-      );
-      console.log(
-        '[CoreAPI Interceptor] accessToken:',
-        localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN),
-      );
-      console.log(
-        '[CoreAPI Interceptor] Using token:',
-        token ? token.substring(0, 20) + '...' : 'NONE',
-      );
+      // Only log token debug info in development to avoid spamming console
+      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+        console.debug('[CoreAPI Interceptor] tenantAccessToken:', localStorage.getItem('tenantAccessToken'));
+        console.debug('[CoreAPI Interceptor] accessToken:', localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN));
+        console.debug('[CoreAPI Interceptor] Using token:', token ? token.substring(0, 20) + '...' : 'NONE');
+      }
 
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -99,12 +93,12 @@ class ApiService {
     // Response interceptor for debugging and token-retry handling
     this.coreApi.interceptors.response.use(
       (response) => {
-        console.log('[CoreAPI Response]', response.config.url, 'Status:', response.status);
-        console.log(
-          '[CoreAPI Response] Full response.data:',
-          JSON.stringify(response.data, null, 2),
-        );
-        console.log('[CoreAPI Response] Type of response.data:', typeof response.data);
+        // Detailed response logging only in development
+        if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+          console.debug('[CoreAPI Response]', response.config.url, 'Status:', response.status);
+          console.debug('[CoreAPI Response] Full response.data:', JSON.stringify(response.data, null, 2));
+          console.debug('[CoreAPI Response] Type of response.data:', typeof response.data);
+        }
         return response;
       },
       async (error) => {
@@ -186,22 +180,22 @@ class ApiService {
     return response.data.data || response.data;
   }
 
-  async batchCreateOpeningBalances(payload: { periodId: string; currencyId: string; balances: any[] }) {
+  async batchCreateOpeningBalances(payload: { periodId: string; currencyId: string; balances: unknown[] }) {
     const response = await this.coreApi.post('/api/opening-balance/batch', payload);
     return response.data.data || response.data;
   }
 
-  async getOpeningBalances(params: Record<string, any> = {}) {
+  async getOpeningBalances(params: Record<string, unknown> = {}) {
     const response = await this.coreApi.get('/api/opening-balance', { params });
     return response.data.data || response.data;
   }
 
-  async createOpeningBalance(payload: any) {
+  async createOpeningBalance(payload: unknown) {
     const response = await this.coreApi.post('/api/opening-balance', payload);
     return response.data.data || response.data;
   }
 
-  async batchCreateOpeningBalanceDetails(balanceId: string, payload: { details: any[] }) {
+  async batchCreateOpeningBalanceDetails(balanceId: string, payload: { details: unknown[] }) {
     const response = await this.coreApi.post(`/api/opening-balance/${balanceId}/details/batch`, payload);
     return response.data.data || response.data;
   }
@@ -229,8 +223,9 @@ class ApiService {
         return response.data.data || response.data;
       }
       return [];
-    } catch (error: any) {
-      console.warn('[ApiService] getUnits error - returning empty list so caller can fallback to defaults:', error?.message || error);
+    } catch (error: unknown) {
+      const err = error as { message?: string };
+      console.warn('[ApiService] getUnits error - returning empty list so caller can fallback to defaults:', err?.message || error);
       // Return empty list so callers (UI) can use local defaults instead of failing
       return [];
     }
@@ -306,7 +301,7 @@ class ApiService {
     return response.data;
   }
 
-  async saveBusinessInfo(tenantId: string, data: any) {
+  async saveBusinessInfo(tenantId: string, data: unknown) {
     const response = await this.tenantApi.post(
       `/tenants/${tenantId}/onboarding/business-info`,
       data,
@@ -314,7 +309,7 @@ class ApiService {
     return response.data;
   }
 
-  async saveBusinessSector(tenantId: string, data: any) {
+  async saveBusinessSector(tenantId: string, data: unknown) {
     const response = await this.tenantApi.post(
       `/tenants/${tenantId}/onboarding/business-sector`,
       data,
@@ -322,7 +317,7 @@ class ApiService {
     return response.data;
   }
 
-  async saveAccountingSetup(tenantId: string, data: any) {
+  async saveAccountingSetup(tenantId: string, data: unknown) {
     const response = await this.tenantApi.post(
       `/tenants/${tenantId}/onboarding/accounting-setup`,
       data,
@@ -330,7 +325,7 @@ class ApiService {
     return response.data;
   }
 
-  async saveAdvancedSetup(tenantId: string, data: any) {
+  async saveAdvancedSetup(tenantId: string, data: unknown) {
     const response = await this.tenantApi.post(
       `/tenants/${tenantId}/onboarding/advanced-setup`,
       data,
@@ -344,12 +339,13 @@ class ApiService {
   }
 
   // Accounting Objects (customers/vendors/employees)
-  async createAccountingObject(data: any) {
+  async createAccountingObject(data: unknown) {
     try {
       const response = await this.coreApi.post('/api/objects', data);
       return response.data;
-    } catch (error: any) {
-      const status = error?.response?.status;
+    } catch (error: unknown) {
+      const err = error as { response?: { status?: number } };
+      const status = err?.response?.status;
       // If unauthorized, attempt explicit refresh + retry as a fallback
       if ((status === 401 || status === 403) && localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN)) {
         try {
@@ -374,7 +370,7 @@ class ApiService {
     }
   }
 
-  async getAccountingObjects(query: Record<string, any> = {}) {
+  async getAccountingObjects(query: Record<string, unknown> = {}) {
     const params = new URLSearchParams(query as Record<string, string>).toString();
     const url = params ? `/api/objects?${params}` : '/api/objects';
     const response = await this.coreApi.get(url);
@@ -382,11 +378,16 @@ class ApiService {
   }
 
   async getNextObjectCode(type: 'customer' | 'vendor' | 'employee' = 'customer') {
-    try {
-      console.log('[ApiService] Calling GET /api/objects/next-code?type=', type);
+      try {
+      // Debug logs only in development to avoid noisy output in production or CI
+      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+        console.debug('[ApiService] Calling GET /api/objects/next-code?type=', type);
+      }
       const response = await this.coreApi.get(`/api/objects/next-code?type=${type}`);
-      console.log('[ApiService] Raw response:', response);
-      console.log('[ApiService] response.data:', response.data);
+      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+        console.debug('[ApiService] Raw response:', response);
+        console.debug('[ApiService] response.data:', response.data);
+      }
 
       // Handle wrapped response: { success, data: { code }, timestamp }
       if (response && response.data) {
@@ -396,17 +397,17 @@ class ApiService {
           response.data.data &&
           typeof response.data.data.code === 'string'
         ) {
-          console.log('[ApiService] Returning response.data.data.code:', response.data.data.code);
+          if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) console.debug('[ApiService] Returning response.data.data.code:', response.data.data.code);
           return response.data.data.code;
         }
         // Fallback: direct { code } pattern
         if (typeof response.data.code === 'string') {
-          console.log('[ApiService] Returning response.data.code:', response.data.code);
+          if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) console.debug('[ApiService] Returning response.data.code:', response.data.code);
           return response.data.code;
         }
         // Fallback: plain string
         if (typeof response.data === 'string') {
-          console.log('[ApiService] Returning response.data (string):', response.data);
+          if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) console.debug('[ApiService] Returning response.data (string):', response.data);
           return response.data;
         }
         // If unexpected shape, return undefined so caller can fallback
@@ -418,14 +419,14 @@ class ApiService {
     } catch (error) {
       console.error('[ApiService] getNextObjectCode error:', error);
       if (error && typeof error === 'object' && 'response' in error) {
-        console.error('[ApiService] Error response:', (error as any).response);
+        console.error('[ApiService] Error response:', (error as { response: unknown }).response);
       }
       throw error;
     }
   }
 
   // Warehouses
-  async createWarehouse(data: any) {
+  async createWarehouse(data: unknown) {
     const response = await this.coreApi.post('/api/warehouses', data);
     return response.data;
   }
@@ -456,7 +457,7 @@ class ApiService {
         return response.data.data || response.data;
       }
       return [];
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[ApiService] getWarehouses error:', error);
       // If network/auth error, propagate so caller can handle and show fallback
       throw error;
@@ -498,17 +499,17 @@ class ApiService {
     return response.data.data || response.data;
   }
 
-  async createItem(data: any) {
+  async createItem(data: unknown) {
     const response = await this.coreApi.post('/api/items', data);
     return response.data.data || response.data;
   }
 
-  async updateItem(id: string, data: any) {
+  async updateItem(id: string, data: unknown) {
     const response = await this.coreApi.put(`/api/items/${id}`, data);
     return response.data.data || response.data;
   }
 
-  async getItems(params?: any) {
+  async getItems(params?: Record<string, unknown>) {
     const response = await this.coreApi.get('/api/items', { params });
     return response.data.data || response.data;
   }
@@ -535,9 +536,10 @@ class ApiService {
     try {
       const response = await this.coreApi.get('/api/industries');
       return response.data.data || response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // If request failed due to missing/invalid token, retry without auth header
-      const status = error?.response?.status;
+      const err = error as { response?: { status?: number }; code?: string; message?: string };
+      const status = err?.response?.status;
       if (status === 401 || status === 403) {
         try {
           const response = await axios.get(`${API_CONFIG.CORE_SERVICE_URL}/api/industries`);
@@ -549,17 +551,48 @@ class ApiService {
       }
 
       // If network error or server not running, return local fallback data so UI remains usable
-      if (!error?.response || error?.code === 'ERR_NETWORK' || error?.message?.includes('Network Error')) {
+      if (!err?.response || err?.code === 'ERR_NETWORK' || err?.message?.includes('Network Error')) {
         console.warn('[ApiService] getIndustries network error — returning local fallback data');
-        return localIndustries.map((d: any, idx: number) => ({ id: idx + 1, code: d.code, name: d.name, displayText: d.displayText }));
+        return localIndustries.map((d: Record<string, unknown>, idx: number) => ({ id: idx + 1, code: d.code, name: d.name, displayText: d.displayText }));
       }
 
       
 
       // For other errors, log and return local fallback as a safe default
       console.error('[ApiService] getIndustries error:', error);
-      return localIndustries.map((d: any, idx: number) => ({ id: idx + 1, code: d.code, name: d.name, displayText: d.displayText }));
+      return localIndustries.map((d: Record<string, unknown>, idx: number) => ({ id: idx + 1, code: d.code, name: d.name, displayText: d.displayText }));
     }
+  }
+
+  // Sales Vouchers
+  async getSaleVouchers(params?: { status?: string; fromDate?: string; toDate?: string; objectId?: string; search?: string; page?: number; limit?: number }) {
+    const response = await this.coreApi.get('/api/sales/vouchers', { params });
+    return response.data.data || response.data;
+  }
+
+  async getSaleVoucher(id: string) {
+    const response = await this.coreApi.get(`/api/sales/vouchers/${id}`);
+    return response.data.data || response.data;
+  }
+
+  async createSaleVoucher(data: unknown) {
+    const response = await this.coreApi.post('/api/sales/vouchers', data);
+    return response.data.data || response.data;
+  }
+
+  async updateSaleVoucher(id: string, data: unknown) {
+    const response = await this.coreApi.patch(`/api/sales/vouchers/${id}`, data);
+    return response.data.data || response.data;
+  }
+
+  async deleteSaleVoucher(id: string) {
+    const response = await this.coreApi.delete(`/api/sales/vouchers/${id}`);
+    return response.data.data || response.data;
+  }
+
+  async postSaleVoucher(id: string) {
+    const response = await this.coreApi.post(`/api/sales/vouchers/${id}/post`);
+    return response.data.data || response.data;
   }
 }
 

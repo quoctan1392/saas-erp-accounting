@@ -17,6 +17,7 @@ const BottomNavigationBar: React.FC<Props> = ({ activeTab = 'home', onMore }) =>
       return navigate('/more');
     }
     if (tab === 'home') return navigate('/home');
+    if (tab === 'orders') return navigate('/sales/orders');
     // Fallback paths for other tabs - adjust later if routes change
     return navigate(`/${tab}`);
   };

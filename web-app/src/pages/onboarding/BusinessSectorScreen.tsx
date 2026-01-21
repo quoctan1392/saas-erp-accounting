@@ -209,7 +209,7 @@ const BusinessSectorScreen = () => {
       } else {
         navigateBack();
       }
-    } catch (err) {
+    } catch {
       setShowConfirmDialog(true);
     }
   };
@@ -286,12 +286,13 @@ const BusinessSectorScreen = () => {
       setTimeout(() => {
         navigate(ROUTES.ONBOARDING_ACCOUNTING_SETUP);
       }, 800);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to save business sector:', error);
+      const err = error as { message?: string };
       setSnack({
         open: true,
         severity: 'error',
-        message: error.message || 'Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại.',
+        message: err.message || 'Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại.',
       });
     } finally {
       setIsLoading(false);
@@ -590,7 +591,7 @@ const BusinessSectorScreen = () => {
             </Box>
           ) : (
             <List sx={{ py: 0 }}>
-              {filteredIndustries.map((industry, _idx) => (
+              {filteredIndustries.map((industry) => (
                 <ListItem key={industry.id} disablePadding divider>
                   <ListItemButton
                     onClick={() => handleSelectIndustry(industry)}

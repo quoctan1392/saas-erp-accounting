@@ -1,20 +1,13 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
-  UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
+import { BaseEntity } from '../../../common/entities/base.entity';
 import { OutwardVoucherDetail } from './outward-voucher-detail.entity';
 
 @Entity('outward_voucher')
-export class OutwardVoucher {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ name: 'tenant_id', type: 'uuid' })
-  tenantId: string;
+export class OutwardVoucher extends BaseEntity {
 
   @Column({ length: 50 })
   code: string;
@@ -52,16 +45,4 @@ export class OutwardVoucher {
     eager: true,
   })
   details: OutwardVoucherDetail[];
-
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
-
-  @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
-
-  @Column({ name: 'created_by', type: 'uuid', nullable: true })
-  createdBy: string;
-
-  @Column({ name: 'updated_by', type: 'uuid', nullable: true })
-  updatedBy: string;
 }

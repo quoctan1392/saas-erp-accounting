@@ -1,0 +1,35 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "iconsax",
+    "iconsax-react",
+    "Bricolage",
+    "Greyscale",
+    "ScanBarcode",
+    "ArrowDown2",
+    "Gallery",
+    "Camera",
+    "VT",
+    "onboardingData",
+    "taxIndustryGroup",
+    "sellPrice",
+    "purchasePrice",
+    "productGroup",
+    "unitActive",
+    "initialStock",
+    "taxIndustry",
+    "Nhóm",
+    "Hàng",
+    "Dịch",
+    "Nguyên",
+    "Thành",
+    "phẩm"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "dist/**",
+    "**/*.png",
+    "**/*.svg"
+  ]
+}

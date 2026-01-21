@@ -7,10 +7,16 @@ import {
   Typography,
   Badge,
 } from '@mui/material';
-import { Notification } from 'iconsax-react';
+import { Notification, ArrowLeft } from 'iconsax-react';
 import badgeIconFreeTier from '../assets/badget_icon_free_tier.png';
 import headerDayImage from '../assets/Header_day.png';
 import headerNightImage from '../assets/Header_night.png';
+
+// Icon wrapper component
+const Icon = ({ name, size = 24, color = 'currentColor' }: any) => {
+  if (name === 'ArrowLeft') return <ArrowLeft size={size} color={color} />;
+  return null;
+};
 
 interface DashboardHeaderProps {
   userName?: string;
@@ -22,6 +28,7 @@ interface DashboardHeaderProps {
   onLogout?: () => void;
   onSwitchWorkspace?: () => void;
   onNotificationsClick?: () => void;
+  onBack?: () => void; // Back button handler
 }
 
 const DashboardHeader = ({
@@ -29,6 +36,7 @@ const DashboardHeader = ({
   unreadNotifications = 0,
   title,
   onNotificationsClick,
+  onBack,
 }: DashboardHeaderProps) => {
   const greetContainerRef = useRef<HTMLDivElement | null>(null);
   const greetVisibleRef = useRef<HTMLDivElement | null>(null);
@@ -135,6 +143,25 @@ const DashboardHeader = ({
     >
       <Toolbar sx={{ minHeight: '100px !important', px: 2, py: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+          {/* Back button (if onBack provided) */}
+          {onBack && (
+            <IconButton
+              onClick={onBack}
+              sx={{
+                mr: 1,
+                color: '#212529',
+                bgcolor: 'rgba(255, 255, 255, 0.9)',
+                width: 36,
+                height: 36,
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 1)',
+                },
+              }}
+            >
+              <Icon name="ArrowLeft" size={20} />
+            </IconButton>
+          )}
+          
           {/* Greeting + Badge group. Reserve space on right for notifications (fixed). */}
           <Box
             ref={greetContainerRef}

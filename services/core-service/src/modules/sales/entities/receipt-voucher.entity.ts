@@ -1,20 +1,13 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
-  UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
+import { BaseEntity } from '../../../common/entities/base.entity';
 import { ReceiptVoucherDetail } from './receipt-voucher-detail.entity';
 
 @Entity('receipt_voucher')
-export class ReceiptVoucher {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ name: 'tenant_id', type: 'uuid' })
-  tenantId: string;
+export class ReceiptVoucher extends BaseEntity {
 
   @Column({ name: 'sale_voucher_ref_id', type: 'uuid', nullable: true })
   saleVoucherRefId: string;
@@ -49,16 +42,4 @@ export class ReceiptVoucher {
     eager: true,
   })
   details: ReceiptVoucherDetail[];
-
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
-
-  @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
-
-  @Column({ name: 'created_by', type: 'uuid', nullable: true })
-  createdBy: string;
-
-  @Column({ name: 'updated_by', type: 'uuid', nullable: true })
-  updatedBy: string;
 }

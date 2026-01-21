@@ -35,6 +35,11 @@ export const ROUTES = {
   DECLARATION_INITIAL_BALANCE_STEP1: '/declaration/initial-balance/step-1',
   DECLARATION_INITIAL_BALANCE_STEP2: '/declaration/initial-balance/step-2',
   DECLARATION_INITIAL_BALANCE_STEP3: '/declaration/initial-balance/step-3',
+  // Sales routes
+  SALES_LIST: '/sales',
+  SALES_NEW: '/sales/new',
+  SALES_DETAIL: '/sales/:id',
+  SALES_EDIT: '/sales/:id/edit',
 };
 
 export const STORAGE_KEYS = {

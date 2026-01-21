@@ -39,6 +39,11 @@ const ProductFormScreen = lazy(() => import('./pages/declaration/ProductFormScre
 // Initial Balance flow (contains step1/2/3)
 const InitialBalanceFlow = lazy(() => import('./pages/declaration/initial-balance/InitialBalanceFlow'));
 
+// Sales screens
+const SalesListScreen = lazy(() => import('./pages/sales/SalesListScreen'));
+const SalesFormScreen = lazy(() => import('./pages/sales/SalesFormScreen'));
+const SalesDetailScreen = lazy(() => import('./pages/sales/SalesDetailScreen'));
+
 const MainLayout = lazy(() => import('./components/MainLayout'));
 
 // Loading component for lazy loaded pages
@@ -115,10 +120,18 @@ function App() {
               {/* Initial Balance flow (handles step transitions internally) */}
               <Route path="/declaration/initial-balance/*" element={<InitialBalanceFlow />} />
               
-              {/* Routes with persistent bottom navigation */}
+              {/* Sales routes - moved under MainLayout so UiProvider wraps them */}
+              
+              {/* Routes with persistent bottom navigation (wraps routes with UiProvider) */}
               <Route element={<MainLayout />}>
                 <Route path="/home" element={<HomeScreen />} />
                 <Route path="/more" element={<MoreScreen />} />
+
+                {/* Sales routes - now nested so components using `useUi` are within UiProvider */}
+                <Route path="/sales/orders" element={<SalesListScreen />} />
+                <Route path="/sales/orders/new" element={<SalesFormScreen />} />
+                <Route path="/sales/orders/:id" element={<SalesDetailScreen />} />
+                <Route path="/sales/orders/:id/edit" element={<SalesFormScreen />} />
               </Route>
               
               <Route path="*" element={<Navigate to="/" replace />} />

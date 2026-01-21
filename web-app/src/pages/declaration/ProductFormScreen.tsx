@@ -1,10 +1,8 @@
-// @ts-nocheck
-import { Box, Container, Typography, Button, IconButton, Switch, InputAdornment, Snackbar, Alert, Radio, RadioGroup, Divider } from '@mui/material';
+import { Box, Typography, Button, IconButton, Switch, InputAdornment, Snackbar, Alert, Radio, RadioGroup, Divider } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BusinessType } from '../../types/onboarding';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, type TouchEvent } from 'react';
 import { ROUTES } from '../../config/constants';
-import { ArrowBack } from '@mui/icons-material';
 import RoundedTextField from '../../components/RoundedTextField';
 import BottomSheet from '../../components/BottomSheet';
 import AlertDialog from '../../components/AlertDialog';
@@ -15,13 +13,24 @@ import WarehouseSelectionScreen from './WarehouseSelectionScreen';
 import TaxIndustrySelectionScreen from './TaxIndustrySelectionScreen';
 import apiService from '../../services/api';
 import taxIndustryGroups from '../../data/taxIndustryGroups';
-import headerDay from '../../assets/Header_day.png';
 import * as Iconsax from 'iconsax-react';
+import DecoratedFormLayout from '../../components/DecoratedFormLayout';
+import StickyFooterActions from '../../components/StickyFooterActions';
 
-const Icon = ({ name, size = 24, color = 'currentColor', variant = 'Outline' }: any) => {
-  const Comp = (Iconsax as any)[name];
+type IconVariant = 'Outline' | 'Bulk' | 'Linear' | 'TwoTone' | string;
+interface IconProps {
+  name: string;
+  size?: number;
+  color?: string;
+  variant?: IconVariant;
+}
+const Icon: React.FC<IconProps> = ({ name, size = 24, color = 'currentColor', variant = 'Outline' }) => {
+  // Iconsax exports components by name — access dynamically.
+  const map = Iconsax as unknown as Record<string, unknown>;
+  const Comp = map[name] as unknown as React.ComponentType<Record<string, unknown>> | undefined;
   if (!Comp) return null;
-  return <Comp size={size} color={color} variant={variant} />;
+  // Render dynamically-created component
+  return React.createElement(Comp, { size, color, variant } as Record<string, unknown>);
 };
 
 const ProductFormScreen = () => {
@@ -31,10 +40,7 @@ const ProductFormScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  const [exiting, setExiting] = useState(false);
   const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
-  const [isPerformingConfirmAction, setIsPerformingConfirmAction] = useState(false);
-  const ANIM_MS = 280;
 
   // Form state
   const [productType, setProductType] = useState('goods'); // goods, service, material, finished
@@ -49,10 +55,10 @@ const ProductFormScreen = () => {
   const productTypeLabel = PRODUCT_TYPE_OPTIONS.find((o) => o.value === productType)?.label || '';
   const dragStartYRef = useRef<number | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleTouchStart = (e: TouchEvent<HTMLElement>) => {
     dragStartYRef.current = e.touches[0].clientY;
   };
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleTouchMove = (e: TouchEvent<HTMLElement>) => {
     if (dragStartYRef.current === null) return;
     const currentY = e.touches[0].clientY;
     const delta = Math.max(0, currentY - dragStartYRef.current);
@@ -124,13 +130,42 @@ const ProductFormScreen = () => {
     // derive business type from onboarding/current tenant stored choice
     try {
       const onboardingData = JSON.parse(localStorage.getItem('onboardingData') || '{}');
+      const currentTenant = JSON.parse(localStorage.getItem('currentTenant') || '{}');
+
       if (onboardingData && onboardingData.businessType) {
         setBusinessType(onboardingData.businessType);
-      } else {
-        const currentTenant = JSON.parse(localStorage.getItem('currentTenant') || '{}');
-        if (currentTenant && currentTenant.businessType) setBusinessType(currentTenant.businessType);
+      } else if (currentTenant && currentTenant.businessType) {
+        setBusinessType(currentTenant.businessType);
       }
-    } catch (err) {
+
+      // Prefill tax industry from saved onboarding/accounting setup or currentTenant data (if available)
+      try {
+        const acctSetup = onboardingData && onboardingData.accountingSetup ? onboardingData.accountingSetup : null;
+        const resolveTaxIndustry = (val: unknown) => {
+          if (!val) return undefined;
+          if (typeof val === 'string') return val;
+          if (typeof val === 'object' && val !== null) {
+            // Narrow to any-object with possible fields
+            const v = val as { code?: string; id?: string };
+            if (v.code) return v.code;
+            if (v.id && v.code) return v.code;
+          }
+          return undefined;
+        };
+
+        const fromOnboarding = resolveTaxIndustry(acctSetup?.taxIndustryGroup);
+        const fromTenantAcct = resolveTaxIndustry(currentTenant?.accountingSetup?.taxIndustryGroup);
+        const fromTenantTop = resolveTaxIndustry(currentTenant?.taxIndustryGroup);
+
+        const chosen = fromOnboarding || fromTenantAcct || fromTenantTop;
+        if (chosen) {
+          console.debug('[ProductFormScreen] Prefilling taxIndustry with', chosen);
+          setTaxIndustry(chosen);
+        }
+      } catch {
+        // ignore and continue
+      }
+    } catch {
       // ignore parse errors and keep default
     }
   }, []);
@@ -156,7 +191,7 @@ const ProductFormScreen = () => {
       // clear navigation state
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.pathname]);
+  }, [location.pathname, location.state, navigate]);
 
   const handleScanBarcode = () => {
     // Simple simulation for scanning: prompt the user to enter a barcode.
@@ -167,24 +202,24 @@ const ProductFormScreen = () => {
     }
   };
 
-  const handleFieldChange = (setter: any) => (value: any) => {
-    setHasChanges(true);
-    setter(value);
-  };
+  function handleFieldChange<T>(setter: React.Dispatch<React.SetStateAction<T>>) {
+    return (value: T) => {
+      setHasChanges(true);
+      setter(value);
+    };
+  }
 
   const handleBack = () => {
     if (hasChanges) {
       setShowConfirmDialog(true);
     } else {
-      setExiting(true);
-      setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), ANIM_MS);
+      navigate(ROUTES.DECLARATION_CATEGORIES);
     }
   };
 
   const handleConfirmLeave = () => {
     setShowConfirmDialog(false);
-    setExiting(true);
-    setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), ANIM_MS);
+    navigate(ROUTES.DECLARATION_CATEGORIES);
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -210,6 +245,13 @@ const ProductFormScreen = () => {
     setHasChanges(true);
   };
 
+  // Reference imageFile to avoid "assigned a value but never used" lint errors
+  useEffect(() => {
+    // intentionally read imageFile to satisfy eslint/ts no-unused-vars when file is only stored
+    // keep as a noop — UI uses imagePreview for rendering
+    void imageFile;
+  }, [imageFile]);
+
   const formatCurrency = (value: string) => {
     let num = value.replace(/\D/g, '');
     // strip leading zeros when user types (e.g. prevent "05") but keep single "0" when empty
@@ -218,7 +260,7 @@ const ProductFormScreen = () => {
     return num.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
-  const handlePriceChange = (setter: any) => (e: any) => {
+  const handlePriceChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCurrency(e.target.value);
     handleFieldChange(setter)(formatted);
   };
@@ -237,7 +279,21 @@ const ProductFormScreen = () => {
       const effectiveSaleVAT = businessType === BusinessType.PRIVATE_ENTERPRISE ? saleVAT : '';
 
       // Map to backend CreateItemDto
-      const itemData: any = {
+      type CreateItemDto = {
+        code: string;
+        name: string;
+        type: string;
+        unitId: string;
+        sellPrice: number;
+        purchasePrice: number;
+        exportTaxRate: number;
+        importTaxRate: number;
+        minimumStock: number;
+        isActive: boolean;
+        listItemCategoryId?: string[];
+      };
+
+      const itemData: CreateItemDto = {
         code,
         name,
         type: productType, // goods, service, material, finished
@@ -274,7 +330,21 @@ const ProductFormScreen = () => {
       const effectiveSaleVAT = businessType === BusinessType.PRIVATE_ENTERPRISE ? saleVAT : '';
 
       // Map to backend CreateItemDto
-      const itemData: any = {
+      type CreateItemDto = {
+        code: string;
+        name: string;
+        type: string;
+        unitId: string;
+        sellPrice: number;
+        purchasePrice: number;
+        exportTaxRate: number;
+        importTaxRate: number;
+        minimumStock: number;
+        isActive: boolean;
+        listItemCategoryId?: string[];
+      };
+
+      const itemData: CreateItemDto = {
         code,
         name,
         type: productType,
@@ -342,58 +412,8 @@ const ProductFormScreen = () => {
     return saleVAT !== '';
   };
 
-  return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        backgroundColor: '#FFFFFF',
-        position: 'relative',
-        pt: 0,
-        transform: exiting ? 'translateX(100%)' : 'translateX(0)',
-        transition: `transform ${ANIM_MS}ms ease`,
-      }}
-    >
-      {/* Top decorative image */}
-      <Box sx={{ height: { xs: 160, sm: 120 }, width: '100%', backgroundImage: `url(${headerDay})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
-
-      {/* Fixed header */}
-      <Box sx={{ position: 'fixed', top: 36, left: 0, right: 0, zIndex: 20, px: { xs: 2, sm: 3 } }}>
-        <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: 'sm', mx: 'auto', py: 0.5 }}>
-          <IconButton
-            onClick={handleBack}
-            sx={{ position: 'absolute', left: 0, top: 6, width: 40, height: 40, backgroundColor: '#fff', '&:hover': { backgroundColor: '#f5f5f5' } }}
-          >
-            <ArrowBack />
-          </IconButton>
-
-          <Box sx={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', px: 2 }}>
-            <Typography sx={{ color: 'var(--Greyscale-900, #0D0D12)', textAlign: 'center', fontFamily: '"Bricolage Grotesque"', fontSize: '20px', fontStyle: 'normal', fontWeight: 500 }}>Thêm hàng hoá/dịch vụ</Typography>
-          </Box>
-
-        </Box>
-      </Box>
-
-      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1, pt: { xs: '120px', sm: '96px' }, pb: 2 }}>
-        <Box
-          sx={{
-            borderRadius: {
-              xs: '16px 16px 0 0',
-              sm: '16px',
-            },
-            px: 1,
-            py: { xs: 2, sm: 6 },
-            pb: { xs: `calc(100px + env(safe-area-inset-bottom, 0px))`, sm: 6 },
-            position: { xs: 'fixed', sm: 'relative' },
-            top: { xs: '100px', sm: 'auto' },
-            bottom: { xs: 0, sm: 'auto' },
-            left: '16px',
-            right: '16px',
-            maxWidth: 'calc(100% - 32px)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflowY: { xs: 'auto', sm: 'visible' },
-          }}
-        >
+  return (<>
+    <DecoratedFormLayout title="Thêm hàng hoá/dịch vụ" onBack={handleBack} rightAction={undefined}>
           {/* Form Fields */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {/* Image Upload Section */}
@@ -798,74 +818,30 @@ const ProductFormScreen = () => {
             >
               Lưu và thêm mới
             </Button>
-          </Box>
-        </Box>
-      </Container>
+              </Box>
+            </DecoratedFormLayout>
 
       {/* Mobile sticky footer */}
-      <Box
-        sx={{
-          display: productTypeSheetOpen || productGroupScreenOpen || unitScreenOpen || warehouseScreenOpen || taxIndustryScreenOpen || imageSelectionSheetOpen ? 'none' : { xs: 'flex', sm: 'none' },
-          position: 'fixed',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 1400,
-          gap: 1.5,
-          px: 2,
-          py: 2,
-          pb: 'calc(16px + env(safe-area-inset-bottom, 0px))',
-          bgcolor: '#ffffff',
-          boxShadow: '0 -8px 16px rgba(0,0,0,0.12)',
-        }}
-      >
-        <Button
-          fullWidth
-          variant="outlined"
-          onClick={handleSave}
-          disabled={!isFormValid() || isLoading}
-          sx={{
-            flex: 1,
-            borderRadius: '100px',
-            textTransform: 'none',
-            fontWeight: 500,
-            fontSize: '16px',
-            borderColor: '#C5C5C5',
-            bgcolor: '#F5F5F5',
-            color: '#090909',
-            height: 56,
-            '&:hover': {
-              borderColor: '#E65A2E',
-              bgcolor: '#FFF',
-            },
-          }}
-        >
-          Lưu
-        </Button>
-        <Button
-          fullWidth
-          variant="contained"
-          onClick={handleSaveAndAddNew}
-          disabled={!isFormValid() || isLoading}
-          sx={{
-            flex: 1,
-            borderRadius: '100px',
-            fontSize: '16px',
-            textTransform: 'none',
-            fontWeight: 500,
-            bgcolor: '#FB7E00',
-            color: 'white',
-            height: 56,
-            boxShadow: 'none',
-            '&:hover': {
-              bgcolor: '#FB7E00',
-              boxShadow: 'none',
-            },
-          }}
-        >
-          Lưu và thêm mới
-        </Button>
-      </Box>
+      <StickyFooterActions
+        show={!productTypeSheetOpen && !productGroupScreenOpen && !unitScreenOpen && !warehouseScreenOpen && !taxIndustryScreenOpen && !imageSelectionSheetOpen}
+        actions={[
+          {
+            label: 'Lưu',
+            onClick: handleSave,
+            disabled: !isFormValid() || isLoading,
+            loading: isLoading,
+            variant: 'outlined',
+          },
+          {
+            label: 'Lưu và thêm mới',
+            onClick: handleSaveAndAddNew,
+            disabled: !isFormValid() || isLoading,
+            loading: isLoading,
+            variant: 'contained',
+            color: 'primary',
+          },
+        ]}
+      />
 
       {/* Product Type BottomSheet (radio list + confirm) */}
       <Snackbar
@@ -973,8 +949,9 @@ const ProductFormScreen = () => {
               input.type = 'file';
               input.accept = 'image/*';
               input.capture = 'environment';
-              input.onchange = (e: any) => {
-                const file = e.target?.files?.[0];
+              input.onchange = (e: Event) => {
+                const target = e.target as HTMLInputElement | null;
+                const file = target?.files?.[0];
                 if (file) {
                   if (file.size > 5 * 1024 * 1024) {
                     setSnackImageSizeOpen(true);
@@ -1113,8 +1090,7 @@ const ProductFormScreen = () => {
         message="Thêm sản phẩm mới thành công"
         onClose={() => setShowSuccessSnackbar(false)}
       />
-    </Box>
-  );
+  </>);
 };
 
 export default ProductFormScreen;
