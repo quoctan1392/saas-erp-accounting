@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: erp_password_123
       POSTGRES_DB: erp_db
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/init.sql
@@ -104,9 +104,11 @@ services:
     networks:
       - erp-network
     volumes:
-      - ./services/tenant-service:/app
-      - ./tsconfig.json:/tsconfig.json
-      - /app/node_modules
+      - ./services/tenant-service:/workspace/services/tenant-service
+      - ./tsconfig.json:/workspace/tsconfig.json
+      - /workspace/node_modules
+      - /workspace/services/tenant-service/node_modules
+    working_dir: /workspace/services/tenant-service
 
   # Core Service
   core-service:

@@ -39,12 +39,15 @@ interface SaleItem {
   image?: string;
   quantity: number;
   unitPrice: number;
-  unit?: string | any;
+  unit?: string | { name?: string };
   discount: number;
   discountType: 'percent' | 'amount';
   total: number;
   stock?: number;
   warehouseName?: string;
+  sellPrice?: number;
+  price?: number;
+  stockByWarehouse?: Record<string, number>;
 }
 
 interface SelectedProduct {
@@ -56,9 +59,19 @@ interface SelectedProduct {
   image?: string;
   unitPrice?: number;
   price?: number;
-  unit?: string | any;
+  unit?: string | { name?: string };
   stock?: number;
   warehouseName?: string;
+  stockByWarehouse?: Record<string, number>;
+}
+
+function safeNumber(v: unknown): number {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
+    const t = v.trim();
+    return t === '' ? NaN : Number(t);
+  }
+  return NaN;
 }
 
 const SalesFormScreen = () => {
@@ -213,7 +226,7 @@ const SalesFormScreen = () => {
       discount: 0,
       discountType: 'percent',
       total: item.unitPrice || item.price || 0,
-      stock: item.stock,
+      stock: item.stock ?? (item.stockByWarehouse ? Object.values(item.stockByWarehouse).reduce((s: number, v: unknown) => s + (Number.isNaN(safeNumber(v)) ? 0 : safeNumber(v)), 0) : undefined),
       warehouseName: item.warehouseName,
     };
     setItems([...items, newItem]);
@@ -494,12 +507,15 @@ const SalesFormScreen = () => {
                   name={item.itemName}
                   code={item.itemCode || 'N/A'}
                   image={item.image}
-                  unitPrice={item.unitPrice}
+                  unitPrice={item.sellPrice ?? item.unitPrice ?? item.price ?? 0}
                   unit={item.unit}
                   mode="order"
                   selected={true}
                   quantity={item.quantity}
                   warehouse={item.warehouseName}
+                  // pass per-warehouse stock if present on the item, and selected warehouse
+                  stockByWarehouse={item.stockByWarehouse}
+                  selectedWarehouse={item.warehouseName}
                   discount={item.discountType === 'percent' ? item.discount : 0}
                   onQuantityChange={(newQuantity) => handleItemChange(item.id, 'quantity', newQuantity)}
                   onDelete={() => handleRemoveItem(item.id)}

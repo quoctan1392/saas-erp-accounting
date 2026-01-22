@@ -17,6 +17,31 @@ export function formatCurrency(amount: number): string {
 }
 
 /**
+ * Format amount as full VND currency with comma thousands separator and 'đ' suffix
+ * Example: 2000000 -> "2,000,000đ"
+ */
+export function formatVND(amount: number): string {
+  try {
+    const formatted = new Intl.NumberFormat('en-US').format(Number(amount || 0));
+    return `${formatted}đ`;
+  } catch (err) {
+    return `${amount}đ`;
+  }
+}
+
+/**
+ * Format plain number with thousands separator (consistent with currency formatting)
+ * Example: 2000 -> "2,000"
+ */
+export function formatNumber(amount: number): string {
+  try {
+    return new Intl.NumberFormat('en-US').format(Number(amount || 0));
+  } catch (err) {
+    return String(amount);
+  }
+}
+
+/**
  * Calculate percentage change between current and previous values
  * @param current - Current value
  * @param previous - Previous value

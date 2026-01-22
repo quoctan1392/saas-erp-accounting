@@ -14,6 +14,7 @@ class ApiService {
       headers: {
         'Content-Type': 'application/json',
       },
+      timeout: 10000, // 10s timeout to prevent hanging
     });
 
     this.tenantApi = axios.create({
@@ -21,6 +22,7 @@ class ApiService {
       headers: {
         'Content-Type': 'application/json',
       },
+      timeout: 10000, // 10s timeout to prevent hanging
     });
 
     this.coreApi = axios.create({
@@ -28,6 +30,7 @@ class ApiService {
       headers: {
         'Content-Type': 'application/json',
       },
+      timeout: 10000, // 10s timeout to prevent hanging
     });
 
     // Add token to requests
@@ -106,6 +109,13 @@ class ApiService {
         const status = error.response?.status;
 
         console.error('[CoreAPI Response Error]', originalRequest?.url, 'Status:', status, 'Data:', error.response?.data);
+
+        // Prevent infinite retry loops
+        if (originalRequest._retryCount && originalRequest._retryCount >= 1) {
+          console.warn('[CoreAPI] Max retry attempts reached, rejecting');
+          return Promise.reject(error);
+        }
+        originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
 
         // If token invalid and we used tenantAccessToken, try retrying with user accessToken
         try {
@@ -340,34 +350,8 @@ class ApiService {
 
   // Accounting Objects (customers/vendors/employees)
   async createAccountingObject(data: unknown) {
-    try {
-      const response = await this.coreApi.post('/api/objects', data);
-      return response.data;
-    } catch (error: unknown) {
-      const err = error as { response?: { status?: number } };
-      const status = err?.response?.status;
-      // If unauthorized, attempt explicit refresh + retry as a fallback
-      if ((status === 401 || status === 403) && localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN)) {
-        try {
-          const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN) as string;
-          const refreshResp = await this.authApi.post('/auth/refresh', { refreshToken });
-          const newAccessToken = refreshResp.data?.accessToken || refreshResp.data?.data?.accessToken;
-          const newRefreshToken = refreshResp.data?.refreshToken || refreshResp.data?.data?.refreshToken;
-          if (newAccessToken) {
-            localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, newAccessToken);
-            if (newRefreshToken) localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, newRefreshToken);
-            // Retry request with new token
-            const retryResp = await this.coreApi.post('/api/objects', data);
-            return retryResp.data;
-          }
-        } catch (refreshErr) {
-          console.warn('[ApiService] createAccountingObject refresh retry failed', refreshErr);
-        }
-      }
-
-      // Re-throw original error if we couldn't recover
-      throw error;
-    }
+    const response = await this.coreApi.post('/api/objects', data);
+    return response.data;
   }
 
   async getAccountingObjects(query: Record<string, unknown> = {}) {
@@ -524,6 +508,17 @@ class ApiService {
     return response.data.data || response.data;
   }
 
+  // Inventory / Stock Levels
+  async getStockLevels(params?: Record<string, unknown>) {
+    const response = await this.coreApi.get('/api/inventory/stock-levels', { params });
+    return response.data.data || response.data;
+  }
+
+  async getStockLevelByItem(itemId: string) {
+    const response = await this.coreApi.get(`/api/inventory/stock-levels/${itemId}`);
+    return response.data.data || response.data;
+  }
+
   // Declaration Counts
   async getDeclarationCounts() {
     const response = await this.coreApi.get('/api/declaration/counts');
@@ -553,14 +548,14 @@ class ApiService {
       // If network error or server not running, return local fallback data so UI remains usable
       if (!err?.response || err?.code === 'ERR_NETWORK' || err?.message?.includes('Network Error')) {
         console.warn('[ApiService] getIndustries network error — returning local fallback data');
-        return localIndustries.map((d: Record<string, unknown>, idx: number) => ({ id: idx + 1, code: d.code, name: d.name, displayText: d.displayText }));
+        return localIndustries.map((d, idx: number) => ({ id: idx + 1, code: d.code, name: d.name, displayText: d.displayText }));
       }
 
       
 
       // For other errors, log and return local fallback as a safe default
       console.error('[ApiService] getIndustries error:', error);
-      return localIndustries.map((d: Record<string, unknown>, idx: number) => ({ id: idx + 1, code: d.code, name: d.name, displayText: d.displayText }));
+      return localIndustries.map((d, idx: number) => ({ id: idx + 1, code: d.code, name: d.name, displayText: d.displayText }));
     }
   }
 

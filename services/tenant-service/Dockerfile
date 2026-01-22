@@ -1,6 +1,6 @@
 FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /workspace
 
 # Install build dependencies
 RUN apk add --no-cache \
@@ -13,15 +13,23 @@ RUN apk add --no-cache \
 
 RUN npm install -g pnpm
 
-# Ensure root tsconfig is available for TypeScript build (tsconfig extends path)
-COPY tsconfig.json /tsconfig.json
+# Copy workspace config files from root
+COPY pnpm-workspace.yaml ./
+COPY package.json ./
+COPY pnpm-lock.yaml* ./
+COPY tsconfig.json ./
 
-COPY package.json pnpm-lock.yaml* ./
+# Copy all packages (for workspace dependencies)
+COPY packages ./packages
+COPY services ./services
 
+# Install all workspace dependencies
 RUN pnpm install
 
-COPY . .
+# Set working directory to tenant-service
+WORKDIR /workspace/services/tenant-service
 
 EXPOSE 3002
 
-CMD ["pnpm", "run", "dev"]
+# Use pnpm exec to run nest command (works with pnpm workspace)
+CMD ["pnpm", "exec", "nest", "start", "--watch"]

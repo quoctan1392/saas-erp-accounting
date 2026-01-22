@@ -35,6 +35,8 @@ export { InvoiceDetail } from './modules/invoices/entities/invoice-detail.entity
 
 // Inventory
 export { InventoryTransaction } from './modules/inventory/entities/inventory-transaction.entity';
+// Inventory views
+export { StockLevelView } from './modules/inventory/entities/stock-level.view';
 
 // Bank Accounts
 export { BankAccount } from './modules/bank-accounts/entities/bank-account.entity';

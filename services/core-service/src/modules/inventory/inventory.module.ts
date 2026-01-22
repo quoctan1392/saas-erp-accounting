@@ -3,7 +3,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
 import { InventoryTransaction } from './entities/inventory-transaction.entity';
-import { StockLevelView } from './entities/stock-level.view';
 import { Item } from '../items/entities/item.entity';
 import { Warehouse } from '../warehouses/entities/warehouse.entity';
 
@@ -11,7 +10,6 @@ import { Warehouse } from '../warehouses/entities/warehouse.entity';
   imports: [
     TypeOrmModule.forFeature([
       InventoryTransaction,
-      StockLevelView,
       Item,
       Warehouse,
     ]),

@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, Between, In } from 'typeorm';
+import { Repository, FindOptionsWhere, Between, In, DataSource } from 'typeorm';
 import { InventoryTransaction, TransactionType } from './entities/inventory-transaction.entity';
-import { StockLevelView } from './entities/stock-level.view';
+// StockLevelView is a DB view; we query it via DataSource.raw SQL to avoid TypeORM view metadata issues
 import { Item } from '../items/entities/item.entity';
 import { Warehouse } from '../warehouses/entities/warehouse.entity';
 import { CreateInventoryTransactionDto } from './dto/create-inventory-transaction.dto';
@@ -17,12 +17,11 @@ export class InventoryService {
   constructor(
     @InjectRepository(InventoryTransaction)
     private inventoryTransactionRepository: Repository<InventoryTransaction>,
-    @InjectRepository(StockLevelView)
-    private stockLevelViewRepository: Repository<StockLevelView>,
     @InjectRepository(Item)
     private itemRepository: Repository<Item>,
     @InjectRepository(Warehouse)
     private warehouseRepository: Repository<Warehouse>,
+    private dataSource: DataSource,
   ) {}
 
   // ==================== INVENTORY TRANSACTIONS ====================
@@ -183,11 +182,11 @@ export class InventoryService {
   async findAllStockLevels(
     tenantId: string,
     queryDto: QueryStockLevelDto,
-  ): Promise<PaginationResponseDto<StockLevelView>> {
+  ): Promise<PaginationResponseDto<any>> {
     const { page = 1, limit = 20, warehouseId, itemId } = queryDto;
     const skip = (page - 1) * limit;
 
-    const where: FindOptionsWhere<StockLevelView> = {
+    const where: FindOptionsWhere<any> = {
       tenantId,
     };
 
@@ -199,54 +198,62 @@ export class InventoryService {
       where.itemId = itemId;
     }
 
-    const [stockLevels, total] = await this.stockLevelViewRepository.findAndCount({
-      where,
-      skip,
-      take: limit,
-      order: {
-        itemCode: 'ASC',
-      },
-    });
+    // Use raw SQL against the DB view to avoid relying on TypeORM view entity metadata
+    const params: any[] = [tenantId];
+    let whereSql = '"tenantId" = $1';
+    let paramIndex = 2;
 
+    if (warehouseId) {
+      whereSql += ` AND "warehouseId" = $${paramIndex++}`;
+      params.push(warehouseId);
+    }
+
+    if (itemId) {
+      whereSql += ` AND "itemId" = $${paramIndex++}`;
+      params.push(itemId);
+    }
+
+    const offset = skip;
+    const rowsSql = `SELECT * FROM stock_level_view WHERE ${whereSql} ORDER BY "itemCode" ASC LIMIT ${limit} OFFSET ${offset}`;
+    const countSql = `SELECT COUNT(*)::int AS total FROM stock_level_view WHERE ${whereSql}`;
+
+    const [stockLevels, countRes] = await Promise.all([
+      this.dataSource.query(rowsSql, params),
+      this.dataSource.query(countSql, params),
+    ]);
+
+    const total = Array.isArray(countRes) && countRes.length ? parseInt(countRes[0].total, 10) : 0;
     return new PaginationResponseDto(stockLevels, total, page, limit);
   }
 
   async getStockLevelByItem(
     tenantId: string,
     itemId: string,
-  ): Promise<StockLevelView[]> {
-    return await this.stockLevelViewRepository.find({
-      where: {
-        tenantId,
-        itemId,
-      },
-      order: {
-        warehouseName: 'ASC',
-      },
-    });
+  ): Promise<any[]> {
+    const rows = await this.dataSource.query(
+      `SELECT * FROM stock_level_view WHERE "tenantId" = $1 AND "itemId" = $2 ORDER BY "warehouseName" ASC`,
+      [tenantId, itemId],
+    );
+    return rows;
   }
 
   async getStockLevel(
     tenantId: string,
     itemId: string,
     warehouseId: string,
-  ): Promise<StockLevelView | null> {
-    return await this.stockLevelViewRepository.findOne({
-      where: {
-        tenantId,
-        itemId,
-        warehouseId,
-      },
-    });
+  ): Promise<any | null> {
+    const rows = await this.dataSource.query(
+      `SELECT * FROM stock_level_view WHERE "tenantId" = $1 AND "itemId" = $2 AND "warehouseId" = $3 LIMIT 1`,
+      [tenantId, itemId, warehouseId],
+    );
+    return rows && rows.length ? rows[0] : null;
   }
 
   async findLowStock(
     tenantId: string,
   ): Promise<any[]> {
     // Get stock levels
-    const stockLevels = await this.stockLevelViewRepository.find({
-      where: { tenantId },
-    });
+    const stockLevels = await this.dataSource.query(`SELECT * FROM stock_level_view WHERE tenant_id = $1`, [tenantId]);
 
     // Get items with minimum stock settings
     const itemIds = [...new Set(stockLevels.map(sl => sl.itemId))];

@@ -70,7 +70,7 @@ const CustomerSelectionScreen: React.FC<CustomerSelectionScreenProps> = ({ open,
     // Use a JSON snapshot of excludeIds in the dependency list so that
     // a freshly-created (but identical) default array does not trigger
     // the effect on every render and cause an update loop.
-    const snapshotExclude = JSON.stringify(excludeIds || []);
+    // Use JSON snapshot of excludeIds to avoid triggering the effect on identical array instances
 
     let result = customers.filter(c => !(excludeIds || []).includes(c.id));
 
@@ -91,7 +91,7 @@ const CustomerSelectionScreen: React.FC<CustomerSelectionScreenProps> = ({ open,
     }
 
     setFilteredCustomers(result);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // include excludeIds snapshot directly in deps
   }, [customers, query, filterTab, JSON.stringify(excludeIds || [])]);
 
   const loadCustomers = async () => {
@@ -126,12 +126,12 @@ const CustomerSelectionScreen: React.FC<CustomerSelectionScreenProps> = ({ open,
       );
 
       const mapped: Customer[] = customerItems.map((item: Record<string, unknown>) => ({
-        id: item.id || item._id || '',
-        name: item.accountObjectName || item.name || '',
-        code: item.accountObjectCode || item.code || '',
+        id: String(item.id || item._id || ''),
+        name: String(item.accountObjectName || item.name || ''),
+        code: String(item.accountObjectCode || item.code || ''),
         type: (item.companyTaxCode || item.taxCode) ? 'organization' : 'individual',
-        taxCode: item.companyTaxCode || item.taxCode,
-        idNumber: item.identityNumber || item.idNumber,
+        taxCode: (item.companyTaxCode || item.taxCode) as string | undefined,
+        idNumber: (item.identityNumber || item.idNumber) as string | undefined,
       }));
 
       setCustomers(mapped);

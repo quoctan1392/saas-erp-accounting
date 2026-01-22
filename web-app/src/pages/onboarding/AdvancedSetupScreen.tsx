@@ -315,17 +315,6 @@ const AdvancedSetupScreen = () => {
 
     try {
       // Ensure we persist an explicit "off" advancedSetup when user leaves without enabling
-      const onboardingData = JSON.parse(localStorage.getItem('onboardingData') || '{}');
-
-      const advancedSetupPayload: any = {
-        eInvoiceEnabled,
-      };
-
-      const updatedData = {
-        ...onboardingData,
-        advancedSetup: advancedSetupPayload,
-        completedAt: new Date().toISOString(),
-      };
 
       // Try to mark onboarding completed on server if tenant available
       const currentTenant = JSON.parse(localStorage.getItem('currentTenant') || '{}');

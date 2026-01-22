@@ -1,7 +1,10 @@
 import React from 'react';
 import { Box, Typography, IconButton } from '@mui/material';
-import * as Iconsax from 'iconsax-react';
-import { formatCurrency } from '../utils/dashboardUtils';
+import ImageIcon from '@mui/icons-material/Image';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import NumberSpinner from './NumberSpinner';
+import { formatVND, formatNumber } from '../utils/dashboardUtils';
 import tokens from '../styles/tokens';
 
 interface ProductCardProps {
@@ -10,8 +13,12 @@ interface ProductCardProps {
   code: string;
   image?: string;
   stock?: number;
+  // optional map of warehouseId|name -> stock count
+  stockByWarehouse?: Record<string, number>;
+  // when selected, shows stock for this warehouse (id or name)
+  selectedWarehouse?: string | null;
   unitPrice: number;
-  unit?: string | any;
+  unit?: string | { name?: string };
   
   // Order mode fields
   mode?: 'selection' | 'order';
@@ -29,6 +36,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
   code,
   image,
   stock,
+  stockByWarehouse,
+  selectedWarehouse = null,
   unitPrice,
   unit = 'chiếc',
   mode = 'selection',
@@ -47,26 +56,57 @@ const ProductCard: React.FC<ProductCardProps> = ({
   // Extract unit name if unit is an object, otherwise use as string
   const unitName = typeof unit === 'object' && unit !== null ? (unit.name || 'chiếc') : (unit || 'chiếc');
 
+  // Compute displayed stock:
+  // - when not selected: show total across warehouses if provided, else `stock`
+  // - when selected and `selectedWarehouse` provided: show stock for that warehouse if available, else fall back to `stock` or total
+  const totalStock = stockByWarehouse ? Object.values(stockByWarehouse).reduce((s, v) => s + (Number(v) || 0), 0) : (stock ?? 0);
+  let displayedStock = totalStock;
+  if (selected && selectedWarehouse) {
+    const wStock = stockByWarehouse ? stockByWarehouse[selectedWarehouse] : undefined;
+    if (typeof wStock === 'number') displayedStock = wStock;
+    else displayedStock = typeof stock === 'number' ? stock : totalStock;
+  }
+
+  const showStepper = isOrderMode || Boolean(selected);
+
   return (
     <Box
-      onClick={!isOrderMode ? onClick : undefined}
       sx={{
+        position: 'relative',
         height: '100px',
         padding: '8px 12px 8px 8px',
         borderRadius: '20px',
-        border: selected || isOrderMode ? `1px solid ${tokens.colors.primary}` : `1px solid ${tokens.colors.border.light}`,
-        background: '#FFF',
-        boxShadow: selected || isOrderMode ? '1px 2px 12px 0 rgba(0, 0, 0, 0.04)' : 'none',
+        border: selected ? '1px solid var(--Scheme-Primary, #FB7E00)' : '1px solid var(--Scheme-SurfaceContainer, #F5F5F5)',
+        background: 'var(--Greyscale-0, #FFF)',
+        boxShadow: '1px 2px 12px 0 rgba(0, 0, 0, 0.04)',
         display: 'flex',
         alignItems: 'center',
         gap: 1.5,
-        cursor: !isOrderMode ? 'pointer' : 'default',
+        cursor: 'default',
         transition: 'all 0.2s ease',
         '&:hover': !isOrderMode ? {
           boxShadow: '1px 2px 12px 0 rgba(0, 0, 0, 0.08)',
         } : {},
       }}
     >
+      {/* Stock chip (top-right) - moved to card root so it's always visible */}
+      {typeof displayedStock !== 'undefined' && (
+        <Box sx={{ position: 'absolute', top: 8, right: 12, zIndex: 10 }}>
+          <Typography
+            sx={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: '#0B6623',
+              bgcolor: '#D6EDD4',
+              px: 1,
+              py: '4px',
+              borderRadius: '12px',
+            }}
+          >
+            {`Tồn: ${formatNumber(Number(displayedStock || 0))}`}{selected && selectedWarehouse ? ` • Kho: ${selectedWarehouse}` : ''}
+          </Typography>
+        </Box>
+      )}
       {/* Image */}
       <Box
         sx={{
@@ -84,7 +124,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         {image ? (
           <img src={image} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <Iconsax.Gallery size={32} color="#999" variant="Outline" />
+          <ImageIcon sx={{ fontSize: 32, color: '#999' }} />
         )}
       </Box>
 
@@ -92,19 +132,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
       <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', py: 0.5 }}>
         {/* Top section: Name and Code */}
         <Box>
-          <Typography
-            sx={{
-              fontSize: 15,
-              fontWeight: 500,
-              color: '#090909',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              lineHeight: 1.3,
-            }}
-          >
+          <Typography sx={{ fontSize: 15, fontWeight: 500, color: '#090909', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.3 }}>
             {name}
           </Typography>
           <Typography sx={{ fontSize: 13, color: tokens.colors.text.secondary, mt: 0.25 }}>
@@ -119,104 +147,42 @@ const ProductCard: React.FC<ProductCardProps> = ({
             {!isOrderMode ? (
               <>
                 <Typography sx={{ fontSize: 15, fontWeight: 600, color: tokens.colors.primary }}>
-                  {formatCurrency(unitPrice)}/{unitName}
+                  {`${formatVND(unitPrice)}/${unitName}`}
                 </Typography>
-                {stock !== undefined && (
-                  <Typography
-                    sx={{
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: '#16A34A',
-                      bgcolor: '#D6EDD4',
-                      px: 1,
-                      py: 0.25,
-                      borderRadius: '4px',
-                    }}
-                  >
-                    Tồn: {stock}
-                  </Typography>
-                )}
               </>
             ) : (
               <Box sx={{ flex: 1 }}>
                 {discount > 0 && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.25 }}>
-                    <Typography
-                      sx={{
-                        fontSize: 13,
-                        color: '#999',
-                        textDecoration: 'line-through',
-                      }}
-                    >
-                      {formatCurrency(originalTotal)}
+                    <Typography sx={{ fontSize: 13, color: '#999', textDecoration: 'line-through' }}>
+                      {formatVND(originalTotal)}
                     </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: 12,
-                        fontWeight: 500,
-                        color: '#EF4444',
-                        bgcolor: '#FEE2E2',
-                        px: 1,
-                        py: 0.25,
-                        borderRadius: '8px',
-                      }}
-                    >
+                    <Typography sx={{ fontSize: 12, fontWeight: 500, color: '#EF4444', bgcolor: '#FEE2E2', px: 1, py: 0.25, borderRadius: '8px' }}>
                       -{discount}%
                     </Typography>
                   </Box>
                 )}
                 <Typography sx={{ fontSize: 16, fontWeight: 600, color: '#090909' }}>
-                  {formatCurrency(discountedTotal)}
+                  {formatVND(discountedTotal)}
                 </Typography>
               </Box>
             )}
           </Box>
 
-          {/* Actions for order mode */}
-          {isOrderMode && (
+          {showStepper ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {/* Quantity controls */}
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  bgcolor: '#F5F5F5',
-                  borderRadius: '12px',
-                  px: 1,
-                  py: 0.5,
-                }}
-              >
-                <IconButton
-                  size="small"
-                  onClick={() => onQuantityChange?.(Math.max(1, quantity - 1))}
-                  sx={{ width: 24, height: 24, p: 0 }}
-                >
-                  <Iconsax.Minus size={16} color="#4E4E4E" />
-                </IconButton>
-                <Typography sx={{ fontSize: 15, fontWeight: 500, minWidth: 24, textAlign: 'center' }}>
-                  {quantity}
-                </Typography>
-                <IconButton
-                  size="small"
-                  onClick={() => onQuantityChange?.(quantity + 1)}
-                  sx={{ width: 24, height: 24, p: 0 }}
-                >
-                  <Iconsax.Add size={16} color="#4E4E4E" />
-                </IconButton>
-              </Box>
+              <NumberSpinner value={quantity} onChange={(v) => onQuantityChange?.(v)} />
 
-              {/* Delete button */}
-              <IconButton
-                onClick={onDelete}
-                sx={{
-                  width: 40,
-                  height: 40,
-                  bgcolor: tokens.colors.primary,
-                  '&:hover': { bgcolor: tokens.colors.primaryHover },
-                }}
-              >
-                <Iconsax.Trash size={20} color="#FFF" variant="Outline" />
+              {isOrderMode && (
+                <IconButton onClick={onDelete} sx={{ width: 40, height: 40, bgcolor: tokens.colors.primary, '&:hover': { bgcolor: tokens.colors.primaryHover } }}>
+                  <DeleteOutlineIcon sx={{ color: '#FFF' }} />
+                </IconButton>
+              )}
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center', pl: 0 }}>
+              <IconButton onClick={onClick} sx={{ width: 28, height: 28, p: 0, bgcolor: tokens.colors.primary, '&:hover': { bgcolor: tokens.colors.primaryHover } }}>
+                <ShoppingCartIcon sx={{ color: '#FFF', fontSize: 16 }} />
               </IconButton>
             </Box>
           )}

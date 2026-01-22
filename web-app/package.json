@@ -4,10 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "kill-port": "lsof -ti:5173 | xargs kill -9 2>/dev/null || true",
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "dev:resilient": "./dev-server.sh",
+    "dev:safe": "npm run kill-port && vite --host 127.0.0.1 --port 5173",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

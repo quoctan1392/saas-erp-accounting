@@ -4,5 +4,5 @@ export class TaxIndustryGroupResponseDto {
   name: string;
   groupName: string;
   vatRate?: number | null;
-  pitRate: number;
+  pitRate?: number | null;
 }

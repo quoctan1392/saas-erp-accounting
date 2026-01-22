@@ -1,9 +1,9 @@
-import { ViewEntity, ViewColumn, Connection } from 'typeorm';
+import { ViewEntity, ViewColumn, DataSource } from 'typeorm';
 
 @ViewEntity({
   name: 'stock_level_view',
-  expression: (connection: Connection) => 
-    connection
+  expression: (dataSource: DataSource) => 
+    dataSource
       .createQueryBuilder()
       .select('it.tenant_id', 'tenantId')
       .addSelect('it.item_id', 'itemId')
@@ -37,14 +37,14 @@ import { ViewEntity, ViewColumn, Connection } from 'typeorm';
             ELSE 0
           END) > 0 
           THEN SUM(CASE 
-            WHEN it.transaction_type = 'in' THEN it.amount
+            WHEN it.transaction_type = 'in' THEN it.total_value
             ELSE 0
-          END) / SUM(CASE 
+          END) / NULLIF(SUM(CASE 
             WHEN it.transaction_type = 'in' THEN it.quantity
             WHEN it.transaction_type = 'out' THEN -it.quantity
             WHEN it.transaction_type = 'adjust' THEN it.quantity
             ELSE 0
-          END)
+          END), 0)
           ELSE 0
         END
       `, 'averageUnitPrice')
@@ -63,7 +63,7 @@ import { ViewEntity, ViewColumn, Connection } from 'typeorm';
             ELSE 0
           END) > 0 
           THEN SUM(CASE 
-            WHEN it.transaction_type = 'in' THEN it.amount
+            WHEN it.transaction_type = 'in' THEN it.total_value
             ELSE 0
           END) / SUM(CASE 
             WHEN it.transaction_type = 'in' THEN it.quantity
@@ -77,7 +77,7 @@ import { ViewEntity, ViewColumn, Connection } from 'typeorm';
       .from('inventory_transaction', 'it')
       .leftJoin('item', 'i', 'it.item_id = i.id')
       .leftJoin('warehouse', 'w', 'it.warehouse_id = w.id')
-      .where('it.status = :status', { status: 'posted' })
+      .where('it.is_deleted = :isDeleted', { isDeleted: false })
       .groupBy('it.tenant_id')
       .addGroupBy('it.item_id')
       .addGroupBy('i.code')

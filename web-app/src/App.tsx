@@ -48,7 +48,6 @@ const MainLayout = lazy(() => import('./components/MainLayout'));
 
 // Loading component for lazy loaded pages
 const PageLoader = () => {
-  console.log('PageLoader is rendering');
   return (
     <Box
       sx={{
