@@ -77,11 +77,26 @@ class ApiService {
         localStorage.getItem('tenantAccessToken') ||
         localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
 
+      // Add x-tenant-id header if selectedTenantId exists
+      const selectedTenantId = localStorage.getItem(STORAGE_KEYS.SELECTED_TENANT_ID);
+      if (selectedTenantId) {
+        config.headers['x-tenant-id'] = selectedTenantId;
+      }
+
       // Only log token debug info in development to avoid spamming console
       if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
         console.debug('[CoreAPI Interceptor] tenantAccessToken:', localStorage.getItem('tenantAccessToken'));
         console.debug('[CoreAPI Interceptor] accessToken:', localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN));
+        console.debug('[CoreAPI Interceptor] selectedTenantId:', selectedTenantId);
         console.debug('[CoreAPI Interceptor] Using token:', token ? token.substring(0, 20) + '...' : 'NONE');
+        // Additional request debug: full URL and headers
+        try {
+          const method = (config.method || 'get').toUpperCase();
+          const fullUrl = `${config.baseURL || ''}${config.url || ''}`;
+          console.debug('[CoreAPI Request Debug]', method, fullUrl, 'Headers:', { ...config.headers });
+        } catch (err) {
+          console.debug('[CoreAPI Request Debug] failed to stringify request debug', err);
+        }
       }
 
       if (token) {

@@ -35,6 +35,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({
             backgroundImage: `url(${backgroundImage})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
+            position: 'fixed',
+            top:0, left: 0, right: 0
           }}
         />
 
@@ -42,6 +44,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
         <Box
           sx={{
             position: 'fixed',
+            // background: 'red',
             top: 36,
             left: 0,
             right: 0,

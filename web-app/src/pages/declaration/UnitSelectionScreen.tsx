@@ -16,7 +16,7 @@ const Icon = ({ name, size = 20, color = 'currentColor', variant = 'Outline' }: 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSelect: (label: string) => void;
+  onSelect: (unit: { id: string; name: string }) => void;
 }
 
 const DEFAULT_UNITS = [
@@ -183,7 +183,7 @@ const UnitSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect }) => {
 
             {units.filter(u => u.label.toLowerCase().includes(query.toLowerCase())).map((u, idx) => (
               <Box key={u.value}>
-                <Box onClick={() => { onSelect(u.label); onClose(); }} sx={{ display: 'flex', alignItems: 'center', py: 1.75, px: 1, cursor: 'pointer', justifyContent: 'space-between' }}>
+                <Box onClick={() => { onSelect({ id: u.value, name: u.label }); onClose(); }} sx={{ display: 'flex', alignItems: 'center', py: 1.75, px: 1, cursor: 'pointer', justifyContent: 'space-between' }}>
                   <Typography sx={{ fontSize: 16 }}>{u.label}</Typography>
                 </Box>
                 {idx < units.length - 1 && <Divider sx={{ borderColor: '#F1F3F5' }} />}
@@ -192,7 +192,7 @@ const UnitSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect }) => {
           </Box>
         </Box>
 
-        <UnitCreateScreen open={createOpen} onClose={() => setCreateOpen(false)} onCreate={(u) => { handleCreate(u); onSelect(u.label); setCreateOpen(false); onClose(); }} />
+        <UnitCreateScreen open={createOpen} onClose={() => setCreateOpen(false)} onCreate={(u) => { handleCreate(u); onSelect({ id: u.id || u.code || u.value, name: u.label || u.name }); setCreateOpen(false); onClose(); }} />
       </Box>
     </>
   );

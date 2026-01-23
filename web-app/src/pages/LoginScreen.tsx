@@ -19,6 +19,7 @@ import { apiService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../config/constants';
 import loginBgMobile from '../assets/Header_day.png';
+import { saveTenantAccessToken } from '../utils/tokenHelpers';
 
 export const LoginScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -64,7 +65,7 @@ export const LoginScreen: React.FC = () => {
           if (userTenants.length > 0) {
             if (userTenants.length === 1) {
               const tenantResponse = await apiService.selectTenant(userTenants[0].id);
-              localStorage.setItem('tenantAccessToken', tenantResponse.data.tenantAccessToken);
+              saveTenantAccessToken(tenantResponse.data.tenantAccessToken);
               localStorage.setItem('currentTenant', JSON.stringify(tenantResponse.data.tenant));
               navigate(ROUTES.HOME);
             } else {
@@ -109,7 +110,8 @@ export const LoginScreen: React.FC = () => {
           if (userTenants && userTenants.length > 0) {
             if (userTenants.length === 1) {
               const tenantResponse = await apiService.selectTenant(userTenants[0].id);
-              localStorage.setItem('tenantAccessToken', tenantResponse.data.tenantAccessToken);
+              saveTenantAccessToken(tenantResponse.data.tenantAccessToken);
+              localStorage.setItem('selectedTenantId', userTenants[0].id);
               localStorage.setItem('currentTenant', JSON.stringify(tenantResponse.data.tenant));
               navigate(ROUTES.HOME);
             } else {

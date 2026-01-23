@@ -14,6 +14,7 @@ import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import { apiService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../config/constants';
+import { saveTenantAccessToken } from '../utils/tokenHelpers';
 
 export const LoginDemoScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -43,7 +44,8 @@ export const LoginDemoScreen: React.FC = () => {
           if (userTenants && userTenants.length > 0) {
             if (userTenants.length === 1) {
               const tenantResponse = await apiService.selectTenant(userTenants[0].id);
-              localStorage.setItem('tenantAccessToken', tenantResponse.data.tenantAccessToken);
+              saveTenantAccessToken(tenantResponse.data.tenantAccessToken);
+              localStorage.setItem('selectedTenantId', userTenants[0].id);
               navigate(ROUTES.DASHBOARD);
             } else {
               navigate(ROUTES.TENANT_SELECTION);
@@ -89,7 +91,7 @@ export const LoginDemoScreen: React.FC = () => {
     login(demoUser, demoTokens, demoTenants);
     
     // Navigate to home since we have one tenant
-    localStorage.setItem('tenantAccessToken', 'demo-tenant-token');
+    saveTenantAccessToken('demo-tenant-token');
     navigate(ROUTES.DASHBOARD);
   };
 

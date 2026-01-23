@@ -53,8 +53,17 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const originalTotal = unitPrice * quantity;
   const discountedTotal = originalTotal * (1 - discount / 100);
   
-  // Extract unit name if unit is an object, otherwise use as string
-  const unitName = typeof unit === 'object' && unit !== null ? (unit.name || 'chiếc') : (unit || 'chiếc');
+  // Extract unit name robustly: support string or object shapes returned by API/selection components
+  const unitName = (() => {
+    if (!unit) return 'chiếc';
+    if (typeof unit === 'string') return unit;
+    try {
+      const u = unit as any;
+      return u.name || u.label || u.value || u.code || (typeof u === 'string' ? u : 'chiếc');
+    } catch {
+      return 'chiếc';
+    }
+  })();
 
   // Compute displayed stock:
   // - when not selected: show total across warehouses if provided, else `stock`
@@ -96,8 +105,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
             sx={{
               fontSize: 12,
               fontWeight: 600,
-              color: '#0B6623',
-              bgcolor: '#D6EDD4',
+              color: '#009F00',
+              bgcolor: '#EFF8EF',
               px: 1,
               py: '4px',
               borderRadius: '12px',
@@ -146,9 +155,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
             {!isOrderMode ? (
               <>
-                <Typography sx={{ fontSize: 15, fontWeight: 600, color: tokens.colors.primary }}>
-                  {`${formatVND(unitPrice)}/${unitName}`}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: 18, fontWeight: 600, color: '#FB7E00' }}>
+                    {formatVND(unitPrice)}
+                  </Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 500, color: '#090909' }}>
+                    {`/ ${unitName}`}
+                  </Typography>
+                </Box>
               </>
             ) : (
               <Box sx={{ flex: 1 }}>
@@ -171,7 +185,19 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
           {showStepper ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <NumberSpinner value={quantity} onChange={(v) => onQuantityChange?.(v)} />
+              <NumberSpinner
+                value={quantity}
+                size="sm"
+                onChange={(v) => {
+                  // If user decrements to zero in selection mode, treat it as "deselect" (cart icon)
+                  if (!isOrderMode && v <= 0) {
+                    // toggle parent selection
+                    onClick?.();
+                    return;
+                  }
+                  onQuantityChange?.(v);
+                }}
+              />
 
               {isOrderMode && (
                 <IconButton onClick={onDelete} sx={{ width: 40, height: 40, bgcolor: tokens.colors.primary, '&:hover': { bgcolor: tokens.colors.primaryHover } }}>
@@ -182,7 +208,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           ) : (
             <Box sx={{ display: 'flex', alignItems: 'center', pl: 0 }}>
               <IconButton onClick={onClick} sx={{ width: 28, height: 28, p: 0, bgcolor: tokens.colors.primary, '&:hover': { bgcolor: tokens.colors.primaryHover } }}>
-                <ShoppingCartIcon sx={{ color: '#FFF', fontSize: 16 }} />
+                <ShoppingCartIcon sx={{ color: '#FFF', fontSize: 16, variant: "Outline" }} />
               </IconButton>
             </Box>
           )}

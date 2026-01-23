@@ -18,6 +18,7 @@ import {
 import BusinessIcon from '@mui/icons-material/Business';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { apiService } from '../services/api';
+import { saveTenantAccessToken } from '../utils/tokenHelpers';
 
 interface Tenant {
   id: string;
@@ -54,7 +55,8 @@ const SelectTenantScreen = () => {
       const response = await apiService.selectTenant(tenantId);
       const tenant = response.data.tenant;
 
-      localStorage.setItem('tenantAccessToken', response.data.tenantAccessToken);
+      saveTenantAccessToken(response.data.tenantAccessToken);
+      localStorage.setItem('selectedTenantId', tenantId);
       localStorage.setItem('currentTenant', JSON.stringify(tenant));
 
       // Check if tenant has onboardingCompleted flag from select response

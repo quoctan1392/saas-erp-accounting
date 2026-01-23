@@ -1,0 +1,17 @@
+### Test create Matcha item with initial stock
+POST http://localhost:3003/api/items
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI5NzY4ODJkZi1hZDE2LTRlZDUtOGEyYi0yNzcyZDU5YzBlYmQiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJ0ZW5hbnRJZCI6IjRhYmQ4ZGUxLTE2OGItNDdmYS1hMjI2LWVhNmZlZWFiZjEyMyIsInRlbmFudE5hbWUiOiJURVNUIFRlbmFudCIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTczNzYyMTk0MiwiZXhwIjoxNzM3NjI1NTQyfQ.kLEH3lk5Q8q5VSUqSHyYBN8PBsq5F9vGYSMQvGIxDnk
+
+{
+  "code": "MATCHA-001",
+  "name": "Matcha Premium",
+  "type": "goods",
+  "unitId": "d3029d03-1243-4cae-9108-a30ac71cdd28",
+  "sellingPrice": 150000,
+  "purchasePrice": 100000,
+  "trackInventory": true,
+  "initialStock": 200,
+  "defaultWarehouseId": "95e56a76-fd5b-4124-8e79-10242aad0b1a",
+  "minimumStock": 20
+}

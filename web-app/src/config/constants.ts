@@ -47,4 +47,5 @@ export const STORAGE_KEYS = {
   REFRESH_TOKEN: 'refreshToken',
   USER: 'user',
   SELECTED_TENANT: 'selectedTenant',
+  SELECTED_TENANT_ID: 'selectedTenantId',
 };

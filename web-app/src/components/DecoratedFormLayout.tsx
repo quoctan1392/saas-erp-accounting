@@ -11,23 +11,29 @@ interface Props {
   rightAction?: React.ReactNode;
   onBack?: () => void;
   maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  transparentBackground?: boolean;
 }
 
-const DecoratedFormLayout: React.FC<Props> = ({ title, children, rightAction, onBack, maxWidth = 'sm' }) => {
+const DecoratedFormLayout: React.FC<Props> = ({ title, children, rightAction, onBack, maxWidth = 'sm', transparentBackground = false }) => {
   return (
     <Box
       sx={{
         minHeight: '100vh',
-        backgroundColor: tokens.colors.background.white,
+        backgroundColor: transparentBackground ? 'transparent' : tokens.colors.background.white,
         position: 'relative',
         pt: 0,
       }}
     >
-      <PageHeader title={title} onBack={onBack} backgroundImage={headerDay} variant="decorative" rightAction={rightAction} />
+      {/* <PageHeader title={title} onBack={onBack} backgroundImage={headerDay} variant="decorative" rightAction={rightAction} /> */}
 
-      <FormContainer maxWidth={maxWidth} variant="panel">
+      <FormContainer maxWidth={maxWidth} variant="panel" panelBackgroundColor={transparentBackground ? 'transparent' : tokens.colors.background.white} backgroundColor={transparentBackground ? 'transparent' : tokens.colors.background.page}>
         {children}
       </FormContainer>
+
+      <div style={{position: 'absolute', background: 'red', zIndex: 1000}}>
+        <PageHeader title={title} onBack={onBack} backgroundImage={headerDay} variant="decorative" rightAction={rightAction} />
+      </div>
+
     </Box>
   );
 };

@@ -18,6 +18,7 @@ import Icon from '../components/Icon';
 import { apiService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../config/constants';
+import { saveTenantAccessToken } from '../utils/tokenHelpers';
 import loginBgMobile from '../assets/Header_day.png';
 
 export const SignupScreen: React.FC = () => {
@@ -133,7 +134,8 @@ export const SignupScreen: React.FC = () => {
           if (userTenants && userTenants.length > 0) {
             if (userTenants.length === 1) {
               const tenantResponse = await apiService.selectTenant(userTenants[0].id);
-              localStorage.setItem('tenantAccessToken', tenantResponse.data.tenantAccessToken);
+              saveTenantAccessToken(tenantResponse.data.tenantAccessToken);
+              localStorage.setItem('selectedTenantId', userTenants[0].id);
               navigate(ROUTES.HOME);
             } else {
               setTenants(userTenants);

@@ -103,6 +103,19 @@ export class CreateItemDto {
   @IsOptional()
   note?: string;
 
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  initialStock?: number;
+
+  @IsString()
+  @IsOptional()
+  initialWarehouseId?: string;
+
+  @IsString()
+  @IsOptional()
+  defaultWarehouseId?: string;
+
   @IsArray()
   @IsString({ each: true })
   @IsOptional()

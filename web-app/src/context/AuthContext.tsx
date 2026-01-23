@@ -83,6 +83,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const selectTenant = (tenant: Tenant) => {
     setSelectedTenant(tenant);
     localStorage.setItem(STORAGE_KEYS.SELECTED_TENANT, JSON.stringify(tenant));
+    // Store tenant ID separately for easy access in API interceptor
+    localStorage.setItem(STORAGE_KEYS.SELECTED_TENANT_ID, tenant.id);
   };
 
   return (

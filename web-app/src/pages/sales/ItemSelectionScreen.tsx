@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '../../config/constants';
 import { createPortal } from 'react-dom';
 import {
   Box,
@@ -7,8 +9,10 @@ import {
   CircularProgress,
 } from '@mui/material';
 import FilterChip from '../../components/FilterChip';
-import { ArrowBack, Close, ArrowForwardIos } from '@mui/icons-material';
+import { ArrowBack } from '@mui/icons-material';
 import AddIcon from '@mui/icons-material/Add';
+import SummaryBar from '../../components/SummaryBar';
+import ProductFormScreen from '../declaration/ProductFormScreen';
 import SearchBox from '../../components/SearchBox';
 import ProductCard from '../../components/ProductCard';
 import tokens from '../../styles/tokens';
@@ -58,7 +62,10 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
   const { loading, startLoading, stopLoading } = useSafeLoading(12000);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [categories, setCategories] = useState<string[]>([]);
+  const [apiErrorMsg, setApiErrorMsg] = useState<string | null>(null);
   const [exiting, setExiting] = useState(false);
+  const navigate = useNavigate();
+  const [showNewProduct, setShowNewProduct] = useState(false);
   const [selectedItemsMap, setSelectedItemsMap] = useState<Record<string, { quantity: number; item: Item }>>({});
   const ANIM_MS = 280;
 
@@ -67,10 +74,40 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
 
   const loadItems = useCallback(async () => {
     startLoading();
+    setApiErrorMsg(null);
+    
+    // DEBUG: Log localStorage state
+    console.log('=== ItemSelection Debug ===');
+    console.log('accessToken:', localStorage.getItem('accessToken') ? 'EXISTS' : 'MISSING');
+    console.log('tenantAccessToken:', localStorage.getItem('tenantAccessToken') ? 'EXISTS' : 'MISSING');
+    console.log('selectedTenantId:', localStorage.getItem('selectedTenantId'));
+    console.log('currentTenant:', localStorage.getItem('currentTenant'));
+    console.log('===========================');
     
     try {
       const response = await withTimeout(apiService.getItems(), 8000);
-      const itemsData = response?.data || response || [];
+      const raw = response?.data ?? response;
+
+      // Normalize various API shapes into an array
+      let itemsData: any[] = [];
+      if (Array.isArray(raw)) {
+        itemsData = raw;
+      } else if (raw && Array.isArray(raw.data)) {
+        itemsData = raw.data as any[];
+      } else if (raw && Array.isArray(raw.items)) {
+        itemsData = raw.items as any[];
+      } else if (raw && raw.success === false) {
+        // API returned an error object
+        console.warn('[ItemSelection] API returned error:', raw);
+        if (raw.statusCode === 401) {
+          setApiErrorMsg('Phiên hoặc token tenant không hợp lệ. Vui lòng đăng nhập lại hoặc chọn tenant.');
+        } else {
+          setApiErrorMsg(raw.message || raw.error || 'Lỗi khi tải danh sách sản phẩm');
+        }
+        itemsData = [];
+      } else {
+        itemsData = [];
+      }
       
       // Fetch stock levels from inventory endpoint
       let stockLevels: Record<string, unknown>[] = [];
@@ -106,15 +143,30 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
       }
       
       // DEBUG: Log first raw item from API to see actual field names
-      if (itemsData && itemsData.length > 0) {
+      if (Array.isArray(itemsData) && itemsData.length > 0) {
         console.log('[ItemSelection] RAW item from API:', JSON.stringify(itemsData[0], null, 2));
         if (stockLevels.length > 0) {
           console.log('[ItemSelection] First stock level:', JSON.stringify(stockLevels[0], null, 2));
         }
       }
-      
-         // Normalize stock fields: merge stock data from inventory endpoint
-        const normalized = (itemsData || []).map((it: Record<string, unknown>) => {
+
+      // Try to fetch item categories independently so filter chips can be shown even
+      // when item list doesn't contain category data (or when items cannot be fetched).
+      let categoriesFromApi: string[] = [];
+      try {
+        const catResp = await withTimeout(apiService.getItemCategories(), 5000);
+        const catRaw = catResp?.data ?? catResp;
+        if (Array.isArray(catRaw)) {
+          categoriesFromApi = catRaw.map((c: any) => c.name || c.code || String(c.id)).filter(Boolean);
+        } else if (catRaw && Array.isArray(catRaw.data)) {
+          categoriesFromApi = catRaw.data.map((c: any) => c.name || c.code || String(c.id)).filter(Boolean);
+        }
+      } catch (err: any) {
+        console.warn('[ItemSelection] getItemCategories failed:', err?.message || err);
+      }
+
+      // Normalize stock fields: merge stock data from inventory endpoint
+      const normalized = (itemsData || []).map((it: Record<string, unknown>) => {
           const itemId = (it['id'] as string) || '';
           const stockInfo = stockMap[itemId];
           
@@ -194,13 +246,41 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
         console.log('[ItemSelection] NORMALIZED item (stock should be computed):', JSON.stringify(normalized[0], null, 2));
       }
       
-      setItems(normalized as Item[]);
-      const uniqueCategories = Array.from(new Set((itemsData || []).map((it: Item) => it.category).filter(Boolean)));
+      // Ensure stock normalization covers additional possible field names (e.g. initialStock)
+      const postProcessed = (normalized as Item[]).map((it) => {
+        const possibleStock = (it as any).stock ?? (it as any).initialStock ?? (it as any).initial_stock ?? (it as any).quantity ?? (it as any).onHand ?? (it as any).available ?? 0;
+        const finalStock = Number(possibleStock) || 0;
+
+        let finalStockByWarehouse = it.stockByWarehouse;
+        if (!finalStockByWarehouse) {
+          const warehouses = (it as any).warehouses || (it as any).warehouseStocks || (it as any).stocks;
+          if (Array.isArray(warehouses) && warehouses.length > 0) {
+            finalStockByWarehouse = warehouses.reduce((acc: Record<string, number>, w: any, idx: number) => {
+              const key = w.name || w.warehouseName || w.warehouseId || String(idx);
+              const val = Number(w.stock ?? w.quantity ?? w.onHand ?? w.available) || 0;
+              acc[key] = val;
+              return acc;
+            }, {} as Record<string, number>);
+          }
+        }
+
+        const out = { ...it, stock: finalStock, stockByWarehouse: finalStockByWarehouse } as Item;
+        // Debug: log Matcha item stock for verification
+        try { if ((out.name || '').toLowerCase().includes('matcha')) console.debug('[ItemSelection] Matcha item normalized:', out); } catch {}
+        return out;
+      });
+
+      setItems(postProcessed as Item[]);
+      const inferred = Array.from(new Set((normalized || []).map((it: Item) => it.category).filter(Boolean)));
+      const uniqueCategories = (categoriesFromApi.length > 0) ? categoriesFromApi : inferred;
       setCategories(uniqueCategories as string[]);
     } catch (err: any) {
       console.error('Error loading items:', err);
-      setItems(mockItems);
-      setCategories(['Áo khoác', 'Áo sơ mi']);
+      // Do not fall back to mock/demo items for selection UI.
+      // Show empty list so the UI reflects the actual database state and surfaces the error.
+      setApiErrorMsg(err?.message ? String(err.message) : 'Lỗi khi tải sản phẩm');
+      setItems([]);
+      setCategories([]);
     } finally {
       stopLoading();
     }
@@ -261,7 +341,14 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
 
   const changeQuantity = (itemId: string, q: number) => {
     setSelectedItemsMap(prev => {
+      // if item not present, ignore
       if (!prev[itemId]) return prev;
+      // if quantity is zero or less, remove item from selection
+      if ((q ?? 0) <= 0) {
+        const copy = { ...prev };
+        delete copy[itemId];
+        return copy;
+      }
       return { ...prev, [itemId]: { ...prev[itemId], quantity: q } };
     });
   };
@@ -322,7 +409,7 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
               Chọn hàng hoá, dịch vụ
             </Typography>
 
-            <IconButton onClick={() => { /* TODO: add new product flow */ }} sx={{ width: 40, height: 40, backgroundColor: '#fff', '&:hover': { backgroundColor: '#f5f5f5' } }}>
+            <IconButton onClick={() => { setShowNewProduct(true); }} sx={{ width: 40, height: 40, backgroundColor: '#fff', '&:hover': { backgroundColor: '#f5f5f5' } }}>
               <AddIcon sx={{ color: '#4E4E4E' }} />
             </IconButton>
           </Box>
@@ -332,8 +419,21 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 'sm', mx: 'auto' }}>
             <SearchBox fullWidth placeholder="Tìm kiếm bằng mã, tên sản phẩm hoặc mô tả" value={searchQuery} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)} />
 
-            <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto' }}>
-              <FilterChip label="Tất cả sản phẩm" selected={selectedCategory === 'all'} onClick={() => setSelectedCategory('all')} />
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 1,
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                // hide scrollbar in most browsers
+                scrollbarWidth: 'none', // Firefox
+                '-ms-overflow-style': 'none', // IE 10+
+                '&::-webkit-scrollbar': {
+                  height: 0,
+                },
+              }}
+            >
+              <FilterChip label="Tất cả" selected={selectedCategory === 'all'} onClick={() => setSelectedCategory('all')} />
               {categories.map(cat => (
                 <FilterChip key={cat} label={cat} selected={selectedCategory === cat} onClick={() => setSelectedCategory(cat)} />
               ))}
@@ -344,7 +444,9 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
               ) : filteredItems.length === 0 ? (
                 <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography sx={{ fontSize: 14, color: tokens.colors.text.disabled }}>Không tìm thấy sản phẩm nào</Typography>
+                  <Typography sx={{ fontSize: 14, color: tokens.colors.text.disabled }}>
+                    {apiErrorMsg ? apiErrorMsg : 'Không tìm thấy sản phẩm nào'}
+                  </Typography>
                 </Box>
               ) : (
                 filteredItems.map(item => {
@@ -375,53 +477,13 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
             </Box>
             {/* Floating sticky toolbar for selected items */}
             {selectedCount > 0 && (
-              <Box
-                sx={{
-                  position: 'fixed',
-                  left: 16,
-                  right: 16,
-                  bottom: 48,
-                  zIndex: 12000,
-                  display: 'flex',
-                  justifyContent: 'center',
-                }}
-              >
-                <Box
-                  sx={{
-                    display: 'flex',
-                    height: 52,
-                    padding: '12px 12px 12px 6px',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    gap: 8,
-                    flex: '1 0 0',
-                    borderRadius: 40,
-                    background: 'var(--Scheme-Primary, #FB7E00)',
-                    color: '#FFF',
-                    minWidth: 320,
-                    maxWidth: 980,
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <IconButton onClick={clearSelection} sx={{ width: 40, height: 40, bgcolor: '#FFF', '&:hover': { bgcolor: '#FFF' } }}>
-                      <Close sx={{ color: '#FB7E00' }} />
-                    </IconButton>
-                    <Typography sx={{ fontSize: 15, fontWeight: 500 }}>
-                      {`Đã chọn ${selectedCount} sản phẩm`}
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ flex: 1 }} />
-
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <Typography sx={{ fontSize: 16, fontWeight: 600 }}>
-                      {formatVND(selectedTotal)}
-                    </Typography>
-                    <IconButton onClick={confirmSelection} sx={{ width: 40, height: 40, bgcolor: 'transparent', color: '#FFF' }}>
-                      <ArrowForwardIos sx={{ color: '#FFF' }} />
-                    </IconButton>
-                  </Box>
-                </Box>
+              <Box sx={{ position: 'fixed', left: 16, right: 16, bottom: 48, zIndex: 12000, display: 'flex', justifyContent: 'center' }}>
+                <SummaryBar
+                  count={selectedCount}
+                  total={formatVND(selectedTotal)}
+                  onClear={clearSelection}
+                  onConfirm={confirmSelection}
+                />
               </Box>
             )}
           </Box>
@@ -430,10 +492,78 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
     </>
   );
 
+  // Product form overlay (slide-in) when adding from selection
+  const productFormOverlay = showNewProduct ? (
+    <>
+      <Box onClick={() => setShowNewProduct(false)} sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(0,0,0,0.6)', zIndex: 11000 }} />
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: { xs: '100%', sm: '520px' },
+          zIndex: 11001,
+          bgcolor: 'transparent',
+          animation: 'slideInFromRight 0.28s ease',
+          '@keyframes slideInFromRight': {
+            from: { transform: 'translateX(100%)' },
+            to: { transform: 'translateX(0)' },
+          },
+        }}
+      >
+        <ProductFormScreen
+          overlay
+          singleSave
+          onSaved={(created: any) => {
+            try {
+              console.debug('[ItemSelection] onSaved created item from overlay:', created);
+            } catch (e) {}
+            // normalize id
+            const id = created?.id || created?._id || String(Date.now());
+            // Normalize stock from created item using many possible field names
+            const createdObj = (created || {}) as Record<string, any>;
+            const candidateNumber = (v: unknown) => {
+              if (typeof v === 'number') return v;
+              if (typeof v === 'string') return Number(v.toString().replace(/,/g, '')) || 0;
+              return 0;
+            };
+            let finalStock = candidateNumber(createdObj.stock ?? createdObj.quantity ?? createdObj.onHand ?? createdObj.on_hand ?? createdObj.available ?? createdObj.minimumStock ?? createdObj.initialStock ?? createdObj.initial_stock ?? 0);
+            let finalStockByWarehouse = createdObj.stockByWarehouse || createdObj.warehouseStock || createdObj.stocks || createdObj.stocksByWarehouse || createdObj.warehouse_stocks;
+            if ((!finalStock || finalStock === 0) && finalStockByWarehouse && typeof finalStockByWarehouse === 'object') {
+              try {
+                finalStock = Object.values(finalStockByWarehouse).reduce((s: number, v: unknown) => s + (candidateNumber(v) || 0), 0);
+              } catch (_) {
+                finalStock = finalStock || 0;
+              }
+            }
+            const item = { ...(created || {}), id, stock: finalStock || 0, stockByWarehouse: finalStockByWarehouse } as Item;
+            // add to items and auto-select
+            setItems(prev => [item, ...prev]);
+            setFilteredItems(prev => [item, ...prev]);
+            setSelectedItemsMap(prev => ({ ...prev, [id]: { quantity: 1, item } }));
+          }}
+          onClose={() => setShowNewProduct(false)}
+        />
+      </Box>
+    </>
+  ) : null;
+
   if (typeof document !== 'undefined') {
-    return createPortal(overlay, document.body);
+    return createPortal(
+      <>
+        {overlay}
+        {productFormOverlay}
+      </>,
+      document.body,
+    );
   }
-  return overlay;
+  return (
+    <>
+      {overlay}
+      {productFormOverlay}
+    </>
+  );
 };
 
 // Mock data for development

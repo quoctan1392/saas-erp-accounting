@@ -124,4 +124,14 @@ export class Item extends BaseEntity {
 
   @Column({ name: 'warranty_type', nullable: true })
   warrantyType?: string;
+
+  // Initial stock (opening inventory)
+  @Column({ name: 'initial_stock', type: 'decimal', precision: 18, scale: 4, default: 0 })
+  initialStock: number;
+
+  @Column({ name: 'initial_warehouse_id', type: 'uuid', nullable: true })
+  initialWarehouseId?: string;
+
+  @Column({ name: 'default_warehouse_id', type: 'uuid', nullable: true })
+  defaultWarehouseId?: string;
 }

@@ -18,7 +18,7 @@ const demoWarehouses = [
   { id: 'KHOHH', name: 'Kho Hàng hoá' }
 ];
 
-const WarehouseSelectionScreen = ({ open, onClose, onSelect }: { open: boolean; onClose: () => void; onSelect: (label: string) => void }) => {
+const WarehouseSelectionScreen = ({ open, onClose, onSelect }: { open: boolean; onClose: () => void; onSelect: (warehouse: { id: string; name: string }) => void }) => {
   // don't render overlay when not open
   if (!open) return null;
   const [exiting, setExiting] = useState(false);
@@ -177,7 +177,7 @@ const WarehouseSelectionScreen = ({ open, onClose, onSelect }: { open: boolean; 
               <Box key={w.id}>
                 <Box
                   onClick={() => {
-                    onSelect(w.name);
+                    onSelect({ id: w.id, name: w.name });
                     onClose();
                   }}
                   sx={{ display: 'flex', alignItems: 'center', py: 1.75, px: 1, cursor: 'pointer', justifyContent: 'space-between' }}
@@ -196,7 +196,7 @@ const WarehouseSelectionScreen = ({ open, onClose, onSelect }: { open: boolean; 
           onCreate={(wh) => {
             handleCreate(wh);
             // immediately select created warehouse in parent form and close selection
-            onSelect(wh.warehouseName);
+            onSelect({ id: wh.id || wh.warehouseId, name: wh.warehouseName || wh.name });
             setCreateOpen(false);
             onClose();
           }}

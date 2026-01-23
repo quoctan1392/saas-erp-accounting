@@ -14,6 +14,7 @@ import {
 import { apiService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../config/constants';
+import { saveTenantAccessToken } from '../utils/tokenHelpers';
 
 const steps = ['Tạo không gian làm việc', 'Cấu hình dữ liệu', 'Hoàn tất'];
 
@@ -65,7 +66,8 @@ export const ProcessingScreen: React.FC = () => {
             const selectResponse = await apiService.selectTenant(existingTenants[0].id);
             const selectedTenant = selectResponse.data.tenant;
 
-            localStorage.setItem('tenantAccessToken', selectResponse.data.tenantAccessToken);
+            saveTenantAccessToken(selectResponse.data.tenantAccessToken);
+            localStorage.setItem('selectedTenantId', existingTenants[0].id);
             localStorage.setItem('currentTenant', JSON.stringify(selectedTenant));
 
             // Check if onboarding is completed from selectTenant response
@@ -98,7 +100,8 @@ export const ProcessingScreen: React.FC = () => {
           const selectResponse = await apiService.selectTenant(newTenant.id);
           const selectedTenant = selectResponse.data.tenant;
 
-          localStorage.setItem('tenantAccessToken', selectResponse.data.tenantAccessToken);
+          saveTenantAccessToken(selectResponse.data.tenantAccessToken);
+          localStorage.setItem('selectedTenantId', newTenant.id);
           localStorage.setItem('currentTenant', JSON.stringify(selectedTenant));
 
           // Navigate to onboarding for new tenant

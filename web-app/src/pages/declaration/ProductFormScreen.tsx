@@ -33,9 +33,17 @@ const Icon: React.FC<IconProps> = ({ name, size = 24, color = 'currentColor', va
   return React.createElement(Comp, { size, color, variant } as Record<string, unknown>);
 };
 
-const ProductFormScreen = () => {
+interface ProductFormProps {
+  overlay?: boolean;
+  singleSave?: boolean;
+  onSaved?: (created: any) => void;
+  onClose?: () => void;
+}
+
+const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, singleSave, onSaved, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const singleSaveMode = singleSave ?? Boolean(location.state && (location.state as any).singleSave);
   console.log('🔵 ProductFormScreen rendered, pathname:', location.pathname);
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -77,13 +85,13 @@ const ProductFormScreen = () => {
   const [name, setName] = useState('');
   const [productGroup, setProductGroup] = useState('');
   const [productGroupScreenOpen, setProductGroupScreenOpen] = useState(false);
-  const [unit, setUnit] = useState('');
+  const [unit, setUnit] = useState<{ id: string; name: string } | null>(null);
   const [unitScreenOpen, setUnitScreenOpen] = useState(false);
   const [unitActive, setUnitActive] = useState(true);
   const [warehouseScreenOpen, setWarehouseScreenOpen] = useState(false);
   const [salePrice, setSalePrice] = useState('');
   const [purchasePrice, setPurchasePrice] = useState('');
-  const [defaultWarehouse, setDefaultWarehouse] = useState('');
+  const [defaultWarehouse, setDefaultWarehouse] = useState<{ id: string; name: string } | null>(null);
   const [initialStock, setInitialStock] = useState('0');
   const [allowNegative, setAllowNegative] = useState(false);
   const [snackNegativeOpen, setSnackNegativeOpen] = useState(false);
@@ -213,13 +221,21 @@ const ProductFormScreen = () => {
     if (hasChanges) {
       setShowConfirmDialog(true);
     } else {
-      navigate(ROUTES.DECLARATION_CATEGORIES);
+      if (overlay && onClose) {
+        onClose();
+      } else {
+        navigate(ROUTES.DECLARATION_CATEGORIES);
+      }
     }
   };
 
   const handleConfirmLeave = () => {
     setShowConfirmDialog(false);
-    navigate(ROUTES.DECLARATION_CATEGORIES);
+    if (overlay && onClose) {
+      onClose();
+    } else {
+      navigate(ROUTES.DECLARATION_CATEGORIES);
+    }
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -291,21 +307,27 @@ const ProductFormScreen = () => {
         minimumStock: number;
         isActive: boolean;
         listItemCategoryId?: string[];
+        initialStock?: number;
+        defaultWarehouseId?: string;
       };
+
+      const parsedInitialStock = parseFloat(initialStock.replace(/,/g, '')) || 0;
 
       const itemData: CreateItemDto = {
         code,
         name,
         type: productType, // goods, service, material, finished
-        unitId: unit || 'default-unit-id', // TODO: Get actual unit ID from selection
+        unitId: unit?.id || 'default-unit-id', // Use unit ID from selection
         sellPrice: parseFloat(salePrice.replace(/,/g, '')) || 0,
         purchasePrice: parseFloat(purchasePrice.replace(/,/g, '')) || 0,
         exportTaxRate: parseFloat(effectiveSaleVAT || '0') || 0,
         importTaxRate: parseFloat(effectivePurchaseVAT || '0') || 0,
-        minimumStock: parseFloat(initialStock.replace(/,/g, '')) || 0,
+        minimumStock: parsedInitialStock,
         isActive: true,
         // Optional fields
         listItemCategoryId: productGroup ? [productGroup] : undefined,
+        initialStock: parsedInitialStock,
+        defaultWarehouseId: defaultWarehouse?.id || undefined,
       };
 
       console.log('Saving item with data:', itemData);
@@ -314,6 +336,28 @@ const ProductFormScreen = () => {
 
       setShowSuccessSnackbar(true);
       setHasChanges(false);
+      const created = result?.data ?? result;
+      // Pass created item to onSaved with initial stock populated
+      // Stock will be calculated from stock_level_view after inventory_transaction is created by backend
+      const createdWithStock = {
+        ...(created || {}),
+        stock: parsedInitialStock, // Temp: show initial stock immediately in UI; will refresh from API later
+        stockByWarehouse: defaultWarehouse?.name ? { [defaultWarehouse.name]: parsedInitialStock } : undefined,
+      };
+      // If an onSaved callback is provided (overlay mode), call it and close overlay
+      if (onSaved) {
+        try { onSaved(createdWithStock); } catch (err) { console.error('onSaved callback error:', err); }
+        if (onClose) onClose();
+        return;
+      }
+
+      // If opened from selection flow via navigation state, return back and pass created item
+      if (location.state && (location.state as { fromSelection?: boolean }).fromSelection) {
+        setTimeout(() => navigate('/sales/orders', { state: { createdItem: created } }), 500);
+        return;
+      }
+
+      // Default behavior: go to categories after save
       setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), 1500);
     } catch (error) {
       console.error('Error saving product:', error);
@@ -348,7 +392,7 @@ const ProductFormScreen = () => {
         code,
         name,
         type: productType,
-        unitId: unit || 'default-unit-id',
+        unitId: unit?.id || 'default-unit-id',
         sellPrice: parseFloat(salePrice.replace(/,/g, '')) || 0,
         purchasePrice: parseFloat(purchasePrice.replace(/,/g, '')) || 0,
         exportTaxRate: parseFloat(effectiveSaleVAT || '0') || 0,
@@ -382,10 +426,10 @@ const ProductFormScreen = () => {
       setProductType('goods');
       setName('');
       setProductGroup('');
-      setUnit('');
+      setUnit(null);
       setSalePrice('');
       setPurchasePrice('');
-      setDefaultWarehouse('');
+      setDefaultWarehouse(null);
       setInitialStock('0');
       setAllowNegative(false);
       setPurchaseVAT('');
@@ -413,7 +457,7 @@ const ProductFormScreen = () => {
   };
 
   return (<>
-    <DecoratedFormLayout title="Thêm hàng hoá/dịch vụ" onBack={handleBack} rightAction={undefined}>
+    <DecoratedFormLayout title="Thêm hàng hoá/dịch vụ 1" onBack={handleBack} rightAction={undefined}>
           {/* Form Fields */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {/* Image Upload Section */}
@@ -567,7 +611,7 @@ const ProductFormScreen = () => {
               required
               label="Đơn vị tính chính"
               placeholder="Chọn đơn vị tính"
-              value={unit}
+              value={unit?.name || ''}
               onClick={() => setUnitScreenOpen(true)}
               InputLabelProps={{ shrink: true }}
               InputProps={{
@@ -645,7 +689,7 @@ const ProductFormScreen = () => {
                   fullWidth
                   label="Kho ngầm định"
                   placeholder="Chọn kho"
-                  value={defaultWarehouse}
+                  value={defaultWarehouse?.name || ''}
                   onClick={() => setWarehouseScreenOpen(true)}
                   InputLabelProps={{ shrink: true }}
                   InputProps={{
@@ -792,55 +836,69 @@ const ProductFormScreen = () => {
             >
               Lưu
             </Button>
-            <Button
-              variant="contained"
-              onClick={handleSaveAndAddNew}
-              disabled={!isFormValid() || isLoading}
-              sx={{
-                borderRadius: '12px',
-                textTransform: 'none',
-                fontWeight: 600,
-                bgcolor: '#007DFB',
-                color: 'white',
-                px: 4,
-                py: 1.5,
-                minWidth: 120,
-                boxShadow: 'none',
-                '&:hover': {
-                  bgcolor: '#0056b3',
+            {!singleSaveMode && (
+              <Button
+                variant="contained"
+                onClick={handleSaveAndAddNew}
+                disabled={!isFormValid() || isLoading}
+                sx={{
+                  borderRadius: '12px',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  bgcolor: '#007DFB',
+                  color: 'white',
+                  px: 4,
+                  py: 1.5,
+                  minWidth: 120,
                   boxShadow: 'none',
-                },
-                '&.Mui-disabled': {
-                  bgcolor: '#DEE2E6',
-                  color: '#ADB5BD',
-                },
-              }}
-            >
-              Lưu và thêm mới
-            </Button>
-              </Box>
+                  '&:hover': {
+                    bgcolor: '#0056b3',
+                    boxShadow: 'none',
+                  },
+                  '&.Mui-disabled': {
+                    bgcolor: '#DEE2E6',
+                    color: '#ADB5BD',
+                  },
+                }}
+              >
+                Lưu và thêm mới
+              </Button>
+            )}
+          </Box>
             </DecoratedFormLayout>
 
       {/* Mobile sticky footer */}
       <StickyFooterActions
         show={!productTypeSheetOpen && !productGroupScreenOpen && !unitScreenOpen && !warehouseScreenOpen && !taxIndustryScreenOpen && !imageSelectionSheetOpen}
-        actions={[
-          {
-            label: 'Lưu',
-            onClick: handleSave,
-            disabled: !isFormValid() || isLoading,
-            loading: isLoading,
-            variant: 'outlined',
-          },
-          {
-            label: 'Lưu và thêm mới',
-            onClick: handleSaveAndAddNew,
-            disabled: !isFormValid() || isLoading,
-            loading: isLoading,
-            variant: 'contained',
-            color: 'primary',
-          },
-        ]}
+        actions={
+          singleSaveMode
+          ? [
+            {
+              label: 'Lưu',
+              onClick: handleSave,
+              disabled: !isFormValid() || isLoading,
+              loading: isLoading,
+              variant: 'outlined',
+            },
+          ]
+          : [
+            {
+              label: 'Lưu',
+              onClick: handleSave,
+              disabled: !isFormValid() || isLoading,
+              loading: isLoading,
+              variant: 'outlined',
+            },
+            {
+              label: 'Lưu và thêm mới',
+              onClick: handleSaveAndAddNew,
+              disabled: !isFormValid() || isLoading,
+              loading: isLoading,
+              variant: 'contained',
+              color: 'primary',
+            },
+          ]
+        }
       />
 
       {/* Product Type BottomSheet (radio list + confirm) */}
@@ -910,8 +968,8 @@ const ProductFormScreen = () => {
       <UnitSelectionScreen
         open={unitScreenOpen}
         onClose={() => setUnitScreenOpen(false)}
-        onSelect={(label) => {
-          setUnit(label);
+        onSelect={(unitObj) => {
+          setUnit(unitObj);
           setHasChanges(true);
           setUnitScreenOpen(false);
         }}
@@ -919,8 +977,8 @@ const ProductFormScreen = () => {
       <WarehouseSelectionScreen
         open={warehouseScreenOpen}
         onClose={() => setWarehouseScreenOpen(false)}
-        onSelect={(label) => {
-          setDefaultWarehouse(label);
+        onSelect={(warehouse) => {
+          setDefaultWarehouse(warehouse);
           setHasChanges(true);
         }}
       />

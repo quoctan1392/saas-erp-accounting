@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, In } from 'typeorm';
 import { Item } from './entities/item.entity';
@@ -11,6 +11,8 @@ import { UpdateItemCategoryDto } from './dto/update-item-category.dto';
 import { CreateUnitDto } from './dto/create-unit.dto';
 import { UpdateUnitDto } from './dto/update-unit.dto';
 import { PaginationDto, PaginationResponseDto } from '../../common/dto/pagination.dto';
+import { InventoryService } from '../inventory/inventory.service';
+import { WarehouseItem } from '../warehouses/entities/warehouse-item.entity';
 
 @Injectable()
 export class ItemsService {
@@ -21,6 +23,10 @@ export class ItemsService {
     private categoryRepository: Repository<ItemCategory>,
     @InjectRepository(Unit)
     private unitRepository: Repository<Unit>,
+    @InjectRepository(WarehouseItem)
+    private warehouseItemRepository: Repository<WarehouseItem>,
+    @Inject(forwardRef(() => InventoryService))
+    private inventoryService: InventoryService,
   ) {}
 
   // ==================== ITEMS ====================
@@ -194,7 +200,53 @@ export class ItemsService {
       createdBy: userId,
     });
 
-    return this.itemRepository.save(item);
+    const savedItem = await this.itemRepository.save(item);
+
+    // Create warehouse_item record if warehouse is specified
+    const warehouseId = dto.initialWarehouseId || dto.defaultWarehouseId;
+    if (warehouseId) {
+      try {
+        const existingWarehouseItem = await this.warehouseItemRepository.findOne({
+          where: { tenantId, warehouseId, itemId: savedItem.id, isDeleted: false },
+        });
+        
+        if (!existingWarehouseItem) {
+          const warehouseItem = this.warehouseItemRepository.create({
+            tenantId,
+            warehouseId,
+            itemId: savedItem.id,
+            minStock: dto.minimumStock || 0,
+            isActive: true,
+            createdBy: userId,
+            updatedBy: userId,
+          });
+          await this.warehouseItemRepository.save(warehouseItem);
+        }
+      } catch (error) {
+        console.warn(`Failed to create warehouse_item for item ${savedItem.id}:`, error);
+      }
+
+      // If initialStock is provided, create an inventory transaction IN for the initial stock
+      if (dto.initialStock && dto.initialStock > 0) {
+        try {
+          await this.inventoryService.recordInventoryIn(
+            tenantId,
+            savedItem.id,
+            warehouseId,
+            dto.initialStock,
+            dto.purchasePrice || 0,
+            savedItem.id,
+            'INITIAL_STOCK',
+            `Tồn kho ban đầu cho ${savedItem.name}`,
+          );
+        } catch (error) {
+          console.warn(`Failed to create initial stock transaction for item ${savedItem.id}:`, error);
+          // Don't fail the item creation if inventory transaction fails
+        }
+      }
+    }
+
+    return savedItem;
   }
 
   async updateItem(

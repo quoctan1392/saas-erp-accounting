@@ -21,6 +21,7 @@ import {
 import { apiService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../config/constants';
+import { saveTenantAccessToken } from '../utils/tokenHelpers';
 
 const getRoleIcon = (role: string) => {
   switch (role.toLowerCase()) {
@@ -73,7 +74,9 @@ export const TenantSelectionScreen: React.FC = () => {
 
       if (response.success) {
         // Save tenant access token
-        localStorage.setItem('tenantAccessToken', response.data.tenantAccessToken);
+          saveTenantAccessToken(response.data.tenantAccessToken);
+          // Save tenant ID for API headers
+          localStorage.setItem('selectedTenantId', tenant.id);
 
         // Update selected tenant in context
         selectTenant(tenant);
