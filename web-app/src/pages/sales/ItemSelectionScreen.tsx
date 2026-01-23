@@ -13,10 +13,12 @@ import { ArrowBack } from '@mui/icons-material';
 import AddIcon from '@mui/icons-material/Add';
 import SummaryBar from '../../components/SummaryBar';
 import ProductFormScreen from '../declaration/ProductFormScreen';
+import ProductDetailScreen from './ProductDetailScreen';
 import SearchBox from '../../components/SearchBox';
 import ProductCard from '../../components/ProductCard';
 import tokens from '../../styles/tokens';
 import { apiService } from '../../services/api';
+import { API_CONFIG } from '../../config/constants';
 import headerDay from '../../assets/Header_day.png';
 import { useSafeLoading } from '../../hooks/useApi';
 import { withTimeout } from '../../utils/apiHelpers';
@@ -67,6 +69,7 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
   const navigate = useNavigate();
   const [showNewProduct, setShowNewProduct] = useState(false);
   const [selectedItemsMap, setSelectedItemsMap] = useState<Record<string, { quantity: number; item: Item }>>({});
+  const [detailItem, setDetailItem] = useState<Item | null>(null);
   const ANIM_MS = 280;
 
   const selectedCount = Object.keys(selectedItemsMap).length;
@@ -152,20 +155,30 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
 
       // Try to fetch item categories independently so filter chips can be shown even
       // when item list doesn't contain category data (or when items cannot be fetched).
-      let categoriesFromApi: string[] = [];
+      let categoriesFromApiArr: { id: string; name: string }[] = [];
       try {
         const catResp = await withTimeout(apiService.getItemCategories(), 5000);
         const catRaw = catResp?.data ?? catResp;
         if (Array.isArray(catRaw)) {
-          categoriesFromApi = catRaw.map((c: any) => c.name || c.code || String(c.id)).filter(Boolean);
+          categoriesFromApiArr = catRaw
+            .map((c: any) => ({ id: String(c.id), name: (c.name || c.code || String(c.id)) }))
+            .filter((c: any) => c.name);
         } else if (catRaw && Array.isArray(catRaw.data)) {
-          categoriesFromApi = catRaw.data.map((c: any) => c.name || c.code || String(c.id)).filter(Boolean);
+          categoriesFromApiArr = catRaw.data
+            .map((c: any) => ({ id: String(c.id), name: (c.name || c.code || String(c.id)) }))
+            .filter((c: any) => c.name);
         }
       } catch (err: any) {
         console.warn('[ItemSelection] getItemCategories failed:', err?.message || err);
       }
 
       // Normalize stock fields: merge stock data from inventory endpoint
+      // build category id->name map for normalization
+      const categoryIdToName = (categoriesFromApiArr || []).reduce((acc: Record<string, string>, c) => {
+        if (c && c.id) acc[c.id] = c.name;
+        return acc;
+      }, {} as Record<string, string>);
+
       const normalized = (itemsData || []).map((it: Record<string, unknown>) => {
           const itemId = (it['id'] as string) || '';
           const stockInfo = stockMap[itemId];
@@ -230,12 +243,44 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
 
           // Normalize image field: prefer explicit `image`, then common DB/API fields
           const imageCandidate = (it['image'] as string) || (it['defaultImageUrl'] as string) || (it['default_image_url'] as string) || (it['listImageUrl'] as string) || (it['list_image_url'] as string) || (it['imageUrl'] as string) || (it['image_url'] as string) || undefined;
+          // Normalize image URL: if backend returned a relative path, prefix with CORE service URL
+          let normalizedImage: string | undefined = undefined;
+          try {
+          if (imageCandidate && typeof imageCandidate === 'string') {
+            const trimmed = imageCandidate.trim();
+            if (/^(https?:)?\/\//i.test(trimmed) || /^data:|^blob:/i.test(trimmed)) {
+              // absolute URL (http(s) or protocol-relative) or data/blob URI — use as-is
+              normalizedImage = trimmed;
+            } else {
+              // ensure leading slash for relative paths
+              const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+              normalizedImage = `${API_CONFIG.CORE_SERVICE_URL}${path}`;
+            }
+          }
+          } catch (e) {
+            normalizedImage = imageCandidate as any;
+          }
+
+          // Resolve category name: prefer explicit category field, else map from listItemCategoryId
+          let categoryName: string | undefined = (it['category'] as string) || (it['categoryName'] as string) || undefined;
+          try {
+            if (!categoryName) {
+              const listIds = (it['listItemCategoryId'] ?? it['listItemCategoryIds'] ?? it['categoryIds'] ?? it['category_id'] ?? it['categories']) as any;
+              if (Array.isArray(listIds) && listIds.length > 0) {
+                const first = String(listIds[0]);
+                categoryName = categoryIdToName[first] || first;
+              } else if (typeof listIds === 'string' && listIds) {
+                categoryName = categoryIdToName[String(listIds)] || String(listIds);
+              }
+            }
+          } catch {}
 
           const result = {
             ...(it as Record<string, unknown>),
-            image: imageCandidate,
+            image: normalizedImage || imageCandidate,
             stockByWarehouse: finalStockByWarehouse,
             stock: Number(finalStock) || 0,
+            category: categoryName,
           } as unknown as Item;
 
           return result;
@@ -272,7 +317,8 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
 
       setItems(postProcessed as Item[]);
       const inferred = Array.from(new Set((normalized || []).map((it: Item) => it.category).filter(Boolean)));
-      const uniqueCategories = (categoriesFromApi.length > 0) ? categoriesFromApi : inferred;
+      const apiCategoryNames = (categoriesFromApiArr || []).map(c => c.name).filter(Boolean);
+      const uniqueCategories = (apiCategoryNames.length > 0) ? apiCategoryNames : inferred;
       setCategories(uniqueCategories as string[]);
     } catch (err: any) {
       console.error('Error loading items:', err);
@@ -470,6 +516,7 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
                       quantity={selectedEntry?.quantity ?? 1}
                       onQuantityChange={(q: number) => changeQuantity(id, q)}
                       onClick={() => toggleSelect(item)}
+                      onCardClick={() => setDetailItem(item)}
                     />
                   );
                 })
@@ -554,6 +601,38 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
       <>
         {overlay}
         {productFormOverlay}
+        {detailItem && (
+          <ProductDetailScreen
+            open={Boolean(detailItem)}
+            item={{
+              id: detailItem.id,
+              code: detailItem.code || '',
+              name: detailItem.name || detailItem.itemName || '',
+              unitPrice: detailItem.sellPrice ?? detailItem.unitPrice ?? detailItem.price ?? 0,
+              unit: detailItem.unit,
+              stock: detailItem.stock,
+              stockByWarehouse: detailItem.stockByWarehouse,
+              quantity: selectedItemsMap[detailItem.id]?.quantity || 1,
+            }}
+            onClose={() => setDetailItem(null)}
+            onSave={(updatedItem) => {
+              const id = updatedItem.id;
+              setSelectedItemsMap(prev => ({
+                ...prev,
+                [id]: {
+                  quantity: updatedItem.quantity,
+                  item: {
+                    ...detailItem,
+                    unitPrice: updatedItem.unitPrice,
+                    sellPrice: updatedItem.unitPrice,
+                    unit: updatedItem.unit || detailItem.unit,
+                  },
+                },
+              }));
+              setDetailItem(null);
+            }}
+          />
+        )}
       </>,
       document.body,
     );
@@ -562,6 +641,38 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
     <>
       {overlay}
       {productFormOverlay}
+      {detailItem && (
+        <ProductDetailScreen
+          open={Boolean(detailItem)}
+          item={{
+            id: detailItem.id,
+            code: detailItem.code || '',
+            name: detailItem.name || detailItem.itemName || '',
+            unitPrice: detailItem.sellPrice ?? detailItem.unitPrice ?? detailItem.price ?? 0,
+            unit: detailItem.unit,
+            stock: detailItem.stock,
+            stockByWarehouse: detailItem.stockByWarehouse,
+            quantity: selectedItemsMap[detailItem.id]?.quantity || 1,
+          }}
+          onClose={() => setDetailItem(null)}
+          onSave={(updatedItem) => {
+            const id = updatedItem.id;
+            setSelectedItemsMap(prev => ({
+              ...prev,
+              [id]: {
+                quantity: updatedItem.quantity,
+                item: {
+                  ...detailItem,
+                  unitPrice: updatedItem.unitPrice,
+                  sellPrice: updatedItem.unitPrice,
+                  unit: updatedItem.unit || detailItem.unit,
+                },
+              },
+            }));
+            setDetailItem(null);
+          }}
+        />
+      )}
     </>
   );
 };

@@ -328,6 +328,8 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
         listItemCategoryId: productGroup ? [productGroup] : undefined,
         initialStock: parsedInitialStock,
         defaultWarehouseId: defaultWarehouse?.id || undefined,
+        // include image preview (data URL) so backend can persist or process it
+        defaultImageUrl: imagePreview || undefined,
       };
 
       console.log('Saving item with data:', itemData);
@@ -400,6 +402,8 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
         minimumStock: parseFloat(initialStock.replace(/,/g, '')) || 0,
         isActive: true,
         listItemCategoryId: productGroup ? [productGroup] : undefined,
+        // include image preview (data URL) so backend can persist or process it
+        defaultImageUrl: imagePreview || undefined,
       };
 
       console.log('Saving item with data:', itemData);

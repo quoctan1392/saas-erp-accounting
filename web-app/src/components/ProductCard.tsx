@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Typography, IconButton } from '@mui/material';
 import ImageIcon from '@mui/icons-material/Image';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -29,6 +29,7 @@ interface ProductCardProps {
   onQuantityChange?: (quantity: number) => void;
   onDelete?: () => void;
   onClick?: () => void;
+  onCardClick?: () => void;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({
@@ -48,12 +49,20 @@ const ProductCard: React.FC<ProductCardProps> = ({
   onQuantityChange,
   onDelete,
   onClick,
+  onCardClick,
 }) => {
   const isOrderMode = mode === 'order';
   const originalTotal = unitPrice * quantity;
   const discountedTotal = originalTotal * (1 - discount / 100);
   
   // Extract unit name robustly: support string or object shapes returned by API/selection components
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    // Reset image error state when image source changes
+    setImgError(false);
+  }, [image]);
+
   const unitName = (() => {
     if (!unit) return 'chiếc';
     if (typeof unit === 'string') return unit;
@@ -80,6 +89,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   return (
     <Box
+      onClick={(e) => {
+        // Only trigger card click if not clicking on interactive elements
+        const target = e.target as HTMLElement;
+        const isInteractive = target.closest('button') || target.closest('[role="button"]');
+        if (!isInteractive && onCardClick) {
+          onCardClick();
+        }
+      }}
       sx={{
         position: 'relative',
         height: '100px',
@@ -91,7 +108,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         display: 'flex',
         alignItems: 'center',
         gap: 1.5,
-        cursor: 'default',
+        cursor: onCardClick ? 'pointer' : 'default',
         transition: 'all 0.2s ease',
         '&:hover': !isOrderMode ? {
           boxShadow: '1px 2px 12px 0 rgba(0, 0, 0, 0.08)',
@@ -130,8 +147,13 @@ const ProductCard: React.FC<ProductCardProps> = ({
           overflow: 'hidden',
         }}
       >
-        {image ? (
-          <img src={image} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        {image && !imgError ? (
+          <img
+            src={image}
+            alt={name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={() => setImgError(true)}
+          />
         ) : (
           <ImageIcon sx={{ fontSize: 32, color: '#999' }} />
         )}
