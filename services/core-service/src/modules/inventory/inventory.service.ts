@@ -256,7 +256,7 @@ export class InventoryService {
     const stockLevels = await this.dataSource.query(`SELECT * FROM stock_level_view WHERE tenant_id = $1`, [tenantId]);
 
     // Get items with minimum stock settings
-    const itemIds = [...new Set(stockLevels.map(sl => sl.itemId))];
+    const itemIds = [...new Set(stockLevels.map((sl: any) => sl.itemId))];
     const items = await this.itemRepository.find({
       where: {
         id: In(itemIds),
@@ -269,11 +269,11 @@ export class InventoryService {
 
     // Filter low stock items
     const lowStockItems = stockLevels
-      .filter(stockLevel => {
+      .filter((stockLevel: any) => {
         const item = itemsMap.get(stockLevel.itemId);
         return item && stockLevel.quantityOnHand < item.minimumStock;
       })
-      .map(stockLevel => {
+      .map((stockLevel: any) => {
         const item = itemsMap.get(stockLevel.itemId);
         return {
           ...stockLevel,

@@ -1,6 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { Unit } from './unit.entity';
+import { Warehouse } from '../../warehouses/entities/warehouse.entity';
 
 export enum ItemType {
   GOODS = 'goods',
@@ -134,4 +135,8 @@ export class Item extends BaseEntity {
 
   @Column({ name: 'default_warehouse_id', type: 'uuid', nullable: true })
   defaultWarehouseId?: string;
+
+  @ManyToOne(() => Warehouse, { nullable: true })
+  @JoinColumn({ name: 'default_warehouse_id' })
+  defaultWarehouse?: Warehouse;
 }

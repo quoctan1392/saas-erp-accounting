@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ROUTES } from '../../config/constants';
 import { createPortal } from 'react-dom';
 import {
   Box,
@@ -23,6 +21,7 @@ import headerDay from '../../assets/Header_day.png';
 import { useSafeLoading } from '../../hooks/useApi';
 import { withTimeout } from '../../utils/apiHelpers';
 import { formatVND } from '../../utils/dashboardUtils';
+
 
 interface Item {
   id: string;
@@ -66,7 +65,7 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
   const [categories, setCategories] = useState<string[]>([]);
   const [apiErrorMsg, setApiErrorMsg] = useState<string | null>(null);
   const [exiting, setExiting] = useState(false);
-  const navigate = useNavigate();
+  // navigate removed (unused in this screen)
   const [showNewProduct, setShowNewProduct] = useState(false);
   const [selectedItemsMap, setSelectedItemsMap] = useState<Record<string, { quantity: number; item: Item }>>({});
   const [detailItem, setDetailItem] = useState<Item | null>(null);
@@ -92,13 +91,13 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
       const raw = response?.data ?? response;
 
       // Normalize various API shapes into an array
-      let itemsData: any[] = [];
+      let itemsData: Record<string, unknown>[] = [];
       if (Array.isArray(raw)) {
         itemsData = raw;
       } else if (raw && Array.isArray(raw.data)) {
-        itemsData = raw.data as any[];
+        itemsData = raw.data as Record<string, unknown>[];
       } else if (raw && Array.isArray(raw.items)) {
-        itemsData = raw.items as any[];
+        itemsData = raw.items as Record<string, unknown>[];
       } else if (raw && raw.success === false) {
         // API returned an error object
         console.warn('[ItemSelection] API returned error:', raw);
@@ -117,7 +116,7 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
       try {
         const stockResponse = await withTimeout(apiService.getStockLevels(), 8000);
         stockLevels = (stockResponse?.data || stockResponse || []) as Record<string, unknown>[];
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.warn('[ItemSelection] Failed to fetch stock levels (timeout or error):', err);
       }
       
@@ -161,15 +160,15 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
         const catRaw = catResp?.data ?? catResp;
         if (Array.isArray(catRaw)) {
           categoriesFromApiArr = catRaw
-            .map((c: any) => ({ id: String(c.id), name: (c.name || c.code || String(c.id)) }))
-            .filter((c: any) => c.name);
+            .map((c: Record<string, unknown>) => ({ id: String(c.id), name: String(c.name || c.code || c.id) }))
+            .filter((c: { id: string; name: string }) => c.name);
         } else if (catRaw && Array.isArray(catRaw.data)) {
           categoriesFromApiArr = catRaw.data
-            .map((c: any) => ({ id: String(c.id), name: (c.name || c.code || String(c.id)) }))
-            .filter((c: any) => c.name);
+            .map((c: Record<string, unknown>) => ({ id: String(c.id), name: String(c.name || c.code || c.id) }))
+            .filter((c: { id: string; name: string }) => c.name);
         }
-      } catch (err: any) {
-        console.warn('[ItemSelection] getItemCategories failed:', err?.message || err);
+      } catch (err: unknown) {
+        console.warn('[ItemSelection] getItemCategories failed:', err);
       }
 
       // Normalize stock fields: merge stock data from inventory endpoint
@@ -180,66 +179,9 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
       }, {} as Record<string, string>);
 
       const normalized = (itemsData || []).map((it: Record<string, unknown>) => {
-          const itemId = (it['id'] as string) || '';
-          const stockInfo = stockMap[itemId];
-          
-          // Use stock from inventory endpoint if available
-          let finalStock = stockInfo ? stockInfo.total : 0;
-          let finalStockByWarehouse = stockInfo ? stockInfo.byWarehouse : undefined;
-          
-          // Fallback: try to extract from item object (if backend adds it later)
-          if (!stockInfo) {
-            // possible per-warehouse structures
-            const sbw = (it['stockByWarehouse'] ?? it['warehouseStock'] ?? it['stock_by_warehouse'] ?? it['stocksByWarehouse'] ?? it['stocks']) as Record<string, unknown> | undefined;
-
-            // If there is an array of warehouses with stock info, try to extract
-            let warehouseMap: Record<string, number> | undefined = undefined;
-            const warehouses = it['warehouses'];
-            if (Array.isArray(warehouses) && warehouses.length > 0) {
-              warehouseMap = (warehouses as Array<Record<string, unknown>>).reduce((acc: Record<string, number>, w) => {
-                const key = (w['id'] as string) || (w['name'] as string) || (w['warehouseId'] as string) || (w['warehouseName'] as string) || String(Object.keys(acc).length);
-                const val = safeNumber(w['stock'] ?? w['quantity'] ?? w['onHand'] ?? w['available']);
-                acc[key] = Number.isNaN(val) ? 0 : val;
-                return acc;
-              }, {} as Record<string, number>);
-            }
-
-            // prefer explicit stockByWarehouse-like object, otherwise use derived warehouseMap
-            finalStockByWarehouse = (sbw && typeof sbw === 'object') ? (sbw as Record<string, number>) : warehouseMap;
-
-            // collect candidate scalar fields for stock
-            const scalarCandidates = [
-              it['stock'],
-              it['quantity'],
-              it['initialStock'],
-              it['initial_stock'],
-              it['openingStock'],
-              it['opening_stock'],
-              it['startingStock'],
-              it['starting_stock'],
-              it['onHand'],
-              it['on_hand'],
-              it['available'],
-              it['availableStock'],
-              it['available_stock'],
-            ];
-
-            if (finalStockByWarehouse && typeof finalStockByWarehouse === 'object') {
-              try {
-                finalStock = Object.values(finalStockByWarehouse).reduce((s: number, v: unknown) => {
-                  const nv = safeNumber(v);
-                  return s + (Number.isNaN(nv) ? 0 : nv);
-                }, 0);
-              } catch {
-                finalStock = 0;
-              }
-            } else {
-              const nums = scalarCandidates.map((v) => (typeof v === 'number' ? (v as number) : safeNumber(v))).filter((n) => !Number.isNaN(n));
-              if (nums.length === 1) finalStock = nums[0] || 0;
-              else if (nums.length > 1) finalStock = nums.reduce((s, n) => s + (Number(n) || 0), 0);
-              else finalStock = 0;
-            }
-          }
+          // Backend now returns totalStock and stockByWarehouse directly
+          const totalStock = Number(it['totalStock'] ?? 0);
+          const stockByWarehouse = it['stockByWarehouse'] as Record<string, number> | undefined;
 
           // Normalize image field: prefer explicit `image`, then common DB/API fields
           const imageCandidate = (it['image'] as string) || (it['defaultImageUrl'] as string) || (it['default_image_url'] as string) || (it['listImageUrl'] as string) || (it['list_image_url'] as string) || (it['imageUrl'] as string) || (it['image_url'] as string) || undefined;
@@ -257,15 +199,15 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
               normalizedImage = `${API_CONFIG.CORE_SERVICE_URL}${path}`;
             }
           }
-          } catch (e) {
-            normalizedImage = imageCandidate as any;
+          } catch {
+            normalizedImage = typeof imageCandidate === 'string' ? imageCandidate : undefined;
           }
 
           // Resolve category name: prefer explicit category field, else map from listItemCategoryId
           let categoryName: string | undefined = (it['category'] as string) || (it['categoryName'] as string) || undefined;
           try {
             if (!categoryName) {
-              const listIds = (it['listItemCategoryId'] ?? it['listItemCategoryIds'] ?? it['categoryIds'] ?? it['category_id'] ?? it['categories']) as any;
+              const listIds = (it['listItemCategoryId'] ?? it['listItemCategoryIds'] ?? it['categoryIds'] ?? it['category_id'] ?? it['categories']) as unknown;
               if (Array.isArray(listIds) && listIds.length > 0) {
                 const first = String(listIds[0]);
                 categoryName = categoryIdToName[first] || first;
@@ -273,13 +215,15 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
                 categoryName = categoryIdToName[String(listIds)] || String(listIds);
               }
             }
-          } catch {}
+          } catch {
+            // ignore errors in category resolution
+          }
 
           const result = {
             ...(it as Record<string, unknown>),
             image: normalizedImage || imageCandidate,
-            stockByWarehouse: finalStockByWarehouse,
-            stock: Number(finalStock) || 0,
+            stockByWarehouse: stockByWarehouse,
+            stock: totalStock,
             category: categoryName,
           } as unknown as Item;
 
@@ -293,15 +237,16 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
       
       // Ensure stock normalization covers additional possible field names (e.g. initialStock)
       const postProcessed = (normalized as Item[]).map((it) => {
-        const possibleStock = (it as any).stock ?? (it as any).initialStock ?? (it as any).initial_stock ?? (it as any).quantity ?? (it as any).onHand ?? (it as any).available ?? 0;
+        const itRecord = it as unknown as Record<string, unknown>;
+        const possibleStock = itRecord.stock ?? itRecord.initialStock ?? itRecord.initial_stock ?? itRecord.quantity ?? itRecord.onHand ?? itRecord.available ?? 0;
         const finalStock = Number(possibleStock) || 0;
 
         let finalStockByWarehouse = it.stockByWarehouse;
         if (!finalStockByWarehouse) {
-          const warehouses = (it as any).warehouses || (it as any).warehouseStocks || (it as any).stocks;
+          const warehouses = itRecord.warehouses || itRecord.warehouseStocks || itRecord.stocks;
           if (Array.isArray(warehouses) && warehouses.length > 0) {
-            finalStockByWarehouse = warehouses.reduce((acc: Record<string, number>, w: any, idx: number) => {
-              const key = w.name || w.warehouseName || w.warehouseId || String(idx);
+            finalStockByWarehouse = warehouses.reduce((acc: Record<string, number>, w: Record<string, unknown>, idx: number) => {
+              const key = String(w.name || w.warehouseName || w.warehouseId || idx);
               const val = Number(w.stock ?? w.quantity ?? w.onHand ?? w.available) || 0;
               acc[key] = val;
               return acc;
@@ -311,7 +256,9 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
 
         const out = { ...it, stock: finalStock, stockByWarehouse: finalStockByWarehouse } as Item;
         // Debug: log Matcha item stock for verification
-        try { if ((out.name || '').toLowerCase().includes('matcha')) console.debug('[ItemSelection] Matcha item normalized:', out); } catch {}
+        try { if ((out.name || '').toLowerCase().includes('matcha')) console.debug('[ItemSelection] Matcha item normalized:', out); } catch {
+          // ignore matcha log error
+        }
         return out;
       });
 
@@ -320,11 +267,12 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
       const apiCategoryNames = (categoriesFromApiArr || []).map(c => c.name).filter(Boolean);
       const uniqueCategories = (apiCategoryNames.length > 0) ? apiCategoryNames : inferred;
       setCategories(uniqueCategories as string[]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error loading items:', err);
       // Do not fall back to mock/demo items for selection UI.
       // Show empty list so the UI reflects the actual database state and surfaces the error.
-      setApiErrorMsg(err?.message ? String(err.message) : 'Lỗi khi tải sản phẩm');
+      const errObj = err as { message?: string };
+      setApiErrorMsg(errObj?.message ? String(errObj.message) : 'Lỗi khi tải sản phẩm');
       setItems([]);
       setCategories([]);
     } finally {
@@ -407,8 +355,8 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
       try {
         onSelect({ ...(e.item as Item), // attach quantity field so parent can handle
           quantity: e.quantity } as unknown as Item);
-      } catch (err) {
-        // ignore
+      } catch {
+        // ignore selection errors
       }
     });
     clearSelection();
@@ -562,25 +510,27 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
         <ProductFormScreen
           overlay
           singleSave
-          onSaved={(created: any) => {
+          onSaved={(created: Record<string, unknown>) => {
             try {
               console.debug('[ItemSelection] onSaved created item from overlay:', created);
-            } catch (e) {}
+            } catch {
+              // ignore debug log error
+            }
             // normalize id
-            const id = created?.id || created?._id || String(Date.now());
+            const id = String(created?.id || created?._id || Date.now());
             // Normalize stock from created item using many possible field names
-            const createdObj = (created || {}) as Record<string, any>;
+            const createdObj = (created || {}) as Record<string, unknown>;
             const candidateNumber = (v: unknown) => {
               if (typeof v === 'number') return v;
               if (typeof v === 'string') return Number(v.toString().replace(/,/g, '')) || 0;
               return 0;
             };
             let finalStock = candidateNumber(createdObj.stock ?? createdObj.quantity ?? createdObj.onHand ?? createdObj.on_hand ?? createdObj.available ?? createdObj.minimumStock ?? createdObj.initialStock ?? createdObj.initial_stock ?? 0);
-            let finalStockByWarehouse = createdObj.stockByWarehouse || createdObj.warehouseStock || createdObj.stocks || createdObj.stocksByWarehouse || createdObj.warehouse_stocks;
+            const finalStockByWarehouse = createdObj.stockByWarehouse || createdObj.warehouseStock || createdObj.stocks || createdObj.stocksByWarehouse || createdObj.warehouse_stocks;
             if ((!finalStock || finalStock === 0) && finalStockByWarehouse && typeof finalStockByWarehouse === 'object') {
               try {
-                finalStock = Object.values(finalStockByWarehouse).reduce((s: number, v: unknown) => s + (candidateNumber(v) || 0), 0);
-              } catch (_) {
+                finalStock = Object.values(finalStockByWarehouse as Record<string, unknown>).reduce((s: number, v: unknown) => s + (candidateNumber(v) || 0), 0);
+              } catch {
                 finalStock = finalStock || 0;
               }
             }
@@ -612,6 +562,8 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
               unit: detailItem.unit,
               stock: detailItem.stock,
               stockByWarehouse: detailItem.stockByWarehouse,
+              // Backend now returns defaultWarehouse object with { id, code, name }
+              defaultWarehouse: (detailItem as any).defaultWarehouse,
               quantity: selectedItemsMap[detailItem.id]?.quantity || 1,
             }}
             onClose={() => setDetailItem(null)}
@@ -652,6 +604,8 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
             unit: detailItem.unit,
             stock: detailItem.stock,
             stockByWarehouse: detailItem.stockByWarehouse,
+            // Backend now returns defaultWarehouse object with { id, code, name }
+            defaultWarehouse: (detailItem as any).defaultWarehouse,
             quantity: selectedItemsMap[detailItem.id]?.quantity || 1,
           }}
           onClose={() => setDetailItem(null)}
@@ -677,11 +631,6 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
   );
 };
 
-// Mock data for development
-const mockItems: Item[] = [
-  { id: '1', code: 'VT00005', name: 'Áo khoác lông da báo Hàn Quốc cho nữ size M', unitPrice: 2000000, unit: 'chiếc', stock: 40, category: 'Áo khoác' },
-  { id: '2', code: 'VT00006', name: 'Áo sơ mi công sở nam trắng size L', unitPrice: 350000, unit: 'chiếc', stock: 25, category: 'Áo sơ mi' },
-  { id: '3', code: 'VT00007', name: 'Áo khoác dạ nữ cao cấp', unitPrice: 1500000, unit: 'chiếc', stock: 15, category: 'Áo khoác' },
-];
+// (Removed unused mock data)
 
 export default ItemSelectionScreen;

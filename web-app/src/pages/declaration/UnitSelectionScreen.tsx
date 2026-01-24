@@ -192,7 +192,7 @@ const UnitSelectionScreen: React.FC<Props> = ({ open, onClose, onSelect }) => {
           </Box>
         </Box>
 
-        <UnitCreateScreen open={createOpen} onClose={() => setCreateOpen(false)} onCreate={(u) => { handleCreate(u); onSelect({ id: u.id || u.code || u.value, name: u.label || u.name }); setCreateOpen(false); onClose(); }} />
+        <UnitCreateScreen open={createOpen} onClose={() => setCreateOpen(false)} onCreate={(u: any) => { handleCreate(u); onSelect({ id: u.id || u.code || u.value, name: u.label || u.name }); setCreateOpen(false); onClose(); }} />
       </Box>
     </>
   );

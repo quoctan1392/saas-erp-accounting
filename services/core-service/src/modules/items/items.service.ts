@@ -78,6 +78,7 @@ export class ItemsService {
 
     const [items, total] = await queryBuilder
       .leftJoinAndSelect('item.unit', 'unit')
+      .leftJoinAndSelect('item.defaultWarehouse', 'defaultWarehouse')
       .skip(skip)
       .take(l)
       .orderBy(
@@ -86,20 +87,37 @@ export class ItemsService {
       )
       .getManyAndCount();
 
-    return new PaginationResponseDto(items, total, p, l);
+    // Enrich items with stock data
+    const enrichedItems = await Promise.all(
+      items.map(async (item) => {
+        const stockData = await this.getItemStockData(tenantId, item.id);
+        return Object.assign(Object.create(Object.getPrototypeOf(item)), item, {
+          totalStock: stockData.totalStock,
+          stockByWarehouse: stockData.stockByWarehouse,
+        });
+      })
+    );
+
+    return new PaginationResponseDto(enrichedItems, total, p, l);
   }
 
-  async findOneItem(id: string, tenantId: string): Promise<Item> {
+  async findOneItem(id: string, tenantId: string): Promise<any> {
     const item = await this.itemRepository.findOne({
       where: { id, tenantId, isDeleted: false },
-      relations: ['unit'],
+      relations: ['unit', 'defaultWarehouse'],
     });
 
     if (!item) {
       throw new NotFoundException('Item not found');
     }
 
-    return item;
+    // Enrich with stock data
+    const stockData = await this.getItemStockData(tenantId, item.id);
+    
+    return Object.assign(Object.create(Object.getPrototypeOf(item)), item, {
+      totalStock: stockData.totalStock,
+      stockByWarehouse: stockData.stockByWarehouse,
+    });
   }
 
   async createItem(
@@ -624,5 +642,31 @@ export class ItemsService {
     const codeNumber = parseInt(latestItem.code.replace(prefix, ''), 10);
     const nextNumber = (codeNumber + 1).toString().padStart(5, '0');
     return `${prefix}${nextNumber}`;
+  }
+
+  // Calculate stock data for an item across all warehouses
+  private async getItemStockData(
+    tenantId: string,
+    itemId: string,
+  ): Promise<{ totalStock: number; stockByWarehouse: Record<string, number> }> {
+    try {
+      const stockLevels = await this.inventoryService.getStockLevelByItem(tenantId, itemId);
+      
+      let totalStock = 0;
+      const stockByWarehouse: Record<string, number> = {};
+      
+      for (const level of stockLevels) {
+        const qty = Number(level.quantityAvailable) || 0;
+        totalStock += qty;
+        if (level.warehouseId) {
+          stockByWarehouse[level.warehouseId] = qty;
+        }
+      }
+      
+      return { totalStock, stockByWarehouse };
+    } catch (error) {
+      console.warn(`Failed to get stock data for item ${itemId}:`, error);
+      return { totalStock: 0, stockByWarehouse: {} };
+    }
   }
 }

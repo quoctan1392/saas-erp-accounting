@@ -309,6 +309,7 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
         listItemCategoryId?: string[];
         initialStock?: number;
         defaultWarehouseId?: string;
+        defaultImageUrl?: string;
       };
 
       const parsedInitialStock = parseFloat(initialStock.replace(/,/g, '')) || 0;
@@ -388,6 +389,7 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
         minimumStock: number;
         isActive: boolean;
         listItemCategoryId?: string[];
+        defaultImageUrl?: string;
       };
 
       const itemData: CreateItemDto = {

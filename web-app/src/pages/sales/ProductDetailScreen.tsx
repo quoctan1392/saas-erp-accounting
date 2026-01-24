@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, IconButton, Switch, Divider } from '@mui/material';
+import { Box, Typography, IconButton, Switch, Divider, Button } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 import { createPortal } from 'react-dom';
 import RoundedTextField from '../../components/RoundedTextField';
@@ -9,8 +9,9 @@ import WarehouseSelectionScreen from '../declaration/WarehouseSelectionScreen';
 import TaxIndustrySelectionScreen from '../declaration/TaxIndustrySelectionScreen';
 import UnitSelectionScreen from '../declaration/UnitSelectionScreen';
 import tokens from '../../styles/tokens';
+import headerDay from '../../assets/Header_day.png';
 import taxIndustryGroups from '../../data/taxIndustryGroups';
-import { BusinessType } from '../../types/onboarding';
+// BusinessType removed — not used in this screen
 
 interface ProductDetailScreenProps {
   open: boolean;
@@ -20,9 +21,10 @@ interface ProductDetailScreenProps {
     code: string;
     name: string;
     unitPrice: number;
-    unit?: string | { id: string; name: string };
+    unit?: string | { id?: string; name?: string };
     stock?: number;
     stockByWarehouse?: Record<string, number>;
+    defaultWarehouse?: { id: string; name: string; code?: string };
     warehouse?: string;
     quantity?: number;
     discount?: number;
@@ -45,11 +47,18 @@ interface ProductDetailScreenProps {
 }
 
 const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ open, onClose, item, onSave }) => {
-  const [quantity, setQuantity] = useState(item.quantity || 1);
-  const [selectedWarehouse, setSelectedWarehouse] = useState<{ id: string; name: string } | null>(null);
+  const [quantity, setQuantity] = useState<number>(() => item.quantity || 1);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<{id: string; name: string} | null>(null);
   const [warehouseScreenOpen, setWarehouseScreenOpen] = useState(false);
-  const [unitPrice, setUnitPrice] = useState(String(item.unitPrice || 0));
-  const [unit, setUnit] = useState<{ id: string; name: string } | null>(null);
+  const [unitPrice, setUnitPrice] = useState<string>(() => String(item.unitPrice || 0));
+  const [unit, setUnit] = useState<{ id: string; name: string } | null>(() => {
+    if (typeof item.unit === 'object' && item.unit && ('id' in item.unit) && ('name' in item.unit)) {
+      const u = item.unit as { id?: string; name?: string };
+      if (u.id && u.name) return { id: u.id, name: u.name };
+    }
+    if (typeof item.unit === 'string') return { id: 'default', name: item.unit };
+    return null;
+  });
   const [unitScreenOpen, setUnitScreenOpen] = useState(false);
   
   // Discount toggles
@@ -61,62 +70,72 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ open, onClose
   // Tax industry
   const [taxIndustry, setTaxIndustry] = useState('');
   const [taxIndustryScreenOpen, setTaxIndustryScreenOpen] = useState(false);
-  const [vatRate, setVatRate] = useState<number>(0);
-  const [businessType, setBusinessType] = useState<keyof typeof BusinessType>(BusinessType.HOUSEHOLD_BUSINESS);
+  const [vatRate] = useState<number>(0);
   
   const [exiting, setExiting] = useState(false);
   const ANIM_MS = 280;
+  
 
   // Initialize from item and localStorage
   useEffect(() => {
     if (open) {
-      setQuantity(item.quantity || 1);
-      setUnitPrice(String(item.unitPrice || 0));
-      
-      // Initialize unit
-      if (typeof item.unit === 'object' && item.unit) {
-        setUnit(item.unit);
-      } else if (typeof item.unit === 'string') {
-        setUnit({ id: 'default', name: item.unit });
-      }
-      
-      // Initialize warehouse if provided
-      if (item.warehouse) {
-        setSelectedWarehouse({ id: item.warehouse, name: item.warehouse });
-      }
+      // Defer state sync to next frame to avoid synchronous setState in effect
+      requestAnimationFrame(() => {
+        setQuantity(item.quantity || 1);
+        setUnitPrice(String(item.unitPrice || 0));
 
-      // Get business type from localStorage
+        // Initialize unit from item
+        if (typeof item.unit === 'object' && item.unit && ('id' in item.unit || 'name' in item.unit)) {
+          const u = item.unit as { id?: string; name?: string };
+          if (u.id && u.name) setUnit({ id: u.id, name: u.name });
+          else if (u.name) setUnit({ id: 'default', name: u.name });
+        } else if (typeof item.unit === 'string') {
+          setUnit({ id: 'default', name: item.unit });
+        }
+      });
+
+      // Prefill tax industry from onboarding/currentTenant
       try {
         const onboardingData = JSON.parse(localStorage.getItem('onboardingData') || '{}');
         const currentTenant = JSON.parse(localStorage.getItem('currentTenant') || '{}');
-        if (onboardingData?.businessType) {
-          setBusinessType(onboardingData.businessType);
-        } else if (currentTenant?.businessType) {
-          setBusinessType(currentTenant.businessType);
-        }
-
-        // Prefill tax industry
         const acctSetup = onboardingData?.accountingSetup;
-        const resolveTaxIndustry = (val: any) => {
+        const resolveTaxIndustry = (val: unknown) => {
           if (!val) return undefined;
           if (typeof val === 'string') return val;
           if (typeof val === 'object' && val !== null) {
-            if (val.code) return val.code;
+            const maybe = val as { code?: string };
+            if (maybe.code) return maybe.code;
           }
           return undefined;
         };
-        const chosen = resolveTaxIndustry(acctSetup?.taxIndustryGroup) || 
+        const chosen = resolveTaxIndustry(acctSetup?.taxIndustryGroup) ||
                        resolveTaxIndustry(currentTenant?.accountingSetup?.taxIndustryGroup) ||
                        resolveTaxIndustry(currentTenant?.taxIndustryGroup);
-        if (chosen) setTaxIndustry(chosen);
-      } catch {}
+        if (chosen) requestAnimationFrame(() => setTaxIndustry(chosen));
+      } catch (err) { console.warn('Error parsing onboarding/currentTenant', err); }
     }
   }, [open, item]);
 
+  // Initialize from item on open
+  useEffect(() => {
+    if (open && item.defaultWarehouse) {
+      const w = item.defaultWarehouse as { id?: string; name?: string; code?: string };
+      setSelectedWarehouse({ 
+        id: String(w.id || ''), 
+        name: String(w.name || w.code || '') 
+      });
+    }
+  }, [open, item.defaultWarehouse]);
+
   // Calculate available stock at selected warehouse
-  const availableStock = selectedWarehouse && item.stockByWarehouse
-    ? item.stockByWarehouse[selectedWarehouse.name] || item.stockByWarehouse[selectedWarehouse.id] || item.stock || 0
-    : item.stock || 0;
+  const availableStock = (() => {
+    if (!selectedWarehouse || !item.stockByWarehouse) {
+      return typeof item.stock === 'number' ? item.stock : 0;
+    }
+    
+    const stock = item.stockByWarehouse[selectedWarehouse.id];
+    return typeof stock === 'number' ? stock : 0;
+  })();
 
   // Format currency
   const formatCurrency = (value: string) => {
@@ -195,10 +214,25 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ open, onClose
     handleClose();
   };
 
+  // Determine whether Save should be enabled
+  const canSave = (() => {
+    if (quantity < 1) return false;
+    if (parsedUnitPrice <= 0) return false;
+    if (hasLineItemDiscount) {
+      const hasPercent = discountPercent.trim() !== '';
+      const hasAmount = discountAmount.trim() !== '';
+      if (!hasPercent && !hasAmount) return false;
+      if (calculatedDiscountPercent > 100) return false;
+    }
+    return true;
+  })();
+
   if (!open) return null;
 
+  
+
   const overlay = (
-    <>
+    <React.Fragment>
       <Box onClick={handleClose} sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(0,0,0,0.6)', zIndex: 11999 }} />
 
       <Box
@@ -223,46 +257,70 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ open, onClose
           },
         }}
       >
-        {/* Header - use shared simple layout (thumbnail + title + code) */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, px: 2, py: 2, borderBottom: `1px solid ${tokens.colors.surfaceContainer}` }}>
-          <IconButton onClick={handleClose} sx={{ width: 40, height: 40 }}>
-            <ArrowBack />
-          </IconButton>
-          <Typography sx={{ flex: 1, fontSize: 18, fontWeight: 600, color: '#212529' }}>
-            {item.code}
-          </Typography>
-          <Typography
-            sx={{ fontSize: 14, fontWeight: 500, color: tokens.colors.primary, cursor: 'pointer' }}
-            onClick={handleSave}
-          >
-            Lưu
-          </Typography>
+        {/* Header - match other selection screens: header image + overlay (back, title, save) */}
+        <Box sx={{ height: { xs: 160, sm: 120 }, width: '100%', backgroundImage: `url(${headerDay})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+
+        <Box sx={{ position: 'absolute', top: 36, left: 0, right: 0, zIndex: 12002, px: { xs: 2, sm: 3 } }}>
+          <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: 'sm', mx: 'auto', py: 0.5 }}>
+            <IconButton onClick={handleClose} sx={{ position: 'absolute', left: 0, top: 6, width: 40, height: 40, backgroundColor: '#fff', '&:hover': { backgroundColor: '#f5f5f5' } }}>
+              <ArrowBack />
+            </IconButton>
+
+            <Box sx={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', px: 2 }}>
+              <Typography sx={{ color: 'var(--Greyscale-900, #0D0D12)', textAlign: 'center', fontFamily: '"Bricolage Grotesque"', fontSize: '20px', fontWeight: 500 }}>
+                {item.code}
+              </Typography>
+            </Box>
+
+            <Box sx={{ position: 'absolute', right: 0, top: 6 }}>
+              <Button
+                onClick={handleSave}
+                disabled={!canSave}
+                sx={{
+                  textTransform: 'none',
+                  fontSize: 15,
+                  fontWeight: 500,
+                  color: canSave ? tokens.colors.secondary : tokens.colors.text.disabled,
+                  minWidth: 'auto',
+                  p: 0.5,
+                }}
+              >
+                Lưu
+              </Button>
+            </Box>
+          </Box>
         </Box>
 
-        {/* Content */}
-        <Box sx={{ flex: 1, overflowY: 'auto', px: 2, py: 3 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {/* Quantity */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, p: 2, borderRadius: '16px', border: '1px solid #FB7E00', bgcolor: '#FFF' }}>
-              <Typography sx={{ fontSize: 16, fontWeight: 500, color: '#6C757D', textAlign: 'center' }}>
-                Số lượng
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                <NumberSpinner
-                  value={quantity}
-                  size="lg"
-                  onChange={(v) => setQuantity(Math.max(1, v))}
-                />
+        {/* Content (quantity + form) - placed inside a single scrollable container */}
+        <Box sx={{ position: { xs: 'fixed', sm: 'relative' }, top: { xs: '100px', sm: 'auto' }, bottom: { xs: 0, sm: 'auto' }, left: 0, right: 0, px: 2, py: 2, pb: `calc(100px + env(safe-area-inset-bottom, 0px))`, overflowY: 'auto', bgcolor: 'transparent' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, maxWidth: 'sm', mx: 'auto' }}>
+            {/* Quantity box */}
+            <Box sx={{ width: '100%', maxWidth: 560 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, p: 2, borderRadius: '16px', border: '1px solid #FB7E00', bgcolor: 'rgba(254, 246, 232, 0.40)' }}>
+                <Typography sx={{ fontSize: 14, fontWeight: 500, color: '#090909', textAlign: 'center' }}>
+                  Số lượng
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                  <NumberSpinner
+                    value={quantity}
+                    size="lg"
+                    allowEdit
+                    decrementButtonBorderColor={tokens.colors.border.default}
+                    incrementButtonBorderColor={tokens.colors.border.default}
+                    decrementIconColor="#E53935"
+                    incrementIconColor="#00A152"
+                    buttonBackgroundColor={tokens.colors.background.white}
+                    onChange={(v) => setQuantity(Math.max(1, v))}
+                  />
+                </Box>
               </Box>
             </Box>
 
             {/* Product Name */}
-            <Box>
-              <Typography sx={{ fontSize: 14, fontWeight: 500, color: '#6C757D', mb: 1 }}>
-                Tên sản phẩm
-              </Typography>
+            <Box sx={{ mb: 0.5 }}>
               <RoundedTextField
                 fullWidth
+                label="Tên sản phẩm"
                 value={item.name}
                 disabled
                 sx={{ '& .MuiInputBase-input.Mui-disabled': { WebkitTextFillColor: '#212529' } }}
@@ -270,12 +328,10 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ open, onClose
             </Box>
 
             {/* Unit */}
-            <Box>
-              <Typography sx={{ fontSize: 14, fontWeight: 500, color: '#6C757D', mb: 1 }}>
-                Đơn vị tính
-              </Typography>
+            <Box sx={{ mb: 0.5 }}>
               <RoundedTextField
                 fullWidth
+                label="Đơn vị tính"
                 value={unit?.name || (typeof item.unit === 'string' ? item.unit : 'chiếc')}
                 onClick={() => setUnitScreenOpen(true)}
                 placeholder="Chọn đơn vị tính"
@@ -285,47 +341,44 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ open, onClose
             </Box>
 
             {/* Warehouse */}
-            <Box>
-              <Typography sx={{ fontSize: 14, fontWeight: 500, color: '#6C757D', mb: 1 }}>
-                Kho ngắm định
-              </Typography>
+            <Box sx={{ mb: 0.5 }}>
               <RoundedTextField
-                fullWidth
-                value={selectedWarehouse?.name || ''}
-                onClick={() => setWarehouseScreenOpen(true)}
-                placeholder="Chọn kho"
-                readOnly
-                endAdornmentIcon="ArrowRight2"
-                endAdornment={
-                  selectedWarehouse ? (
-                    <Box
-                      sx={{
-                        px: 1.5,
-                        py: 0.5,
-                        borderRadius: '12px',
-                        bgcolor: '#EFF8EF',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.5,
-                      }}
-                    >
-                      <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#009F00' }}>
-                        Tồn: {availableStock}
-                      </Typography>
-                    </Box>
-                  ) : null
-                }
-              />
+                  fullWidth
+                  label="Kho ngầm định"
+                  value={selectedWarehouse?.name || ''}
+                  onClick={() => setWarehouseScreenOpen(true)}
+                  placeholder="Chọn kho"
+                  readOnly
+                  endAdornmentIcon="ArrowRight2"
+                  endAdornment={
+                    // Always render a stock chip when we have a numeric stock value (even 0).
+                    typeof availableStock === 'number' ? (
+                      <Box
+                        sx={{
+                          px: 1.5,
+                          py: 0.5,
+                          borderRadius: '12px',
+                          bgcolor: '#EFF8EF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                        }}
+                      >
+                        <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#009F00' }}>
+                          Tồn: {availableStock}
+                        </Typography>
+                      </Box>
+                    ) : null
+                  }
+                />
             </Box>
 
             {/* Unit Price */}
             <Box sx={{ display: 'flex', gap: 2 }}>
               <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontSize: 14, fontWeight: 500, color: '#6C757D', mb: 1 }}>
-                  Đơn giá
-                </Typography>
                 <RoundedTextField
                   fullWidth
+                  label="Đơn giá"
                   value={unitPrice}
                   onChange={(e) => handlePriceChange(e.target.value)}
                   type="text"
@@ -333,11 +386,9 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ open, onClose
                 />
               </Box>
               <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontSize: 14, fontWeight: 500, color: '#6C757D', mb: 1 }}>
-                  Thành tiền
-                </Typography>
                 <RoundedTextField
                   fullWidth
+                  label="Thành tiền"
                   value={formatCurrency(String(total.toFixed(0)))}
                   disabled
                   sx={{ '& .MuiInputBase-input.Mui-disabled': { WebkitTextFillColor: '#212529', fontWeight: 600 } }}
@@ -386,38 +437,30 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ open, onClose
             {/* Discount Fields (AC06) */}
             {hasLineItemDiscount && (
               <Box sx={{ display: 'flex', gap: 2, pl: 2 }}>
-                <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: 14, fontWeight: 500, color: '#6C757D', mb: 1 }}>
-                    % Chiết khấu
-                  </Typography>
-                  <RoundedTextField
-                    fullWidth
-                    value={discountPercent}
-                    onChange={(e) => {
-                      setDiscountPercent(e.target.value);
-                      setDiscountAmount(''); // Clear amount when percent changes
-                    }}
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="0"
-                  />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: 14, fontWeight: 500, color: '#6C757D', mb: 1 }}>
-                    Tiền chiết khấu
-                  </Typography>
-                  <RoundedTextField
-                    fullWidth
-                    value={discountAmount}
-                    onChange={(e) => {
-                      setDiscountAmount(formatCurrency(e.target.value));
-                      setDiscountPercent(''); // Clear percent when amount changes
-                    }}
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="0"
-                  />
-                </Box>
+                <RoundedTextField
+                  fullWidth
+                  label="% Chiết khấu"
+                  value={discountPercent}
+                  onChange={(e) => {
+                    setDiscountPercent(e.target.value);
+                    setDiscountAmount(''); // Clear amount when percent changes
+                  }}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                />
+                <RoundedTextField
+                  fullWidth
+                  label="Tiền chiết khấu"
+                  value={discountAmount}
+                  onChange={(e) => {
+                    setDiscountAmount(formatCurrency(e.target.value));
+                    setDiscountPercent(''); // Clear percent when amount changes
+                  }}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                />
               </Box>
             )}
 
@@ -425,11 +468,9 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ open, onClose
 
             {/* Tax Industry (AC07) */}
             <Box>
-              <Typography sx={{ fontSize: 14, fontWeight: 500, color: '#6C757D', mb: 1 }}>
-                Nhóm ngành nghề tính thuế GTGT, TNCN
-              </Typography>
               <RoundedTextField
                 fullWidth
+                label="Nhóm ngành nghề tính thuế GTGT, TNCN"
                 value={taxIndustryLabel}
                 onClick={() => setTaxIndustryScreenOpen(true)}
                 placeholder="Chọn nhóm ngành nghề"
@@ -439,28 +480,38 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ open, onClose
                 rows={2}
               />
             </Box>
+
+            {/* Footer placeholder to mirror sticky button area so it appears in the scroll flow */}
+            <Box sx={{ p: 2, borderTop: '1px solid #F1F3F5' }}>
+              <Box sx={{ maxWidth: 'sm', mx: 'auto' }}>
+                <Box sx={{ width: '100%', height: 56, borderRadius: '16px', bgcolor: tokens.colors.primary, opacity: 0.08, pointerEvents: 'none' }} />
+              </Box>
+            </Box>
           </Box>
         </Box>
 
-        {/* Complete Button */}
-        <Box sx={{ p: 2, borderTop: '1px solid #F1F3F5' }}>
-          <Box
-            onClick={handleSave}
-            sx={{
-              width: '100%',
-              height: 56,
-              borderRadius: '16px',
-              bgcolor: tokens.colors.primary,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              '&:hover': { bgcolor: tokens.colors.primaryHover },
-            }}
-          >
-            <Typography sx={{ fontSize: 16, fontWeight: 600, color: '#FFF' }}>
-              Hoàn tất
-            </Typography>
+        {/* Sticky action bar (matches other forms) */}
+        <Box sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 12003, px: 2, py: 2, pb: 'calc(16px + env(safe-area-inset-bottom, 0px))', bgcolor: '#fff', boxShadow: '0 -8px 16px rgba(0,0,0,0.06)' }}>
+          <Box sx={{ maxWidth: 'sm', mx: 'auto' }}>
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={handleSave}
+              disabled={!canSave || exiting}
+              sx={{
+                borderRadius: '100px',
+                bgcolor: !canSave || exiting ? '#DEE2E6' : tokens.colors.primary,
+                boxShadow: 'none',
+                color: !canSave || exiting ? '#ADB5BD' : '#fff',
+                textTransform: 'none',
+                fontWeight: 500,
+                height: 56,
+                fontSize: '16px'
+              }}
+            >
+              { /* Label changed to 'Lưu' to match UX */ }
+              Lưu
+            </Button>
           </Box>
         </Box>
       </Box>
@@ -501,7 +552,7 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ open, onClose
           }}
         />
       )}
-    </>
+    </React.Fragment>
   );
 
   if (typeof document !== 'undefined') {
