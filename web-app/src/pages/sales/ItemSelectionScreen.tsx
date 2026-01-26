@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -11,7 +10,9 @@ import { ArrowBack } from '@mui/icons-material';
 import AddIcon from '@mui/icons-material/Add';
 import SummaryBar from '../../components/SummaryBar';
 import ProductFormScreen from '../declaration/ProductFormScreen';
-import ProductDetailScreen from './ProductDetailScreen';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useUi } from '../../context/UiContext';
+import { registerCallback, consumeCallback } from '../../utils/callbackRegistry';
 import SearchBox from '../../components/SearchBox';
 import ProductCard from '../../components/ProductCard';
 import tokens from '../../styles/tokens';
@@ -39,13 +40,6 @@ interface Item {
   stockByWarehouse?: Record<string, number>;
 }
 
-interface ItemSelectionScreenProps {
-  open: boolean;
-  onClose: () => void;
-  onSelect: (item: Item) => void;
-  excludeIds?: string[];
-}
-
 // Convert various unknown inputs to a number safely
 function safeNumber(v: unknown): number {
   if (typeof v === 'number') return v;
@@ -56,7 +50,12 @@ function safeNumber(v: unknown): number {
   return NaN;
 }
 
-const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose, onSelect, excludeIds = [] }) => {
+const ItemSelectionScreen: React.FC = () => {
+  const navigate = useNavigate();
+  const { state } = useLocation();
+  const navState = (state || {}) as { callbackId?: string; excludeIds?: string[] };
+  const callbackId = navState.callbackId;
+  const excludeIds = useMemo(() => navState.excludeIds || [], [navState.excludeIds]);
   const [searchQuery, setSearchQuery] = useState('');
   const [items, setItems] = useState<Item[]>([]);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
@@ -64,15 +63,21 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [categories, setCategories] = useState<string[]>([]);
   const [apiErrorMsg, setApiErrorMsg] = useState<string | null>(null);
-  const [exiting, setExiting] = useState(false);
-  // navigate removed (unused in this screen)
+  // route-based page: no overlay/backdrop animation state required
   const [showNewProduct, setShowNewProduct] = useState(false);
   const [selectedItemsMap, setSelectedItemsMap] = useState<Record<string, { quantity: number; item: Item }>>({});
-  const [detailItem, setDetailItem] = useState<Item | null>(null);
-  const ANIM_MS = 280;
+  const localCallbackCreatedRef = React.useRef(false);
+  const { setShowBottomNav } = useUi();
 
   const selectedCount = Object.keys(selectedItemsMap).length;
-  const selectedTotal = Object.values(selectedItemsMap).reduce((s, e) => s + ((e.item.sellPrice ?? e.item.unitPrice ?? e.item.price ?? 0) * (e.quantity || 0)), 0);
+  const selectedTotal = Object.values(selectedItemsMap).reduce((s, e) => {
+    const unitPrice = e.item.sellPrice ?? e.item.unitPrice ?? e.item.price ?? 0;
+    const quantity = e.quantity || 0;
+    const discount = e.discount || 0;
+    const subtotal = unitPrice * quantity;
+    const discountAmt = e.discountAmount || (subtotal * discount / 100);
+    return s + (subtotal - discountAmt);
+  }, 0);
 
   const loadItems = useCallback(async () => {
     startLoading();
@@ -280,13 +285,30 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
     }
   }, [startLoading, stopLoading]);
 
+  // When this component unmounts, if we created a local callback (meaning
+  // this screen was used standalone and not opened by the SalesForm), clear
+  // any transient selection modifications so that subsequent opens will show
+  // fresh default product values. Also reload items from the server to make
+  // sure we're not showing stale mutated data.
   useEffect(() => {
-    if (open) {
-      setSearchQuery('');
-      setSelectedCategory('all');
-      loadItems();
-    }
-  }, [open, loadItems]);
+    return () => {
+      if (localCallbackCreatedRef.current) {
+        setSelectedItemsMap({});
+        // best-effort reload of items to restore defaults
+        try {
+          void loadItems();
+        } catch {
+          // ignore errors during teardown
+        }
+      }
+    };
+  }, [loadItems]);
+
+  useEffect(() => {
+    setSearchQuery('');
+    setSelectedCategory('all');
+    loadItems();
+  }, [loadItems]);
 
   const excludeSnapshot = JSON.stringify(excludeIds || []);
 
@@ -310,13 +332,14 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
   }, [searchQuery, items, selectedCategory, excludeSnapshot, excludeIds]);
 
   const triggerClose = () => {
-    if (exiting) return;
-    setExiting(true);
-    setTimeout(() => {
-      setExiting(false);
-      onClose();
-    }, ANIM_MS);
+    navigate(-1);
   };
+
+  // Hide the main BottomNavigation while on this screen and restore on exit
+  useEffect(() => {
+    setShowBottomNav(false);
+    return () => setShowBottomNav(true);
+  }, [setShowBottomNav]);
 
   // single-item select handler removed — selection handled via `toggleSelect` and `confirmSelection`
 
@@ -350,143 +373,183 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
   const clearSelection = () => setSelectedItemsMap({});
 
   const confirmSelection = () => {
-    // pass selected items to parent onSelect (one by one with quantity attached) then close
-    Object.values(selectedItemsMap).forEach(e => {
-      try {
-        onSelect({ ...(e.item as Item), // attach quantity field so parent can handle
-          quantity: e.quantity } as unknown as Item);
-      } catch {
-        // ignore selection errors
+    // Call parent callback with selected items including full config
+    if (callbackId) {
+      const cb = consumeCallback(callbackId);
+      if (cb) {
+        const selectedItems = Object.values(selectedItemsMap).map(e => ({
+          ...(e.item as Item),
+          quantity: e.quantity,
+          warehouseName: e.warehouse,
+          warehouseId: e.warehouseId,
+          discount: e.discount || 0,
+          discountAmount: e.discountAmount || 0,
+          isTradeDiscount: e.isTradeDiscount || false,
+          taxIndustry: e.taxIndustry,
+          vatRate: e.vatRate || 0,
+        }));
+        cb(selectedItems);
       }
-    });
+    }
     clearSelection();
     triggerClose();
   };
 
-  if (!open) return null;
+  const page = (
+    <Box sx={{ position: 'relative', minHeight: '100vh', bgcolor: '#fff', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ height: { xs: 160, sm: 120 }, width: '100%', backgroundImage: `url(${headerDay})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
 
-  const overlay = (
-    <>
-      <Box onClick={triggerClose} sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(0,0,0,0.6)', zIndex: 9999 }} />
+      <Box sx={{ position: 'absolute', top: 36, left: 0, right: 0, zIndex: 2, px: { xs: 2, sm: 3 } }}>
+        <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', maxWidth: 'sm', mx: 'auto', py: 0.5 }}>
+          <IconButton onClick={triggerClose} sx={{ width: 40, height: 40, backgroundColor: '#fff', '&:hover': { backgroundColor: '#f5f5f5' } }}>
+            <ArrowBack />
+          </IconButton>
 
-      <Box
-        sx={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          left: 0,
-          zIndex: 10000,
-          bgcolor: '#fff',
-          display: 'flex',
-          flexDirection: 'column',
-          animation: exiting ? 'slideOutToRight 0.28s ease' : 'slideInFromRight 0.28s ease',
-          '@keyframes slideInFromRight': {
-            from: { transform: 'translateX(100%)' },
-            to: { transform: 'translateX(0)' },
-          },
-          '@keyframes slideOutToRight': {
-            from: { transform: 'translateX(0)' },
-            to: { transform: 'translateX(100%)' },
-          },
-        }}
-      >
-        <Box sx={{ height: { xs: 160, sm: 120 }, width: '100%', backgroundImage: `url(${headerDay})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+          <Typography sx={{ flex: 1, color: 'var(--Greyscale-900, #0D0D12)', textAlign: 'center', fontFamily: '"Bricolage Grotesque"', fontSize: '20px', fontWeight: 500 }}>
+            Chọn hàng hoá, dịch vụ
+          </Typography>
 
-        <Box sx={{ position: 'absolute', top: 36, left: 0, right: 0, zIndex: 10001, px: { xs: 2, sm: 3 } }}>
-          <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', maxWidth: 'sm', mx: 'auto', py: 0.5 }}>
-            <IconButton onClick={triggerClose} sx={{ width: 40, height: 40, backgroundColor: '#fff', '&:hover': { backgroundColor: '#f5f5f5' } }}>
-              <ArrowBack />
-            </IconButton>
-
-            <Typography sx={{ flex: 1, color: 'var(--Greyscale-900, #0D0D12)', textAlign: 'center', fontFamily: '"Bricolage Grotesque"', fontSize: '20px', fontWeight: 500 }}>
-              Chọn hàng hoá, dịch vụ
-            </Typography>
-
-            <IconButton onClick={() => { setShowNewProduct(true); }} sx={{ width: 40, height: 40, backgroundColor: '#fff', '&:hover': { backgroundColor: '#f5f5f5' } }}>
-              <AddIcon sx={{ color: '#4E4E4E' }} />
-            </IconButton>
-          </Box>
+          <IconButton onClick={() => { setShowNewProduct(true); }} sx={{ width: 40, height: 40, backgroundColor: '#fff', '&:hover': { backgroundColor: '#f5f5f5' } }}>
+            <AddIcon sx={{ color: '#4E4E4E' }} />
+          </IconButton>
         </Box>
+      </Box>
 
-        <Box sx={{ position: { xs: 'fixed', sm: 'relative' }, top: { xs: '100px', sm: 'auto' }, bottom: { xs: 0, sm: 'auto' }, left: 0, right: 0, px: 2, py: 2, pb: `calc(100px + env(safe-area-inset-bottom, 0px))`, overflowY: 'auto', bgcolor: 'transparent' }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 'sm', mx: 'auto' }}>
-            <SearchBox fullWidth placeholder="Tìm kiếm bằng mã, tên sản phẩm hoặc mô tả" value={searchQuery} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)} />
+      <Box sx={{ borderRadius: { xs: '16px 16px 0 0', sm: '16px' }, px: 0.5, py: { xs: 2, sm: 6 }, pb: { xs: `calc(100px + env(safe-area-inset-bottom, 0px))`, sm: 6 }, position: { xs: 'fixed', sm: 'relative' }, top: { xs: '80px', sm: 'auto' }, bottom: { xs: 0, sm: 'auto' }, left: '16px', right: '16px', maxWidth: 'calc(100% - 32px)', display: 'flex', flexDirection: 'column', overflowY: { xs: 'auto', sm: 'visible' }, bgcolor: 'transparent' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 0, maxWidth: '100%', mx: 'auto' }}>
+          <SearchBox fullWidth placeholder="Tìm kiếm bằng mã, tên sản phẩm hoặc mô tả" value={searchQuery} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)} />
 
-            <Box
-              sx={{
-                display: 'flex',
-                gap: 1,
-                overflowX: 'auto',
-                overflowY: 'hidden',
-                // hide scrollbar in most browsers
-                scrollbarWidth: 'none', // Firefox
-                '-ms-overflow-style': 'none', // IE 10+
-                '&::-webkit-scrollbar': {
-                  height: 0,
-                },
-              }}
-            >
-              <FilterChip label="Tất cả" selected={selectedCategory === 'all'} onClick={() => setSelectedCategory('all')} />
-              {categories.map(cat => (
-                <FilterChip key={cat} label={cat} selected={selectedCategory === cat} onClick={() => setSelectedCategory(cat)} />
-              ))}
-            </Box>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              // hide scrollbar in most browsers
+              scrollbarWidth: 'none', // Firefox
+              '-ms-overflow-style': 'none', // IE 10+
+              '&::-webkit-scrollbar': {
+                height: 0,
+              },
+            }}
+          >
+            <FilterChip label="Tất cả" selected={selectedCategory === 'all'} onClick={() => setSelectedCategory('all')} />
+            {categories.map(cat => (
+              <FilterChip key={cat} label={cat} selected={selectedCategory === cat} onClick={() => setSelectedCategory(cat)} />
+            ))}
+          </Box>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              {loading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
-              ) : filteredItems.length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography sx={{ fontSize: 14, color: tokens.colors.text.disabled }}>
-                    {apiErrorMsg ? apiErrorMsg : 'Không tìm thấy sản phẩm nào'}
-                  </Typography>
-                </Box>
-              ) : (
-                filteredItems.map(item => {
-                  const id = item.id || item._id || '';
-                  const selectedEntry = selectedItemsMap[id];
-                  return (
-                    <ProductCard
-                      key={id}
-                      name={item.name || item.itemName || 'Sản phẩm'}
-                      code={item.code || 'N/A'}
-                      image={item.image}
-                      stock={item.stock}
-                      // pass per-warehouse stock map if available
-                      stockByWarehouse={item.stockByWarehouse}
-                      // in selection mode no warehouse selected yet
-                      selectedWarehouse={null}
-                      unitPrice={item.sellPrice ?? item.unitPrice ?? item.price ?? 0}
-                      unit={item.unit}
-                      mode="selection"
-                      selected={Boolean(selectedEntry)}
-                      quantity={selectedEntry?.quantity ?? 1}
-                      onQuantityChange={(q: number) => changeQuantity(id, q)}
-                      onClick={() => toggleSelect(item)}
-                      onCardClick={() => setDetailItem(item)}
-                    />
-                  );
-                })
-              )}
-            </Box>
-            {/* Floating sticky toolbar for selected items */}
-            {selectedCount > 0 && (
-              <Box sx={{ position: 'fixed', left: 16, right: 16, bottom: 48, zIndex: 12000, display: 'flex', justifyContent: 'center' }}>
-                <SummaryBar
-                  count={selectedCount}
-                  total={formatVND(selectedTotal)}
-                  onClear={clearSelection}
-                  onConfirm={confirmSelection}
-                />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
+            ) : filteredItems.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Typography sx={{ fontSize: 14, color: tokens.colors.text.disabled }}>
+                  {apiErrorMsg ? apiErrorMsg : 'Không tìm thấy sản phẩm nào'}
+                </Typography>
               </Box>
+            ) : (
+              filteredItems.map(item => {
+                const id = item.id || item._id || '';
+                const selectedEntry = selectedItemsMap[id];
+                // Use updated price from selectedEntry if available, else default
+                const displayPrice = selectedEntry?.item?.unitPrice ?? item.sellPrice ?? item.unitPrice ?? item.price ?? 0;
+                const displayWarehouse = selectedEntry?.warehouse || null;
+                const displayDiscount = selectedEntry?.discount || 0;
+                return (
+                  <ProductCard
+                    key={id}
+                    name={item.name || item.itemName || 'Sản phẩm'}
+                    code={item.code || 'N/A'}
+                    image={item.image}
+                    stock={item.stock}
+                    // pass per-warehouse stock map if available
+                    stockByWarehouse={item.stockByWarehouse}
+                    // show selected warehouse if user configured one
+                    selectedWarehouse={displayWarehouse}
+                    unitPrice={displayPrice}
+                    unit={selectedEntry?.item?.unit ?? item.unit}
+                    mode="selection"
+                    selected={Boolean(selectedEntry)}
+                    quantity={selectedEntry?.quantity ?? 1}
+                    discount={displayDiscount}
+                    warehouse={displayWarehouse}
+                    onQuantityChange={(q: number) => changeQuantity(id, q)}
+                    onClick={() => toggleSelect(item)}
+                    onCardClick={() => {
+                      const payload = {
+                        id: item.id,
+                        code: item.code || '',
+                        name: item.name || item.itemName || '',
+                        unitPrice: item.sellPrice ?? item.unitPrice ?? item.price ?? 0,
+                        unit: item.unit,
+                        stock: item.stock,
+                        stockByWarehouse: item.stockByWarehouse,
+                        defaultWarehouse: (item as unknown as { defaultWarehouse?: unknown }).defaultWarehouse,
+                        quantity: selectedItemsMap[item.id || item._id || '']?.quantity || 1,
+                      };
+                      // If this screen was opened with a parent `callbackId` (for example
+                      // from the SalesForm), pass that through so ProductDetailConfig
+                      // will return the updated item directly to the sales form.
+                      // Otherwise, register a local callback that updates the
+                      // selection map here.
+                      const outgoingCallbackId = callbackId
+                        ? callbackId
+                        : registerCallback((updatedItem: Record<string, unknown>) => {
+                            const uid = String(updatedItem.id);
+                            // Store full config returned from ProductDetailConfig
+                            setSelectedItemsMap(prev => ({
+                              ...prev,
+                              [uid]: {
+                                quantity: Number(updatedItem.quantity) || 1,
+                                item: {
+                                  ...(item as Item),
+                                  unitPrice: Number(updatedItem.unitPrice) || 0,
+                                  sellPrice: Number(updatedItem.unitPrice) || 0,
+                                  unit: updatedItem.unit || item.unit,
+                                },
+                                // Store additional config for order line
+                                warehouse: updatedItem.warehouse as string | undefined,
+                                warehouseId: updatedItem.warehouseId as string | undefined,
+                                discount: Number(updatedItem.discount) || 0,
+                                discountAmount: Number(updatedItem.discountAmount) || 0,
+                                isTradeDiscount: Boolean(updatedItem.isTradeDiscount),
+                                taxIndustry: updatedItem.taxIndustry as string | undefined,
+                                vatRate: Number(updatedItem.vatRate) || 0,
+                              },
+                            }));
+                          });
+                      // If we registered a local callback (i.e. there was no parent
+                      // callbackId), remember that so we can clear any transient
+                      // modifications when this screen unmounts. Those
+                      // modifications are per-order only and must not mutate
+                      // product defaults in the catalog.
+                      if (!callbackId) localCallbackCreatedRef.current = true;
+
+                      // Navigate using product code instead of internal id so URLs show product code (e.g. VT00001)
+                      navigate(`/sales/product-config/${payload.code}`, { state: { item: payload, callbackId: outgoingCallbackId } });
+                    }}
+                  />
+                );
+              })
             )}
           </Box>
         </Box>
       </Box>
-    </>
-  );
 
+      {/* Floating sticky toolbar for selected items */}
+      {selectedCount > 0 && (
+        <Box sx={{ position: 'fixed', left: 16, right: 16, bottom: 48, zIndex: 12000, display: 'flex', justifyContent: 'center' }}>
+          <SummaryBar
+            count={selectedCount}
+            total={formatVND(selectedTotal)}
+            onClear={clearSelection}
+            onConfirm={confirmSelection}
+          />
+        </Box>
+      )}
+    </Box>
+  );
   // Product form overlay (slide-in) when adding from selection
   const productFormOverlay = showNewProduct ? (
     <>
@@ -546,87 +609,10 @@ const ItemSelectionScreen: React.FC<ItemSelectionScreenProps> = ({ open, onClose
     </>
   ) : null;
 
-  if (typeof document !== 'undefined') {
-    return createPortal(
-      <>
-        {overlay}
-        {productFormOverlay}
-        {detailItem && (
-          <ProductDetailScreen
-            open={Boolean(detailItem)}
-            item={{
-              id: detailItem.id,
-              code: detailItem.code || '',
-              name: detailItem.name || detailItem.itemName || '',
-              unitPrice: detailItem.sellPrice ?? detailItem.unitPrice ?? detailItem.price ?? 0,
-              unit: detailItem.unit,
-              stock: detailItem.stock,
-              stockByWarehouse: detailItem.stockByWarehouse,
-              // Backend now returns defaultWarehouse object with { id, code, name }
-              defaultWarehouse: (detailItem as any).defaultWarehouse,
-              quantity: selectedItemsMap[detailItem.id]?.quantity || 1,
-            }}
-            onClose={() => setDetailItem(null)}
-            onSave={(updatedItem) => {
-              const id = updatedItem.id;
-              setSelectedItemsMap(prev => ({
-                ...prev,
-                [id]: {
-                  quantity: updatedItem.quantity,
-                  item: {
-                    ...detailItem,
-                    unitPrice: updatedItem.unitPrice,
-                    sellPrice: updatedItem.unitPrice,
-                    unit: updatedItem.unit || detailItem.unit,
-                  },
-                },
-              }));
-              setDetailItem(null);
-            }}
-          />
-        )}
-      </>,
-      document.body,
-    );
-  }
   return (
     <>
-      {overlay}
+      {page}
       {productFormOverlay}
-      {detailItem && (
-        <ProductDetailScreen
-          open={Boolean(detailItem)}
-          item={{
-            id: detailItem.id,
-            code: detailItem.code || '',
-            name: detailItem.name || detailItem.itemName || '',
-            unitPrice: detailItem.sellPrice ?? detailItem.unitPrice ?? detailItem.price ?? 0,
-            unit: detailItem.unit,
-            stock: detailItem.stock,
-            stockByWarehouse: detailItem.stockByWarehouse,
-            // Backend now returns defaultWarehouse object with { id, code, name }
-            defaultWarehouse: (detailItem as any).defaultWarehouse,
-            quantity: selectedItemsMap[detailItem.id]?.quantity || 1,
-          }}
-          onClose={() => setDetailItem(null)}
-          onSave={(updatedItem) => {
-            const id = updatedItem.id;
-            setSelectedItemsMap(prev => ({
-              ...prev,
-              [id]: {
-                quantity: updatedItem.quantity,
-                item: {
-                  ...detailItem,
-                  unitPrice: updatedItem.unitPrice,
-                  sellPrice: updatedItem.unitPrice,
-                  unit: updatedItem.unit || detailItem.unit,
-                },
-              },
-            }));
-            setDetailItem(null);
-          }}
-        />
-      )}
     </>
   );
 };

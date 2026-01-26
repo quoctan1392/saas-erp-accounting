@@ -46,7 +46,8 @@ const SearchBox: React.FC<SearchBoxProps> = ({
           '&:hover fieldset': { borderColor: '#CFCFCF' },
           '&.Mui-focused fieldset': { borderColor: '#FB7E00', boxShadow: '0 0 0 4px rgba(251,126,0,0.08)' },
           '&.Mui-disabled': { bgcolor: '#F8F9FA', color: '#ADB5BD' },
-          '& .MuiOutlinedInput-input': { paddingLeft: '12px', paddingRight: '8px' },
+          '& .MuiOutlinedInput-input': { paddingLeft: '8px', paddingRight: '8px', fontSize: '14px', lineHeight: '20px' },
+          '& .MuiOutlinedInput-input::placeholder': { fontSize: '14px', lineHeight: '20px', color: '#A0A0A0', opacity: 1 },
         },
         ...(sx as any),
       }}

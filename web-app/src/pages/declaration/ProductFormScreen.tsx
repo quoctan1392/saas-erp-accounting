@@ -11,7 +11,7 @@ import ProductGroupSelectionScreen from './ProductGroupSelectionScreen';
 import UnitSelectionScreen from './UnitSelectionScreen';
 import WarehouseSelectionScreen from './WarehouseSelectionScreen';
 import TaxIndustrySelectionScreen from './TaxIndustrySelectionScreen';
-import apiService from '../../services/api';
+import { apiService } from '../../services/api';
 import taxIndustryGroups from '../../data/taxIndustryGroups';
 import * as Iconsax from 'iconsax-react';
 import DecoratedFormLayout from '../../components/DecoratedFormLayout';
@@ -169,9 +169,34 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
         if (chosen) {
           console.debug('[ProductFormScreen] Prefilling taxIndustry with', chosen);
           setTaxIndustry(chosen);
+        } else {
+          // If we couldn't find a prefill in localStorage,
+          // try to fetch the onboarding status from the server (in case onboarding
+          // was completed and localStorage was cleared). This fetch is best-effort
+          // and non-blocking for rendering.
+          const tenantId = currentTenant?.id;
+          if (tenantId) {
+            (async () => {
+              try {
+                const resp = await apiService.getOnboardingStatus(tenantId);
+                const remoteAcctSetup = resp?.data?.accountingSetup || resp?.accountingSetup;
+                const remoteCode = resolveTaxIndustry(remoteAcctSetup?.taxIndustryGroup);
+                if (remoteCode) {
+                  console.debug('[ProductFormScreen] fetched taxIndustry from server onboarding status', { remoteCode });
+                  setTaxIndustry(remoteCode);
+                } else {
+                  console.debug('[ProductFormScreen] server onboarding status had no taxIndustry');
+                }
+              } catch (err) {
+                console.warn('[ProductFormScreen] failed to fetch onboarding status for prefill', err);
+              }
+            })();
+          } else {
+            console.debug('[ProductFormScreen] no currentTenant id available for server prefill');
+          }
         }
-      } catch {
-        // ignore and continue
+      } catch (err) {
+        console.warn('[ProductFormScreen] error in taxIndustry prefill logic', err);
       }
     } catch {
       // ignore parse errors and keep default

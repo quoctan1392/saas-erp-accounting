@@ -43,6 +43,8 @@ const InitialBalanceFlow = lazy(() => import('./pages/declaration/initial-balanc
 const SalesListScreen = lazy(() => import('./pages/sales/SalesListScreen'));
 const SalesFormScreen = lazy(() => import('./pages/sales/SalesFormScreen'));
 const SalesDetailScreen = lazy(() => import('./pages/sales/SalesDetailScreen'));
+const ItemSelectionScreen = lazy(() => import('./pages/sales/ItemSelectionScreen'));
+const ProductDetailConfig = lazy(() => import('./pages/sales/ProductDetailConfig'));
 
 const MainLayout = lazy(() => import('./components/MainLayout'));
 
@@ -131,6 +133,8 @@ function App() {
                 <Route path="/sales/orders/new" element={<SalesFormScreen />} />
                 <Route path="/sales/orders/:id" element={<SalesDetailScreen />} />
                 <Route path="/sales/orders/:id/edit" element={<SalesFormScreen />} />
+                <Route path="/sales/select-items" element={<ItemSelectionScreen />} />
+                <Route path="/sales/product-config/:code" element={<ProductDetailConfig />} />
               </Route>
               
               <Route path="*" element={<Navigate to="/" replace />} />

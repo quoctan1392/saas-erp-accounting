@@ -34,6 +34,7 @@ const TaxIndustrySelectionScreen: React.FC<Props> = ({ open, onClose, onSelect, 
     }, {} as Record<string, TaxIndustryGroup[]>);
     return grouped;
   }, [searchText]);
+  
 
   if (!open) return null;
 
@@ -48,11 +49,11 @@ const TaxIndustrySelectionScreen: React.FC<Props> = ({ open, onClose, onSelect, 
 
   return (
     <>
-      <Box onClick={() => triggerClose()} sx={{ position: 'fixed', inset: 0, bgcolor: 'rgba(0,0,0,0.4)', zIndex: 1400 }} />
+      <Box onClick={() => triggerClose()} sx={{ position: 'fixed', top: 0, bgcolor: 'rgba(0,0,0,0.4)', zIndex: 1400 }} />
 
       <Box
         sx={{
-          position: 'fixed',
+          position: 'absolute',
           top: 0,
           right: 0,
           bottom: 0,

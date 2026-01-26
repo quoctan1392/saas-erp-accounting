@@ -17,9 +17,9 @@ import { useUi } from '../../context/UiContext';
 import * as Iconsax from 'iconsax-react';
 import { formatCurrency } from '../../utils/dashboardUtils';
 import { apiService } from '../../services/api';
+import { registerCallback } from '../../utils/callbackRegistry';
 import DatePickerBottomSheet from '../../components/DatePickerBottomSheet';
 import CustomerSelectionScreen from '../declaration/initial-balance/CustomerSelectionScreen';
-import ItemSelectionScreen from './ItemSelectionScreen';
 import PageHeader from '../../components/PageHeader';
 import AppButton from '../../components/AppButton';
 import ProductCard from '../../components/ProductCard';
@@ -62,7 +62,14 @@ interface SelectedProduct {
   unit?: string | { name?: string };
   stock?: number;
   warehouseName?: string;
+  warehouseId?: string;
   stockByWarehouse?: Record<string, number>;
+  quantity?: number;
+  discount?: number;
+  discountAmount?: number;
+  isTradeDiscount?: boolean;
+  taxIndustry?: string;
+  vatRate?: number;
 }
 
 function safeNumber(v: unknown): number {
@@ -119,9 +126,6 @@ const SalesFormScreen = () => {
   // Section 2: Customer
   const [selectedCustomer, setSelectedCustomer] = useState<{id?: string; code?: string; name: string; phone?: string; address?: string} | null>(null);
   const [customerSelectorOpen, setCustomerSelectorOpen] = useState(false);
-
-  // Item selector state
-  const [itemSelectorOpen, setItemSelectorOpen] = useState(false);
 
   // Section 3: Items
   const [items, setItems] = useState<SaleItem[]>([]);
@@ -182,7 +186,7 @@ const SalesFormScreen = () => {
   };
 
   const handleSelectItems = () => {
-    setItemSelectorOpen(true);
+    handleOpenItemSelection();
   };
 
   const handleRemoveItem = (itemId: string) => {
@@ -212,24 +216,42 @@ const SalesFormScreen = () => {
     setCustomerSelectorOpen(true);
   };
 
-  const handleAddItem = (item: SelectedProduct) => {
-    // Create a new sale item from the selected product
-    const newItem: SaleItem = {
-      id: `${Date.now()}-${Math.random()}`,
-      itemId: item.id || item._id || '',
-      itemName: item.name || item.itemName || 'Sản phẩm',
-      itemCode: item.code,
-      image: item.image,
-      unit: item.unit,
-      quantity: 1,
-      unitPrice: item.unitPrice || item.price || 0,
-      discount: 0,
-      discountType: 'percent',
-      total: item.unitPrice || item.price || 0,
-      stock: item.stock ?? (item.stockByWarehouse ? Object.values(item.stockByWarehouse).reduce((s: number, v: unknown) => s + (Number.isNaN(safeNumber(v)) ? 0 : safeNumber(v)), 0) : undefined),
-      warehouseName: item.warehouseName,
-    };
-    setItems([...items, newItem]);
+  const handleAddItem = (selectedItems: SelectedProduct[]) => {
+    // Create new sale items from the selected products with full config
+    const newItems: SaleItem[] = selectedItems.map(item => {
+      const unitPrice = item.unitPrice || item.price || 0;
+      const quantity = item.quantity || 1;
+      const discount = item.discount || 0;
+      const subtotal = unitPrice * quantity;
+      const discountAmt = item.discountAmount || (subtotal * discount / 100);
+      const total = subtotal - discountAmt;
+      
+      return {
+        id: `${Date.now()}-${Math.random()}`,
+        itemId: item.id || item._id || '',
+        itemName: item.name || item.itemName || 'Sản phẩm',
+        itemCode: item.code,
+        image: item.image,
+        unit: item.unit,
+        quantity,
+        unitPrice,
+        discount,
+        discountType: 'percent',
+        total,
+        stock: item.stock ?? (item.stockByWarehouse ? Object.values(item.stockByWarehouse).reduce((s: number, v: unknown) => s + (Number.isNaN(safeNumber(v)) ? 0 : safeNumber(v)), 0) : undefined),
+        warehouseName: item.warehouseName,
+        stockByWarehouse: item.stockByWarehouse,
+      };
+    });
+    setItems([...items, ...newItems]);
+  };
+
+  const handleOpenItemSelection = () => {
+    const callbackId = registerCallback((selectedItems: SelectedProduct[]) => {
+      handleAddItem(selectedItems);
+    });
+    const excludeIds = items.map(item => item.itemId);
+    navigate('/sales/select-items', { state: { callbackId, excludeIds } });
   };
 
   const handleAddAttachment = () => {
@@ -446,14 +468,6 @@ const SalesFormScreen = () => {
                 setDescription(`Bán hàng ${fallbackName}`);
               }
             }}
-          />
-
-          {/* Item selection screen (slide-in) */}
-          <ItemSelectionScreen
-            open={itemSelectorOpen}
-            onClose={() => setItemSelectorOpen(false)}
-            onSelect={handleAddItem}
-            excludeIds={items.map(item => item.itemId)}
           />
 
           {/* Customer Field (use RoundedTextField) */}
