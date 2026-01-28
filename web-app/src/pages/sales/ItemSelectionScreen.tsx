@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -53,9 +53,13 @@ function safeNumber(v: unknown): number {
 const ItemSelectionScreen: React.FC = () => {
   const navigate = useNavigate();
   const { state } = useLocation();
-  const navState = (state || {}) as { callbackId?: string; excludeIds?: string[] };
-  const callbackId = navState.callbackId;
-  const excludeIds = useMemo(() => navState.excludeIds || [], [navState.excludeIds]);
+  const navState = useMemo(() => (state || {}) as { 
+    callbackId?: string;
+    updatedItem?: Record<string, unknown>;
+    parentCallbackId?: string;
+    fromSalesForm?: boolean;
+  }, [state]);
+  const callbackId = navState.callbackId || navState.parentCallbackId;
   const [searchQuery, setSearchQuery] = useState('');
   const [items, setItems] = useState<Item[]>([]);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
@@ -65,9 +69,28 @@ const ItemSelectionScreen: React.FC = () => {
   const [apiErrorMsg, setApiErrorMsg] = useState<string | null>(null);
   // route-based page: no overlay/backdrop animation state required
   const [showNewProduct, setShowNewProduct] = useState(false);
-  const [selectedItemsMap, setSelectedItemsMap] = useState<Record<string, { quantity: number; item: Item }>>({});
+  
+  // Persist selectedItemsMap in sessionStorage to survive navigation
+  const SESSION_KEY = 'itemSelection_selectedItems';
+  const [selectedItemsMap, setSelectedItemsMap] = useState<Record<string, { quantity: number; item: Item; warehouse?: string; warehouseId?: string; discount?: number; discountAmount?: number; isTradeDiscount?: boolean; taxIndustry?: string; vatRate?: number }>>(()=> {
+    try {
+      const saved = sessionStorage.getItem(SESSION_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const localCallbackCreatedRef = React.useRef(false);
   const { setShowBottomNav } = useUi();
+
+  // Persist selectedItemsMap to sessionStorage whenever it changes
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(selectedItemsMap));
+    } catch (err) {
+      console.warn('Failed to persist selectedItemsMap', err);
+    }
+  }, [selectedItemsMap, SESSION_KEY]);
 
   const selectedCount = Object.keys(selectedItemsMap).length;
   const selectedTotal = Object.values(selectedItemsMap).reduce((s, e) => {
@@ -78,6 +101,54 @@ const ItemSelectionScreen: React.FC = () => {
     const discountAmt = e.discountAmount || (subtotal * discount / 100);
     return s + (subtotal - discountAmt);
   }, 0);
+
+  // Handle updatedItem from ProductDetailConfig (runs only when updatedItem changes)
+  const updatedItemRef = useRef<Record<string, unknown> | undefined>(undefined);
+  useEffect(() => {
+    // Skip if we already processed this updatedItem
+    if (navState.updatedItem && navState.updatedItem !== updatedItemRef.current) {
+      updatedItemRef.current = navState.updatedItem;
+      const updated = navState.updatedItem;
+      const itemId = String(updated.id || '');
+      if (itemId) {
+        setSelectedItemsMap(prev => ({
+          ...prev,
+          [itemId]: {
+            quantity: Number(updated.quantity) || 1,
+            item: {
+              id: itemId,
+              code: String(updated.code || ''),
+              name: String(updated.name || ''),
+              image: updated.image as string | undefined,
+              unitPrice: Number(updated.unitPrice) || 0,
+              sellPrice: Number(updated.unitPrice) || 0,
+              unit: updated.unit as string | { name?: string } | undefined,
+              stock: Number(updated.stock) || 0,
+              stockByWarehouse: updated.stockByWarehouse as Record<string, number> | undefined,
+            },
+            warehouse: updated.warehouse as string | undefined,
+            warehouseId: updated.warehouseId as string | undefined,
+            discount: Number(updated.discount) || 0,
+            discountAmount: Number(updated.discountAmount) || 0,
+            isTradeDiscount: Boolean(updated.isTradeDiscount),
+            taxIndustry: updated.taxIndustry as string | undefined,
+            vatRate: Number(updated.vatRate) || 0,
+          },
+        }));
+      }
+      
+      // Clear the updatedItem from state to prevent re-applying on re-render
+      setTimeout(() => {
+        window.history.replaceState(
+          { 
+            ...navState, 
+            updatedItem: undefined 
+          },
+          ''
+        );
+      }, 0);
+    }
+  }, [navState.updatedItem, navState]);
 
   const loadItems = useCallback(async () => {
     startLoading();
@@ -285,38 +356,33 @@ const ItemSelectionScreen: React.FC = () => {
     }
   }, [startLoading, stopLoading]);
 
-  // When this component unmounts, if we created a local callback (meaning
-  // this screen was used standalone and not opened by the SalesForm), clear
-  // any transient selection modifications so that subsequent opens will show
-  // fresh default product values. Also reload items from the server to make
-  // sure we're not showing stale mutated data.
-  useEffect(() => {
-    return () => {
-      if (localCallbackCreatedRef.current) {
-        setSelectedItemsMap({});
-        // best-effort reload of items to restore defaults
-        try {
-          void loadItems();
-        } catch {
-          // ignore errors during teardown
-        }
-      }
-    };
-  }, [loadItems]);
+  // Note: we intentionally do not clear `selectedItemsMap` on unmount so
+  // that transient selections survive route navigation to product config
+  // and back. Selections are cleared explicitly by `clearSelection` or
+  // when the user confirms the selection via `confirmSelection`.
 
   useEffect(() => {
     setSearchQuery('');
     setSelectedCategory('all');
     loadItems();
-  }, [loadItems]);
-
-  const excludeSnapshot = JSON.stringify(excludeIds || []);
+    
+    // If returning from SalesForm, restore selections from sessionStorage
+    // This ensures selections persist when user navigates back
+    if (navState.fromSalesForm) {
+      try {
+        const saved = sessionStorage.getItem(SESSION_KEY);
+        if (saved) {
+          const restored = JSON.parse(saved);
+          setSelectedItemsMap(restored);
+        }
+      } catch (err) {
+        console.warn('Failed to restore selections from sessionStorage', err);
+      }
+    }
+  }, [loadItems, navState.fromSalesForm, SESSION_KEY]);
 
   useEffect(() => {
     let result = items;
-    if ((excludeIds || []).length > 0) {
-      result = result.filter(item => !excludeIds.includes(item.id || item._id || ''));
-    }
     if (selectedCategory !== 'all') {
       result = result.filter(item => item.category === selectedCategory);
     }
@@ -329,11 +395,11 @@ const ItemSelectionScreen: React.FC = () => {
       });
     }
     setFilteredItems(result);
-  }, [searchQuery, items, selectedCategory, excludeSnapshot, excludeIds]);
+  }, [searchQuery, items, selectedCategory]);
 
-  const triggerClose = () => {
+  const triggerClose = useCallback(() => {
     navigate(-1);
-  };
+  }, [navigate]);
 
   // Hide the main BottomNavigation while on this screen and restore on exit
   useEffect(() => {
@@ -343,20 +409,29 @@ const ItemSelectionScreen: React.FC = () => {
 
   // single-item select handler removed — selection handled via `toggleSelect` and `confirmSelection`
 
-  const toggleSelect = (item: Item) => {
+  const toggleSelect = useCallback((item: Item) => {
     const id = item.id || item._id || '';
     setSelectedItemsMap(prev => {
       const copy = { ...prev };
       if (copy[id]) {
         delete copy[id];
       } else {
-        copy[id] = { quantity: 1, item };
+        // Extract defaultWarehouse from item if available
+        const itemWithDefaults = item as unknown as { defaultWarehouse?: { id?: string; name?: string; code?: string } };
+        const defaultWh = itemWithDefaults.defaultWarehouse;
+        copy[id] = { 
+          quantity: 1, 
+          item,
+          // Use default warehouse if available
+          warehouse: defaultWh?.name || defaultWh?.code,
+          warehouseId: defaultWh?.id,
+        };
       }
       return copy;
     });
-  };
+  }, []);
 
-  const changeQuantity = (itemId: string, q: number) => {
+  const changeQuantity = useCallback((itemId: string, q: number) => {
     setSelectedItemsMap(prev => {
       // if item not present, ignore
       if (!prev[itemId]) return prev;
@@ -368,12 +443,19 @@ const ItemSelectionScreen: React.FC = () => {
       }
       return { ...prev, [itemId]: { ...prev[itemId], quantity: q } };
     });
-  };
+  }, []);
 
-  const clearSelection = () => setSelectedItemsMap({});
+  const clearSelection = useCallback(() => {
+    setSelectedItemsMap({});
+    try {
+      sessionStorage.removeItem(SESSION_KEY);
+    } catch {
+      // ignore
+    }
+  }, [SESSION_KEY]);
 
-  const confirmSelection = () => {
-    // Call parent callback with selected items including full config
+  const confirmSelection = useCallback(() => {
+    // If opened from SalesForm with callbackId, use callback mechanism
     if (callbackId) {
       const cb = consumeCallback(callbackId);
       if (cb) {
@@ -388,12 +470,57 @@ const ItemSelectionScreen: React.FC = () => {
           taxIndustry: e.taxIndustry,
           vatRate: e.vatRate || 0,
         }));
+        console.log('[ItemSelection] confirmSelection - invoking callbackId with selectedItems:', selectedItems);
+        // Save to sessionStorage as backup in case callback fails to deliver
+        try {
+          sessionStorage.setItem('pendingSelectedItems', JSON.stringify(selectedItems));
+        } catch (err) {
+          console.warn('Failed to save selectedItems to sessionStorage (callback path)', err);
+        }
         cb(selectedItems);
       }
+      clearSelection();
+      triggerClose();
+    } else {
+      // Standalone mode: navigate to sales form with selected items
+      const selectedItems = Object.values(selectedItemsMap).map(e => ({
+        id: e.item.id,
+        itemId: e.item.id,
+        itemName: e.item.name || e.item.itemName || '',
+        itemCode: e.item.code || '',
+        image: e.item.image,
+        quantity: e.quantity,
+        unitPrice: e.item.sellPrice ?? e.item.unitPrice ?? e.item.price ?? 0,
+        unit: e.item.unit,
+        discount: e.discount || 0,
+        discountAmount: e.discountAmount || 0,
+        isTradeDiscount: e.isTradeDiscount || false,
+        warehouseName: e.warehouse,
+        warehouseId: e.warehouseId,
+        taxIndustry: e.taxIndustry,
+        vatRate: e.vatRate || 0,
+        stock: e.item.stock,
+        stockByWarehouse: e.item.stockByWarehouse,
+      }));
+      
+      console.log('[ItemSelection] confirmSelection - navigating with selectedItems:', selectedItems);
+      
+      // Save to sessionStorage as backup in case navigation state is lost
+      try {
+        sessionStorage.setItem('pendingSelectedItems', JSON.stringify(selectedItems));
+      } catch (err) {
+        console.warn('Failed to save selectedItems to sessionStorage', err);
+      }
+      
+      // Navigate to sales form
+      navigate('/sales/orders/new', { 
+        state: { 
+          selectedItems,
+          fromItemSelection: true 
+        } 
+      });
     }
-    clearSelection();
-    triggerClose();
-  };
+  }, [callbackId, selectedItemsMap, clearSelection, triggerClose, navigate]);
 
   const page = (
     <Box sx={{ position: 'relative', minHeight: '100vh', bgcolor: '#fff', display: 'flex', flexDirection: 'column' }}>
@@ -454,8 +581,9 @@ const ItemSelectionScreen: React.FC = () => {
                 const selectedEntry = selectedItemsMap[id];
                 // Use updated price from selectedEntry if available, else default
                 const displayPrice = selectedEntry?.item?.unitPrice ?? item.sellPrice ?? item.unitPrice ?? item.price ?? 0;
-                const displayWarehouse = selectedEntry?.warehouse || null;
+                const displayWarehouse = selectedEntry?.warehouse || undefined;
                 const displayDiscount = selectedEntry?.discount || 0;
+                const displayDiscountAmount = selectedEntry?.discountAmount || 0;
                 return (
                   <ProductCard
                     key={id}
@@ -473,6 +601,7 @@ const ItemSelectionScreen: React.FC = () => {
                     selected={Boolean(selectedEntry)}
                     quantity={selectedEntry?.quantity ?? 1}
                     discount={displayDiscount}
+                    discountAmount={displayDiscountAmount}
                     warehouse={displayWarehouse}
                     onQuantityChange={(q: number) => changeQuantity(id, q)}
                     onClick={() => toggleSelect(item)}
@@ -488,46 +617,45 @@ const ItemSelectionScreen: React.FC = () => {
                         defaultWarehouse: (item as unknown as { defaultWarehouse?: unknown }).defaultWarehouse,
                         quantity: selectedItemsMap[item.id || item._id || '']?.quantity || 1,
                       };
-                      // If this screen was opened with a parent `callbackId` (for example
-                      // from the SalesForm), pass that through so ProductDetailConfig
-                      // will return the updated item directly to the sales form.
-                      // Otherwise, register a local callback that updates the
-                      // selection map here.
-                      const outgoingCallbackId = callbackId
-                        ? callbackId
-                        : registerCallback((updatedItem: Record<string, unknown>) => {
-                            const uid = String(updatedItem.id);
-                            // Store full config returned from ProductDetailConfig
-                            setSelectedItemsMap(prev => ({
-                              ...prev,
-                              [uid]: {
-                                quantity: Number(updatedItem.quantity) || 1,
-                                item: {
-                                  ...(item as Item),
-                                  unitPrice: Number(updatedItem.unitPrice) || 0,
-                                  sellPrice: Number(updatedItem.unitPrice) || 0,
-                                  unit: updatedItem.unit || item.unit,
-                                },
-                                // Store additional config for order line
-                                warehouse: updatedItem.warehouse as string | undefined,
-                                warehouseId: updatedItem.warehouseId as string | undefined,
-                                discount: Number(updatedItem.discount) || 0,
-                                discountAmount: Number(updatedItem.discountAmount) || 0,
-                                isTradeDiscount: Boolean(updatedItem.isTradeDiscount),
-                                taxIndustry: updatedItem.taxIndustry as string | undefined,
-                                vatRate: Number(updatedItem.vatRate) || 0,
-                              },
-                            }));
-                          });
-                      // If we registered a local callback (i.e. there was no parent
-                      // callbackId), remember that so we can clear any transient
-                      // modifications when this screen unmounts. Those
-                      // modifications are per-order only and must not mutate
-                      // product defaults in the catalog.
+                      
+                      // Register a local callback that updates the selection map
+                      const localCallbackId = registerCallback((updatedItem: Record<string, unknown>) => {
+                        const uid = String(updatedItem.id);
+                        // Store full config returned from ProductDetailConfig
+                        setSelectedItemsMap(prev => ({
+                          ...prev,
+                          [uid]: {
+                            quantity: Number(updatedItem.quantity) || 1,
+                            item: {
+                              ...(item as Item),
+                              unitPrice: Number(updatedItem.unitPrice) || 0,
+                              sellPrice: Number(updatedItem.unitPrice) || 0,
+                              unit: updatedItem.unit || item.unit,
+                            },
+                            // Store additional config for order line
+                            warehouse: updatedItem.warehouse as string | undefined,
+                            warehouseId: updatedItem.warehouseId as string | undefined,
+                            discount: Number(updatedItem.discount) || 0,
+                            discountAmount: Number(updatedItem.discountAmount) || 0,
+                            isTradeDiscount: Boolean(updatedItem.isTradeDiscount),
+                            taxIndustry: updatedItem.taxIndustry as string | undefined,
+                            vatRate: Number(updatedItem.vatRate) || 0,
+                          },
+                        }));
+                      });
+                      
+                      // Track that we created a local callback
                       if (!callbackId) localCallbackCreatedRef.current = true;
 
                       // Navigate using product code instead of internal id so URLs show product code (e.g. VT00001)
-                      navigate(`/sales/product-config/${payload.code}`, { state: { item: payload, callbackId: outgoingCallbackId } });
+                      // Pass both callbackId (for legacy callback mechanism) and parentCallbackId (for return navigation)
+                      navigate(`/sales/product-config/${payload.code}`, { 
+                        state: { 
+                          item: payload, 
+                          callbackId: localCallbackId,
+                          parentCallbackId: callbackId // pass parent callback for final confirmation
+                        } 
+                      });
                     }}
                   />
                 );

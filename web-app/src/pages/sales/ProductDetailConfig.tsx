@@ -261,33 +261,42 @@ const ProductDetailConfig: React.FC = () => {
       return;
     }
 
+    // Build updated item with all config
+    const updatedItem = {
+      id: item.id,
+      code: item.code,
+      name: item.name,
+      image: item.image,
+      quantity,
+      warehouse: selectedWarehouse?.name,
+      warehouseId: selectedWarehouse?.id,
+      unitPrice: parsedUnitPrice,
+      discount: calculatedDiscountPercent,
+      discountAmount: calculatedDiscountAmount,
+      isTradeDiscount,
+      hasLineItemDiscount,
+      discountPercent: calculatedDiscountPercent,
+      taxIndustry,
+      vatRate,
+      unit: unit || undefined,
+      stock: item.stock,
+      stockByWarehouse: item.stockByWarehouse,
+    };
+
     if (callbackId) {
       const cb = consumeCallback(callbackId);
       if (cb) {
-        cb({
-          id: item.id,
-          code: item.code,
-          name: item.name,
-          image: item.image,
-          quantity,
-          warehouse: selectedWarehouse?.name,
-          warehouseId: selectedWarehouse?.id,
-          unitPrice: parsedUnitPrice,
-          discount: calculatedDiscountPercent,
-          discountAmount: calculatedDiscountAmount,
-          isTradeDiscount,
-          hasLineItemDiscount,
-          discountPercent: calculatedDiscountPercent,
-          taxIndustry,
-          vatRate,
-          unit: unit || undefined,
-          stock: item.stock,
-          stockByWarehouse: item.stockByWarehouse,
-        });
+        cb(updatedItem);
       }
     }
 
-    handleClose();
+    // Navigate back to item selection with updated item
+    navigate('/sales/select-items', { 
+      state: { 
+        updatedItem,
+        callbackId: navState.parentCallbackId // pass through parent callback if any
+      } 
+    });
   };
 
   // Determine whether Save should be enabled
@@ -357,7 +366,8 @@ const ProductDetailConfig: React.FC = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                   <NumberSpinner
                     value={quantity}
-                    size="lg"
+                    size="expand"
+                    variant="expand"
                     allowEdit
                     decrementButtonBorderColor={tokens.colors.border.default}
                     incrementButtonBorderColor={tokens.colors.border.default}

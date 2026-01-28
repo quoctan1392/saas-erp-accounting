@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -48,6 +48,10 @@ interface SaleItem {
   sellPrice?: number;
   price?: number;
   stockByWarehouse?: Record<string, number>;
+  discountAmount?: number;
+  isTradeDiscount?: boolean;
+  taxIndustry?: string;
+  vatRate?: number;
 }
 
 interface SelectedProduct {
@@ -128,7 +132,28 @@ const SalesFormScreen = () => {
   const [customerSelectorOpen, setCustomerSelectorOpen] = useState(false);
 
   // Section 3: Items
-  const [items, setItems] = useState<SaleItem[]>([]);
+  const ITEMS_SESSION_KEY = 'salesForm_items';
+  const [items, setItems] = useState<SaleItem[]>(() => {
+    // Try to restore from sessionStorage first
+    try {
+      const saved = sessionStorage.getItem(ITEMS_SESSION_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
+
+  // Persist items to sessionStorage whenever they change
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(ITEMS_SESSION_KEY, JSON.stringify(items));
+    } catch (err) {
+      console.warn('Failed to persist items to sessionStorage', err);
+    }
+  }, [items]);
 
   // Section 4: Summary
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -160,6 +185,101 @@ const SalesFormScreen = () => {
       setVoucherNumber(generatePreviewVoucher('BH'));
     }
   }, [id, isEditMode, generatePreviewVoucher]);
+
+  // Restore items from navigation state if coming from ItemSelectionScreen
+  const location = useLocation();
+  const processedStateRef = React.useRef(false);
+  
+  useEffect(() => {
+    // Prevent double-processing in React StrictMode
+    if (processedStateRef.current) return;
+    
+    let navState = location.state as { selectedItems?: SaleItem[]; fromItemSelection?: boolean } | null;
+    console.log('[SalesForm] useEffect - navState from location.state:', navState);
+    
+    // Fallback: if navState is null, try to read from sessionStorage
+    if (!navState || !navState.selectedItems) {
+      try {
+        const pendingItems = sessionStorage.getItem('pendingSelectedItems');
+        if (pendingItems) {
+          const parsed = JSON.parse(pendingItems);
+          console.log('[SalesForm] Recovered selectedItems from sessionStorage:', parsed);
+          navState = { selectedItems: parsed, fromItemSelection: true };
+          // Clear sessionStorage after reading
+          sessionStorage.removeItem('pendingSelectedItems');
+        }
+      } catch (err) {
+        console.warn('[SalesForm] Failed to read from sessionStorage', err);
+      }
+    }
+    
+    if (navState?.fromItemSelection && navState.selectedItems && navState.selectedItems.length > 0) {
+      console.log('[SalesForm] Processing selectedItems:', navState.selectedItems);
+      processedStateRef.current = true;
+
+      // Transform selectedItems to SaleItem format (support multiple source shapes)
+      const incoming: SaleItem[] = (navState.selectedItems as any[]).map((item: any) => {
+        const resolvedName = item.itemName || item.name || '';
+        const resolvedCode = item.itemCode || item.code || '';
+        const resolvedUnitPrice = item.unitPrice ?? item.sellPrice ?? item.price ?? 0;
+        const resolvedQuantity = item.quantity || 1;
+        const resolvedDiscountAmount = (item.discountAmount ?? item.discountAmt ?? item.discount_amount) ?? 0;
+        const resolvedDiscount = (typeof item.discount === 'number' ? item.discount : (item.discountPercent ?? item.discount_percent ?? 0)) || 0;
+        const resolvedWarehouseName = item.warehouseName ?? item.warehouse ?? (item.defaultWarehouse && (item.defaultWarehouse.name || item.defaultWarehouse.code)) ?? undefined;
+        const resolvedStock = item.stock ?? (item.stockByWarehouse ? Object.values(item.stockByWarehouse).reduce((s: number, v: any) => s + (Number(v) || 0), 0) : undefined);
+
+        return {
+          id: item.id || `${Date.now()}-${Math.random()}`,
+          itemId: item.itemId || item.id || '',
+          itemName: resolvedName,
+          itemCode: resolvedCode,
+          image: item.image,
+          unit: item.unit,
+          quantity: resolvedQuantity,
+          unitPrice: resolvedUnitPrice,
+          discount: resolvedDiscount,
+          discountType: (resolvedDiscountAmount ? 'amount' : 'percent') as 'percent' | 'amount',
+          total: (resolvedUnitPrice * resolvedQuantity) - (resolvedDiscountAmount || 0),
+          stock: resolvedStock,
+          warehouseName: resolvedWarehouseName,
+          stockByWarehouse: item.stockByWarehouse,
+          discountAmount: resolvedDiscountAmount || undefined,
+          isTradeDiscount: item.isTradeDiscount,
+          taxIndustry: item.taxIndustry,
+          vatRate: item.vatRate,
+        } as SaleItem;
+      });
+
+      console.log('[SalesForm] Transformed incoming items:', incoming);
+
+      // Merge incoming items into existing items, summing quantities for duplicates
+      setItems(prev => {
+        const map = new Map<string, SaleItem>();
+        // seed with previous items
+        prev.forEach(it => map.set(it.itemId || it.id, { ...it }));
+        // merge incoming
+        incoming.forEach(it => {
+          const key = it.itemId || it.id;
+          const existing = map.get(key);
+          if (existing) {
+            const newQty = (existing.quantity || 0) + (it.quantity || 0);
+            const unitPrice = it.unitPrice || existing.unitPrice;
+            const discountAmount = (existing.discountAmount || 0) + (it.discountAmount || 0);
+            const discount = it.discount || existing.discount || 0;
+            const total = (unitPrice * newQty) - (discountAmount || 0);
+            map.set(key, { ...existing, quantity: newQty, unitPrice, discount, discountAmount, total });
+          } else {
+            map.set(key, { ...it });
+          }
+        });
+        return Array.from(map.values());
+      });
+
+      // Clear navigation/session backup to prevent re-applying
+      try { sessionStorage.removeItem('pendingSelectedItems'); } catch {}
+      setTimeout(() => { window.history.replaceState({}, ''); }, 0);
+    }
+  }, [location]);
 
   // Hide the main BottomNavigation while on the Sales form and restore on exit
   useEffect(() => {
@@ -223,9 +343,9 @@ const SalesFormScreen = () => {
       const quantity = item.quantity || 1;
       const discount = item.discount || 0;
       const subtotal = unitPrice * quantity;
-      const discountAmt = item.discountAmount || (subtotal * discount / 100);
-      const total = subtotal - discountAmt;
-      
+      const discountAmt = item.discountAmount ?? (subtotal * discount / 100);
+      const total = subtotal - (Number.isFinite(discountAmt) ? discountAmt : 0);
+
       return {
         id: `${Date.now()}-${Math.random()}`,
         itemId: item.id || item._id || '',
@@ -236,11 +356,16 @@ const SalesFormScreen = () => {
         quantity,
         unitPrice,
         discount,
-        discountType: 'percent',
+        discountType: (item.discountAmount || item.discountAmount === 0) ? 'amount' : 'percent',
         total,
         stock: item.stock ?? (item.stockByWarehouse ? Object.values(item.stockByWarehouse).reduce((s: number, v: unknown) => s + (Number.isNaN(safeNumber(v)) ? 0 : safeNumber(v)), 0) : undefined),
         warehouseName: item.warehouseName,
         stockByWarehouse: item.stockByWarehouse,
+        // preserve additional tax/discount fields so ProductCard and summary can show them
+        discountAmount: Number.isFinite(discountAmt) ? discountAmt : undefined,
+        isTradeDiscount: item.isTradeDiscount,
+        taxIndustry: item.taxIndustry,
+        vatRate: item.vatRate,
       };
     });
     setItems([...items, ...newItems]);
@@ -250,8 +375,7 @@ const SalesFormScreen = () => {
     const callbackId = registerCallback((selectedItems: SelectedProduct[]) => {
       handleAddItem(selectedItems);
     });
-    const excludeIds = items.map(item => item.itemId);
-    navigate('/sales/select-items', { state: { callbackId, excludeIds } });
+    navigate('/sales/select-items', { state: { callbackId, fromSalesForm: true } });
   };
 
   const handleAddAttachment = () => {
@@ -518,6 +642,7 @@ const SalesFormScreen = () => {
               {items.map((item) => (
                 <ProductCard
                   key={item.id}
+                  variant="selected-complete"
                   name={item.itemName}
                   code={item.itemCode || 'N/A'}
                   image={item.image}
@@ -527,10 +652,15 @@ const SalesFormScreen = () => {
                   selected={true}
                   quantity={item.quantity}
                   warehouse={item.warehouseName}
+                  stock={item.stock}
                   // pass per-warehouse stock if present on the item, and selected warehouse
                   stockByWarehouse={item.stockByWarehouse}
                   selectedWarehouse={item.warehouseName}
                   discount={item.discountType === 'percent' ? item.discount : 0}
+                  discountAmount={item.discountType === 'amount' ? item.discount : item.discountAmount}
+                  isTradeDiscount={item.isTradeDiscount}
+                  vatRate={item.vatRate}
+                  taxIndustry={item.taxIndustry}
                   onQuantityChange={(newQuantity) => handleItemChange(item.id, 'quantity', newQuantity)}
                   onDelete={() => handleRemoveItem(item.id)}
                 />

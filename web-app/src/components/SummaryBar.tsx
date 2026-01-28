@@ -56,10 +56,10 @@ const SummaryBar: React.FC<SummaryBarProps> = ({ count, total, onClear, onConfir
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
         <Typography sx={{ fontSize: 16, fontWeight: 600, whiteSpace: 'nowrap' }}>{total}</Typography>
         <IconButton
-          onClick={onConfirm}
+          onClick={() => { console.log('[SummaryBar] onConfirm clicked'); onConfirm?.(); }}
           aria-label="confirm-selection"
           title="Xác nhận"
-          sx={{ width: 40, height: 40, bgcolor: 'transparent', color: '#FFF', p: 0 }}
+          sx={{ width: 40, height: 40, bgcolor: 'transparent', color: '#FFF', p: 0, cursor: 'pointer' }}
         >
           <ArrowForwardIos sx={{ color: '#FFF' }} />
         </IconButton>

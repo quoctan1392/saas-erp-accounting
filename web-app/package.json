@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "kill-port": "lsof -ti:5173 | xargs kill -9 2>/dev/null || true",
-    "dev": "vite --host 127.0.0.1 --port 5173",
+    "dev": "vite --host 0.0.0.0 --port 5173",
     "dev:resilient": "./dev-server.sh",
     "dev:safe": "npm run kill-port && vite --host 127.0.0.1 --port 5173",
     "build": "tsc -b && vite build",
@@ -25,6 +25,7 @@
     "iconsax-react": "^0.0.8",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-hook-form": "^7.71.1",
     "react-router-dom": "^7.11.0"
   },
   "devDependencies": {

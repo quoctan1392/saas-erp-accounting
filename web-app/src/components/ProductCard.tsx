@@ -22,17 +22,22 @@ interface ProductCardProps {
   
   // Order mode fields
   mode?: 'selection' | 'order';
+  variant?: 'default' | 'selected-complete';
   selected?: boolean;
   quantity?: number;
   warehouse?: string;
   discount?: number;
+  discountAmount?: number;
+  isTradeDiscount?: boolean;
+  vatRate?: number;
+  taxIndustry?: string;
   onQuantityChange?: (quantity: number) => void;
   onDelete?: () => void;
   onClick?: () => void;
   onCardClick?: () => void;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({
+const ProductCard: React.FC<ProductCardProps> = React.memo(({
   name,
   code,
   image,
@@ -42,18 +47,25 @@ const ProductCard: React.FC<ProductCardProps> = ({
   unitPrice,
   unit = 'chiếc',
   mode = 'selection',
+  variant = 'default',
   selected = false,
   quantity = 1,
   warehouse,
   discount = 0,
+  discountAmount,
+  isTradeDiscount = false,
+  vatRate,
+  taxIndustry,
   onQuantityChange,
   onDelete,
   onClick,
   onCardClick,
 }) => {
   const isOrderMode = mode === 'order';
+  const isSelectedComplete = variant === 'selected-complete';
   const originalTotal = unitPrice * quantity;
-  const discountedTotal = originalTotal * (1 - discount / 100);
+  const discountAmtComputed = typeof discountAmount === 'number' ? discountAmount : (discount ? (originalTotal * discount) / 100 : 0);
+  const discountedTotal = originalTotal - (Number.isFinite(discountAmtComputed) ? discountAmtComputed : 0);
   
   // Extract unit name robustly: support string or object shapes returned by API/selection components
   const [imgError, setImgError] = useState(false);
@@ -87,6 +99,116 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   const showStepper = isOrderMode || Boolean(selected);
 
+  // Render selected-complete variant
+  if (isSelectedComplete) {
+    return (
+      <Box
+        onClick={(e) => {
+          const target = e.target as HTMLElement;
+          const isInteractive = target.closest('button') || target.closest('[role="button"]');
+          if (!isInteractive && onCardClick) {
+            onCardClick();
+          }
+        }}
+        sx={{
+          display: 'flex',
+          width: 361,
+          padding: '8px 12px 8px 8px',
+          alignItems: 'center',
+          gap: 1.5,
+          borderRadius: '20px',
+          border: '1px solid var(--Scheme-SurfaceContainer, #F5F5F5)',
+          background: 'var(--Greyscale-0, #FFF)',
+          boxShadow: '1px 2px 12px 0 rgba(0, 0, 0, 0.04)',
+          cursor: onCardClick ? 'pointer' : 'default',
+        }}
+      >
+        {/* Image */}
+        <Box
+          sx={{
+            width: 105,
+            flexShrink: 0,
+            alignSelf: 'stretch',
+            aspectRatio: '1 / 1',
+            borderRadius: '12px',
+            bgcolor: '#E8E8E8',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {image && !imgError ? (
+            <img
+              src={image}
+              alt={name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <ImageIcon sx={{ fontSize: 32, color: '#999' }} />
+          )}
+        </Box>
+
+        {/* Content */}
+        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontSize: 15, fontWeight: 600, color: '#090909', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {name}
+              </Typography>
+              <Typography sx={{ fontSize: 13, color: '#6B7280', mt: 0.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {code}
+                {selectedWarehouse ? ` • ${selectedWarehouse}` : warehouse ? ` • ${warehouse}` : ''}
+              </Typography>
+            </Box>
+
+            {/* Discount chip (top-right) */}
+            <Box sx={{ display: 'flex', gap: 0.5 }}>
+              {discount > 0 && (
+                <Box sx={{ display: 'flex', height: 20, padding: '2px 8px', alignItems: 'center', borderRadius: '16px', bgcolor: 'var(--Alert-Error-25, #FADBE1)' }}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#EF4444' }}>{`-${discount}%`}</Typography>
+                </Box>
+              )}
+              {discountAmount && discountAmount > 0 && (
+                <Box sx={{ display: 'flex', height: 20, padding: '2px 8px', alignItems: 'center', borderRadius: '16px', bgcolor: 'var(--Alert-Error-25, #FADBE1)' }}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#EF4444' }}>{`-${formatVND(discountAmount)}`}</Typography>
+                </Box>
+              )}
+            </Box>
+          </Box>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+            <Box>
+              {Number.isFinite(discountAmtComputed) && discountAmtComputed > 0 ? (
+                <Typography sx={{ overflow: 'hidden', color: 'var(--Ref-Error-50, #FF2317)', fontSize: 12, fontWeight: 500, textDecoration: 'line-through' }}>
+                  {formatVND(originalTotal)}
+                </Typography>
+              ) : null}
+              <Typography sx={{ color: 'var(--Scheme-OnSurface, #090909)', fontSize: 18, fontWeight: 600, lineHeight: '140%' }}>{formatVND(discountedTotal)}</Typography>
+            </Box>
+            {/* Number Spinner aligned right */}
+            <Box>
+              <NumberSpinner
+                value={quantity}
+                size="sm"
+                variant="compact"
+                onChange={(v) => {
+                  if (v <= 0 && onDelete) {
+                    onDelete();
+                    return;
+                  }
+                  onQuantityChange?.(v);
+                }}
+              />
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+    );
+  }
+
+  // Default variant rendering
   return (
     <Box
       onClick={(e) => {
@@ -129,7 +251,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               borderRadius: '12px',
             }}
           >
-            {`Tồn: ${formatNumber(Number(displayedStock || 0))}`}{selected && selectedWarehouse ? ` • Kho: ${selectedWarehouse}` : ''}
+            {`Tồn: ${formatNumber(Number(displayedStock || 0))}`}
           </Typography>
         </Box>
       )}
@@ -168,7 +290,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </Typography>
           <Typography sx={{ fontSize: 13, color: tokens.colors.text.secondary, mt: 0.25 }}>
             {code}
-            {warehouse && ` • Kho: ${warehouse}`}
           </Typography>
         </Box>
 
@@ -190,12 +311,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
               <Box sx={{ flex: 1 }}>
                 {discount > 0 && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.25 }}>
-                    <Typography sx={{ fontSize: 13, color: '#999', textDecoration: 'line-through' }}>
-                      {formatVND(originalTotal)}
-                    </Typography>
-                    <Typography sx={{ fontSize: 12, fontWeight: 500, color: '#EF4444', bgcolor: '#FEE2E2', px: 1, py: 0.25, borderRadius: '8px' }}>
-                      -{discount}%
-                    </Typography>
+                        <Typography sx={{ fontSize: 13, color: '#999', textDecoration: 'line-through' }}>
+                          {formatVND(originalTotal)}
+                        </Typography>
                   </Box>
                 )}
                 <Typography sx={{ fontSize: 16, fontWeight: 600, color: '#090909' }}>
@@ -210,6 +328,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               <NumberSpinner
                 value={quantity}
                 size="sm"
+                variant="compact"
                 onChange={(v) => {
                   // If user decrements to zero in selection mode, treat it as "deselect" (cart icon)
                   if (!isOrderMode && v <= 0) {
@@ -238,6 +357,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
       </Box>
     </Box>
   );
-};
+});
+
+ProductCard.displayName = 'ProductCard';
 
 export default ProductCard;

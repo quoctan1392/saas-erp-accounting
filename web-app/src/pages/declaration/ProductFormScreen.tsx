@@ -2,6 +2,7 @@ import { Box, Typography, Button, IconButton, Switch, InputAdornment, Snackbar, 
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BusinessType } from '../../types/onboarding';
 import React, { useState, useEffect, useRef, useMemo, type TouchEvent } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { ROUTES } from '../../config/constants';
 import RoundedTextField from '../../components/RoundedTextField';
 import BottomSheet from '../../components/BottomSheet';
@@ -40,6 +41,27 @@ interface ProductFormProps {
   onClose?: () => void;
 }
 
+interface ProductFormData {
+  productType: string;
+  code: string;
+  name: string;
+  productGroup: string;
+  unit: { id: string; name: string } | null;
+  unitActive: boolean;
+  salePrice: string;
+  purchasePrice: string;
+  defaultWarehouse: { id: string; name: string } | null;
+  initialStock: string;
+  allowNegative: boolean;
+  purchaseVAT: string;
+  saleVAT: string;
+  businessType: keyof typeof BusinessType;
+  taxIndustry: string;
+  barcode: string;
+  imagePreview: string | null;
+  imageFile: File | null;
+}
+
 const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, singleSave, onSaved, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,12 +69,50 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
   console.log('🔵 ProductFormScreen rendered, pathname:', location.pathname);
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
   const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
 
-  // Form state
-  const [productType, setProductType] = useState('goods'); // goods, service, material, finished
+  // Initialize form with react-hook-form
+  const { control, handleSubmit, watch, setValue, getValues, reset, formState: { isDirty, isValid } } = useForm<ProductFormData>({
+    defaultValues: {
+      productType: 'goods',
+      code: '',
+      name: '',
+      productGroup: '',
+      unit: null,
+      unitActive: true,
+      salePrice: '',
+      purchasePrice: '',
+      defaultWarehouse: null,
+      initialStock: '0',
+      allowNegative: false,
+      purchaseVAT: '',
+      saleVAT: '',
+      businessType: BusinessType.HOUSEHOLD_BUSINESS,
+      taxIndustry: '',
+      barcode: '',
+      imagePreview: null,
+      imageFile: null,
+    },
+    mode: 'onChange',
+  });
+
+  // Watch form values
+  const productType = watch('productType');
+  const businessType = watch('businessType');
+  const taxIndustry = watch('taxIndustry');
+  const imagePreview = watch('imagePreview');
+  const unit = watch('unit');
+
+  // UI state
   const [productTypeSheetOpen, setProductTypeSheetOpen] = useState(false);
+  const [productGroupScreenOpen, setProductGroupScreenOpen] = useState(false);
+  const [unitScreenOpen, setUnitScreenOpen] = useState(false);
+  const [warehouseScreenOpen, setWarehouseScreenOpen] = useState(false);
+  const [taxIndustryScreenOpen, setTaxIndustryScreenOpen] = useState(false);
+  const [imageSelectionSheetOpen, setImageSelectionSheetOpen] = useState(false);
+  const [snackNegativeOpen, setSnackNegativeOpen] = useState(false);
+  const [snackImageSizeOpen, setSnackImageSizeOpen] = useState(false);
+
   const PRODUCT_TYPE_OPTIONS = [
     { value: 'goods', label: 'Hàng hoá' },
     { value: 'service', label: 'Dịch vụ' },
@@ -63,6 +123,17 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
   const productTypeLabel = PRODUCT_TYPE_OPTIONS.find((o) => o.value === productType)?.label || '';
   const dragStartYRef = useRef<number | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
+
+  const taxIndustryLabel = useMemo(() => {
+    if (!taxIndustry) return '';
+    const found = taxIndustryGroups.find((g) => g.code === taxIndustry);
+    return found ? `${found.code} — ${found.name}` : taxIndustry;
+  }, [taxIndustry]);
+
+  const handleOpenTaxIndustry = () => {
+    setTaxIndustryScreenOpen(true);
+  };
+
   const handleTouchStart = (e: TouchEvent<HTMLElement>) => {
     dragStartYRef.current = e.touches[0].clientY;
   };
@@ -81,56 +152,19 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
     setDragOffset(0);
     dragStartYRef.current = null;
   };
-  const [code, setCode] = useState('');
-  const [name, setName] = useState('');
-  const [productGroup, setProductGroup] = useState('');
-  const [productGroupScreenOpen, setProductGroupScreenOpen] = useState(false);
-  const [unit, setUnit] = useState<{ id: string; name: string } | null>(null);
-  const [unitScreenOpen, setUnitScreenOpen] = useState(false);
-  const [unitActive, setUnitActive] = useState(true);
-  const [warehouseScreenOpen, setWarehouseScreenOpen] = useState(false);
-  const [salePrice, setSalePrice] = useState('');
-  const [purchasePrice, setPurchasePrice] = useState('');
-  const [defaultWarehouse, setDefaultWarehouse] = useState<{ id: string; name: string } | null>(null);
-  const [initialStock, setInitialStock] = useState('0');
-  const [allowNegative, setAllowNegative] = useState(false);
-  const [snackNegativeOpen, setSnackNegativeOpen] = useState(false);
-  const [snackImageSizeOpen, setSnackImageSizeOpen] = useState(false);
-  
-  // Tax fields
-  const [purchaseVAT, setPurchaseVAT] = useState('');
-  const [saleVAT, setSaleVAT] = useState('');
-  const [businessType, setBusinessType] = useState<keyof typeof BusinessType>(BusinessType.HOUSEHOLD_BUSINESS);
-  const [taxIndustry, setTaxIndustry] = useState('');
-  const [taxIndustryScreenOpen, setTaxIndustryScreenOpen] = useState(false);
-  const [imageSelectionSheetOpen, setImageSelectionSheetOpen] = useState(false);
-  const taxIndustryLabel = useMemo(() => {
-    if (!taxIndustry) return '';
-    const found = taxIndustryGroups.find((g) => g.code === taxIndustry);
-    return found ? `${found.code} — ${found.name}` : taxIndustry;
-  }, [taxIndustry]);
-
-  const handleOpenTaxIndustry = () => {
-    setTaxIndustryScreenOpen(true);
-  };
-  
-  // Image upload
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [barcode, setBarcode] = useState('');
 
   // Auto-generate product code on mount
   useEffect(() => {
     const fetchNextCode = async () => {
       try {
         const nextCode = await apiService.getNextItemCode();
-        setCode(nextCode);
+        setValue('code', nextCode);
       } catch (error) {
         console.error('Error fetching next product code:', error);
         // Fallback to localStorage
         const lastProductNumber = parseInt(localStorage.getItem('lastProductNumber') || '0', 10);
         const nextNumber = lastProductNumber + 1;
-        setCode(`VT${nextNumber.toString().padStart(5, '0')}`);
+        setValue('code', `VT${nextNumber.toString().padStart(5, '0')}`);
       }
     };
 
@@ -141,9 +175,9 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
       const currentTenant = JSON.parse(localStorage.getItem('currentTenant') || '{}');
 
       if (onboardingData && onboardingData.businessType) {
-        setBusinessType(onboardingData.businessType);
+        setValue('businessType', onboardingData.businessType);
       } else if (currentTenant && currentTenant.businessType) {
-        setBusinessType(currentTenant.businessType);
+        setValue('businessType', currentTenant.businessType);
       }
 
       // Prefill tax industry from saved onboarding/accounting setup or currentTenant data (if available)
@@ -168,7 +202,7 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
         const chosen = fromOnboarding || fromTenantAcct || fromTenantTop;
         if (chosen) {
           console.debug('[ProductFormScreen] Prefilling taxIndustry with', chosen);
-          setTaxIndustry(chosen);
+          setValue('taxIndustry', chosen);
         } else {
           // If we couldn't find a prefill in localStorage,
           // try to fetch the onboarding status from the server (in case onboarding
@@ -183,7 +217,7 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
                 const remoteCode = resolveTaxIndustry(remoteAcctSetup?.taxIndustryGroup);
                 if (remoteCode) {
                   console.debug('[ProductFormScreen] fetched taxIndustry from server onboarding status', { remoteCode });
-                  setTaxIndustry(remoteCode);
+                  setValue('taxIndustry', remoteCode);
                 } else {
                   console.debug('[ProductFormScreen] server onboarding status had no taxIndustry');
                 }
@@ -201,7 +235,7 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
     } catch {
       // ignore parse errors and keep default
     }
-  }, []);
+  }, [setValue]);
 
   // Reset all overlay states when route changes (fix stale state issue)
   useEffect(() => {
@@ -212,8 +246,7 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
     setWarehouseScreenOpen(false);
     // If a warehouse was created via the create page, apply it then clear state
     if (location.state?.selectedWarehouse) {
-      setDefaultWarehouse(location.state.selectedWarehouse);
-      setHasChanges(true);
+      setValue('defaultWarehouse', location.state.selectedWarehouse, { shouldDirty: true });
       // clear navigation state so it doesn't reapply
       navigate(location.pathname, { replace: true, state: {} });
     }
@@ -230,20 +263,12 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
     // Simple simulation for scanning: prompt the user to enter a barcode.
     const scanned = window.prompt('Scan barcode (paste or type value)') || '';
     if (scanned) {
-      setBarcode(scanned);
-      setHasChanges(true);
+      setValue('barcode', scanned, { shouldDirty: true });
     }
   };
 
-  function handleFieldChange<T>(setter: React.Dispatch<React.SetStateAction<T>>) {
-    return (value: T) => {
-      setHasChanges(true);
-      setter(value);
-    };
-  }
-
   const handleBack = () => {
-    if (hasChanges) {
+    if (isDirty) {
       setShowConfirmDialog(true);
     } else {
       if (overlay && onClose) {
@@ -270,28 +295,21 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
         setSnackImageSizeOpen(true);
         return;
       }
-      setImageFile(file);
+      setValue('imageFile', file, { shouldDirty: true });
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result as string);
+        setValue('imagePreview', reader.result as string, { shouldDirty: true });
       };
       reader.readAsDataURL(file);
-      setHasChanges(true);
     }
   };
 
   const handleRemoveImage = () => {
-    setImageFile(null);
-    setImagePreview(null);
-    setHasChanges(true);
+    setValue('imageFile', null, { shouldDirty: true });
+    setValue('imagePreview', null, { shouldDirty: true });
   };
 
-  // Reference imageFile to avoid "assigned a value but never used" lint errors
-  useEffect(() => {
-    // intentionally read imageFile to satisfy eslint/ts no-unused-vars when file is only stored
-    // keep as a noop — UI uses imagePreview for rendering
-    void imageFile;
-  }, [imageFile]);
+
 
   const formatCurrency = (value: string) => {
     let num = value.replace(/\D/g, '');
@@ -301,23 +319,11 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
     return num.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
-  const handlePriceChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatCurrency(e.target.value);
-    handleFieldChange(setter)(formatted);
-  };
-
-  const handleAllowNegativeChange = (checked: boolean) => {
-    handleFieldChange(setAllowNegative)(checked);
-    if (checked) {
-      setSnackNegativeOpen(true);
-    }
-  };
-
-  const handleSave = async () => {
+  const onSubmit = async (data: ProductFormData) => {
     setIsLoading(true);
     try {
-      const effectivePurchaseVAT = businessType === BusinessType.PRIVATE_ENTERPRISE ? saleVAT : purchaseVAT;
-      const effectiveSaleVAT = businessType === BusinessType.PRIVATE_ENTERPRISE ? saleVAT : '';
+      const effectivePurchaseVAT = data.businessType === BusinessType.PRIVATE_ENTERPRISE ? data.saleVAT : data.purchaseVAT;
+      const effectiveSaleVAT = data.businessType === BusinessType.PRIVATE_ENTERPRISE ? data.saleVAT : '';
 
       // Map to backend CreateItemDto
       type CreateItemDto = {
@@ -337,25 +343,24 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
         defaultImageUrl?: string;
       };
 
-      const parsedInitialStock = parseFloat(initialStock.replace(/,/g, '')) || 0;
+      const parsedInitialStock = parseFloat(data.initialStock.replace(/,/g, '')) || 0;
 
       const itemData: CreateItemDto = {
-        code,
-        name,
-        type: productType, // goods, service, material, finished
-        unitId: unit?.id || 'default-unit-id', // Use unit ID from selection
-        sellPrice: parseFloat(salePrice.replace(/,/g, '')) || 0,
-        purchasePrice: parseFloat(purchasePrice.replace(/,/g, '')) || 0,
+        code: data.code,
+        name: data.name,
+        type: data.productType,
+        unitId: data.unit?.id || 'default-unit-id',
+        sellPrice: parseFloat(data.salePrice.replace(/,/g, '')) || 0,
+        purchasePrice: parseFloat(data.purchasePrice.replace(/,/g, '')) || 0,
         exportTaxRate: parseFloat(effectiveSaleVAT || '0') || 0,
         importTaxRate: parseFloat(effectivePurchaseVAT || '0') || 0,
         minimumStock: parsedInitialStock,
-        isActive: true,
+        isActive: data.unitActive,
         // Optional fields
-        listItemCategoryId: productGroup ? [productGroup] : undefined,
+        listItemCategoryId: data.productGroup ? [data.productGroup] : undefined,
         initialStock: parsedInitialStock,
-        defaultWarehouseId: defaultWarehouse?.id || undefined,
-        // include image preview (data URL) so backend can persist or process it
-        defaultImageUrl: imagePreview || undefined,
+        defaultWarehouseId: data.defaultWarehouse?.id || undefined,
+        defaultImageUrl: data.imagePreview || undefined,
       };
 
       console.log('Saving item with data:', itemData);
@@ -363,14 +368,12 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
       console.log('Item saved successfully:', result);
 
       setShowSuccessSnackbar(true);
-      setHasChanges(false);
       const created = result?.data ?? result;
       // Pass created item to onSaved with initial stock populated
-      // Stock will be calculated from stock_level_view after inventory_transaction is created by backend
       const createdWithStock = {
         ...(created || {}),
-        stock: parsedInitialStock, // Temp: show initial stock immediately in UI; will refresh from API later
-        stockByWarehouse: defaultWarehouse?.name ? { [defaultWarehouse.name]: parsedInitialStock } : undefined,
+        stock: parsedInitialStock,
+        stockByWarehouse: data.defaultWarehouse?.name ? { [data.defaultWarehouse.name]: parsedInitialStock } : undefined,
       };
       // If an onSaved callback is provided (overlay mode), call it and close overlay
       if (onSaved) {
@@ -395,11 +398,11 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
     }
   };
 
-  const handleSaveAndAddNew = async () => {
+  const onSubmitAndAddNew = async (data: ProductFormData) => {
     setIsLoading(true);
     try {
-      const effectivePurchaseVAT = businessType === BusinessType.PRIVATE_ENTERPRISE ? saleVAT : purchaseVAT;
-      const effectiveSaleVAT = businessType === BusinessType.PRIVATE_ENTERPRISE ? saleVAT : '';
+      const effectivePurchaseVAT = data.businessType === BusinessType.PRIVATE_ENTERPRISE ? data.saleVAT : data.purchaseVAT;
+      const effectiveSaleVAT = data.businessType === BusinessType.PRIVATE_ENTERPRISE ? data.saleVAT : '';
 
       // Map to backend CreateItemDto
       type CreateItemDto = {
@@ -418,19 +421,18 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
       };
 
       const itemData: CreateItemDto = {
-        code,
-        name,
-        type: productType,
-        unitId: unit?.id || 'default-unit-id',
-        sellPrice: parseFloat(salePrice.replace(/,/g, '')) || 0,
-        purchasePrice: parseFloat(purchasePrice.replace(/,/g, '')) || 0,
+        code: data.code,
+        name: data.name,
+        type: data.productType,
+        unitId: data.unit?.id || 'default-unit-id',
+        sellPrice: parseFloat(data.salePrice.replace(/,/g, '')) || 0,
+        purchasePrice: parseFloat(data.purchasePrice.replace(/,/g, '')) || 0,
         exportTaxRate: parseFloat(effectiveSaleVAT || '0') || 0,
         importTaxRate: parseFloat(effectivePurchaseVAT || '0') || 0,
-        minimumStock: parseFloat(initialStock.replace(/,/g, '')) || 0,
-        isActive: true,
-        listItemCategoryId: productGroup ? [productGroup] : undefined,
-        // include image preview (data URL) so backend can persist or process it
-        defaultImageUrl: imagePreview || undefined,
+        minimumStock: parseFloat(data.initialStock.replace(/,/g, '')) || 0,
+        isActive: data.unitActive,
+        listItemCategoryId: data.productGroup ? [data.productGroup] : undefined,
+        defaultImageUrl: data.imagePreview || undefined,
       };
 
       console.log('Saving item with data:', itemData);
@@ -440,36 +442,46 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
       setShowSuccessSnackbar(true);
 
       // Save the product number to localStorage for sequential numbering (fallback)
-      const currentNumber = parseInt(code.replace('VT', ''), 10);
+      const currentNumber = parseInt(data.code.replace('VT', ''), 10);
       localStorage.setItem('lastProductNumber', currentNumber.toString());
 
       // Reset form and fetch new product code from API
       try {
         const nextCode = await apiService.getNextItemCode();
-        setCode(nextCode);
+        reset({
+          ...getValues(),
+          code: nextCode,
+          name: '',
+          productGroup: '',
+          unit: null,
+          salePrice: '',
+          purchasePrice: '',
+          defaultWarehouse: null,
+          initialStock: '0',
+          allowNegative: false,
+          imagePreview: null,
+          imageFile: null,
+        });
       } catch (error) {
         console.error('Error fetching next product code:', error);
         // Fallback to localStorage
         const lastProductNumber = parseInt(localStorage.getItem('lastProductNumber') || '0', 10);
         const nextNumber = lastProductNumber + 1;
-        setCode(`VT${nextNumber.toString().padStart(5, '0')}`);
+        reset({
+          ...getValues(),
+          code: `VT${nextNumber.toString().padStart(5, '0')}`,
+          name: '',
+          productGroup: '',
+          unit: null,
+          salePrice: '',
+          purchasePrice: '',
+          defaultWarehouse: null,
+          initialStock: '0',
+          allowNegative: false,
+          imagePreview: null,
+          imageFile: null,
+        });
       }
-      setProductType('goods');
-      setName('');
-      setProductGroup('');
-      setUnit(null);
-      setSalePrice('');
-      setPurchasePrice('');
-      setDefaultWarehouse(null);
-      setInitialStock('0');
-      setAllowNegative(false);
-      setPurchaseVAT('');
-      setSaleVAT('');
-      setBusinessType(BusinessType.HOUSEHOLD_BUSINESS);
-      setTaxIndustry('');
-      setImagePreview(null);
-      setImageFile(null);
-      setHasChanges(false);
     } catch (error) {
       console.error('Error saving product:', error);
       alert('Không thể lưu hàng hoá. Vui lòng thử lại.');
@@ -479,12 +491,12 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
   };
 
   const isFormValid = () => {
-    if (!(code && name && unit && productType)) return false;
-    if (businessType === BusinessType.HOUSEHOLD_BUSINESS) {
-      return purchaseVAT !== '' && taxIndustry !== '';
+    const formData = getValues();
+    if (!(formData.code && formData.name && formData.unit && formData.productType)) return false;
+    if (formData.businessType === BusinessType.HOUSEHOLD_BUSINESS) {
+      return formData.purchaseVAT !== '' && formData.taxIndustry !== '';
     }
-    // doanh nghiệp tư nhân
-    return saleVAT !== '';
+    return formData.saleVAT !== '';
   };
 
   return (<>
@@ -552,112 +564,149 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
             <Typography sx={{ fontSize: 18, fontWeight: 700, color: '#212529' }}>Thông tin chung</Typography>
 
             {/* Barcode field */}
-            <RoundedTextField
-              fullWidth
-              label="Barcode"
-              placeholder="Quét hoặc nhập barcode"
-              value={barcode}
-              onChange={(e) => handleFieldChange(setBarcode)(e.target.value)}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton size="small" onClick={handleScanBarcode}>
-                      <Icon name="ScanBarcode" size={20} color="#FB7E00" variant="Outline" />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
+            <Controller
+              name="barcode"
+              control={control}
+              render={({ field }) => (
+                <RoundedTextField
+                  fullWidth
+                  label="Barcode"
+                  placeholder="Quét hoặc nhập barcode"
+                  {...field}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton size="small" onClick={handleScanBarcode}>
+                          <Icon name="ScanBarcode" size={20} color="#FB7E00" variant="Outline" />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              )}
             />
 
             {/* Row: Tính chất + Mã sản phẩm */}
             <Box sx={{ display: 'flex', gap: 1, flexDirection: 'row', flexWrap: 'nowrap' }}>
               <Box sx={{ flex: '1 1 50%', minWidth: 0 }}>
-                <RoundedTextField
-                  fullWidth
-                  required
-                  label="Tính chất"
-                  placeholder="Chọn tính chất"
-                  value={productTypeLabel}
-                  onClick={() => { setTempProductType(productType); setProductTypeSheetOpen(true); }}
-                  InputProps={{
-                    readOnly: true,
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <Icon name="ArrowDown2" size={18} color="#6C757D" variant="Outline" />
-                      </InputAdornment>
-                    ),
-                  }}
+                <Controller
+                  name="productType"
+                  control={control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <RoundedTextField
+                      fullWidth
+                      required
+                      label="Tính chất"
+                      placeholder="Chọn tính chất"
+                      value={productTypeLabel}
+                      onClick={() => { setTempProductType(productType); setProductTypeSheetOpen(true); }}
+                      InputProps={{
+                        readOnly: true,
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <Icon name="ArrowDown2" size={18} color="#6C757D" variant="Outline" />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  )}
                 />
               </Box>
 
               <Box sx={{ flex: '1 1 50%', minWidth: 0 }}>
-                <RoundedTextField
-                  fullWidth
-                  required
-                  label="Mã sản phẩm"
-                  placeholder="Nhập mã sản phẩm"
-                  value={code}
-                  onChange={(e) => handleFieldChange(setCode)(e.target.value)}
+                <Controller
+                  name="code"
+                  control={control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <RoundedTextField
+                      fullWidth
+                      required
+                      label="Mã sản phẩm"
+                      placeholder="Nhập mã sản phẩm"
+                      {...field}
+                    />
+                  )}
                 />
               </Box>
             </Box>
 
             {/* Product Name */}
-            <RoundedTextField
-              fullWidth
-              required
-              label="Tên hàng hoá"
-              placeholder="Nhập tên hàng hoá"
-              value={name}
-              onChange={(e) => handleFieldChange(setName)(e.target.value)}
+            <Controller
+              name="name"
+              control={control}
+              rules={{ required: true }}
+              render={({ field }) => (
+                <RoundedTextField
+                  fullWidth
+                  required
+                  label="Tên hàng hoá"
+                  placeholder="Nhập tên hàng hoá"
+                  {...field}
+                />
+              )}
             />
 
             {/* Product Group */}
-            <RoundedTextField
-              fullWidth
-              label="Nhóm hàng hoá dịch vụ"
-              placeholder="Chọn nhóm hàng hoá"
-              value={productGroup}
-              onClick={() => setProductGroupScreenOpen(true)}
-              InputLabelProps={{ shrink: true }}
-              InputProps={{ readOnly: true,
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      size="small"
-                      onClick={() => {
-                        setProductGroupScreenOpen(true);
-                      }}
-                    >
-                      <Icon name="ArrowDown2" size={20} color="#4E4E4E" variant="Outline" />
-                    </IconButton>
-                  </InputAdornment>
-                )
-              }}
+            <Controller
+              name="productGroup"
+              control={control}
+              render={({ field }) => (
+                <RoundedTextField
+                  fullWidth
+                  label="Nhóm hàng hoá dịch vụ"
+                  placeholder="Chọn nhóm hàng hoá"
+                  value={field.value}
+                  onClick={() => setProductGroupScreenOpen(true)}
+                  InputLabelProps={{ shrink: true }}
+                  InputProps={{ readOnly: true,
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setProductGroupScreenOpen(true);
+                          }}
+                        >
+                          <Icon name="ArrowDown2" size={20} color="#4E4E4E" variant="Outline" />
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }}
+                />
+              )}
             />
 
             {/* Unit */}
-            <RoundedTextField
-              fullWidth
-              required
-              label="Đơn vị tính chính"
-              placeholder="Chọn đơn vị tính"
-              value={unit?.name || ''}
-              onClick={() => setUnitScreenOpen(true)}
-              InputLabelProps={{ shrink: true }}
-              InputProps={{
-                readOnly: true,
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      size="small"
-                      onClick={() => setUnitScreenOpen(true)}
-                    >
-                      <Icon name="ArrowDown2" size={20} color="#4E4E4E" variant="Outline" />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
+            <Controller
+              name="unit"
+              control={control}
+              rules={{ required: true }}
+              render={({ field }) => (
+                <RoundedTextField
+                  fullWidth
+                  required
+                  label="Đơn vị tính chính"
+                  placeholder="Chọn đơn vị tính"
+                  value={field.value?.name || ''}
+                  onClick={() => setUnitScreenOpen(true)}
+                  InputLabelProps={{ shrink: true }}
+                  InputProps={{
+                    readOnly: true,
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={() => setUnitScreenOpen(true)}
+                        >
+                          <Icon name="ArrowDown2" size={20} color="#4E4E4E" variant="Outline" />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              )}
             />
 
             {/* Đang sử dụng (unit active) */}
@@ -665,19 +714,23 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
               <Typography sx={{ fontSize: '16px', fontWeight: 500, color: '#212529' }}>
                 Đang sử dụng
               </Typography>
-              <Switch
-                checked={unitActive}
-                onChange={(e) => {
-                  handleFieldChange(setUnitActive)(e.target.checked);
-                }}
-                sx={{
-                  '& .MuiSwitch-switchBase.Mui-checked': {
-                    color: '#FB7E00',
-                  },
-                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                    backgroundColor: '#FB7E00',
-                  },
-                }}
+              <Controller
+                name="unitActive"
+                control={control}
+                render={({ field }) => (
+                  <Switch
+                    checked={field.value}
+                    onChange={(e) => field.onChange(e.target.checked)}
+                    sx={{
+                      '& .MuiSwitch-switchBase.Mui-checked': {
+                        color: '#FB7E00',
+                      },
+                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                        backgroundColor: '#FB7E00',
+                      },
+                    }}
+                  />
+                )}
               />
             </Box>
 
@@ -690,74 +743,107 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
               <Box sx={{ display: 'flex', gap: 2, flexDirection: 'column' }}>
                 <Box sx={{ display: 'flex', gap: 2, flexDirection: 'row', alignItems: 'stretch' }}>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <RoundedTextField
-                      fullWidth
-                      label="Đơn giá bán"
-                      placeholder="0"
-                      value={salePrice}
-                      onChange={handlePriceChange(setSalePrice)}
-                      InputProps={{
-                        endAdornment: <InputAdornment position="end">₫</InputAdornment>,
-                      }}
+                    <Controller
+                      name="salePrice"
+                      control={control}
+                      render={({ field }) => (
+                        <RoundedTextField
+                          fullWidth
+                          label="Đơn giá bán"
+                          placeholder="0"
+                          value={field.value}
+                          onChange={(e) => field.onChange(formatCurrency(e.target.value))}
+                          InputProps={{
+                            endAdornment: <InputAdornment position="end">₫</InputAdornment>,
+                          }}
+                        />
+                      )}
                     />
                   </Box>
 
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <RoundedTextField
-                      fullWidth
-                      label="Đơn giá mua"
-                      placeholder="0"
-                      value={purchasePrice}
-                      onChange={handlePriceChange(setPurchasePrice)}
-                      InputProps={{
-                        endAdornment: <InputAdornment position="end">₫</InputAdornment>,
-                      }}
+                    <Controller
+                      name="purchasePrice"
+                      control={control}
+                      render={({ field }) => (
+                        <RoundedTextField
+                          fullWidth
+                          label="Đơn giá mua"
+                          placeholder="0"
+                          value={field.value}
+                          onChange={(e) => field.onChange(formatCurrency(e.target.value))}
+                          InputProps={{
+                            endAdornment: <InputAdornment position="end">₫</InputAdornment>,
+                          }}
+                        />
+                      )}
                     />
                   </Box>
                 </Box>
 
-                <RoundedTextField
-                  fullWidth
-                  label="Kho ngầm định"
-                  placeholder="Chọn kho"
-                  value={defaultWarehouse?.name || ''}
-                  onClick={() => setWarehouseScreenOpen(true)}
-                  InputLabelProps={{ shrink: true }}
-                  InputProps={{
-                    readOnly: true,
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton size="small" onClick={() => setWarehouseScreenOpen(true)}>
-                          <Icon name="ArrowDown2" size={20} color="#4E4E4E" variant="Outline" />
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
+                <Controller
+                  name="defaultWarehouse"
+                  control={control}
+                  render={({ field }) => (
+                    <RoundedTextField
+                      fullWidth
+                      label="Kho ngầm định"
+                      placeholder="Chọn kho"
+                      value={field.value?.name || ''}
+                      onClick={() => setWarehouseScreenOpen(true)}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{
+                        readOnly: true,
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton size="small" onClick={() => setWarehouseScreenOpen(true)}>
+                              <Icon name="ArrowDown2" size={20} color="#4E4E4E" variant="Outline" />
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  )}
                 />
 
-                <RoundedTextField
-                  fullWidth
-                  label="Tồn kho ban đầu"
-                  placeholder="0"
-                  value={initialStock}
-                  onChange={handlePriceChange(setInitialStock)}
+                <Controller
+                  name="initialStock"
+                  control={control}
+                  render={({ field }) => (
+                    <RoundedTextField
+                      fullWidth
+                      label="Tồn kho ban đầu"
+                      placeholder="0"
+                      value={field.value}
+                      onChange={(e) => field.onChange(formatCurrency(e.target.value))}
+                    />
+                  )}
                 />
 
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0 }}>
                   <Typography sx={{ fontSize: '16px', fontWeight: 500, color: '#212529' }}>
                     Cho phép bán hàng âm
                   </Typography>
-                  <Switch
-                    checked={allowNegative}
-                    onChange={(_, checked) => handleAllowNegativeChange(checked)}
-                    sx={{
-                      '& .MuiSwitch-switchBase.Mui-checked': {
-                        color: '#FB7E00',
-                      },
-                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                        backgroundColor: '#FB7E00',
-                      },
-                    }}
+                  <Controller
+                    name="allowNegative"
+                    control={control}
+                    render={({ field }) => (
+                      <Switch
+                        checked={field.value}
+                        onChange={(_, checked) => {
+                          field.onChange(checked);
+                          if (checked) setSnackNegativeOpen(true);
+                        }}
+                        sx={{
+                          '& .MuiSwitch-switchBase.Mui-checked': {
+                            color: '#FB7E00',
+                          },
+                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                            backgroundColor: '#FB7E00',
+                          },
+                        }}
+                      />
+                    )}
                   />
                 </Box>
               </Box>
@@ -774,67 +860,85 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
               {businessType === BusinessType.HOUSEHOLD_BUSINESS ? (
                 <>
                   <Box sx={{ mb: 2 }}>
-                    <RoundedTextField
-                      fullWidth
-                      label="Thuế GTGT mua vào (%)"
-                      placeholder="Chọn thuế GTGT"
-                      value={purchaseVAT}
-                      onChange={(e) => handleFieldChange(setPurchaseVAT)(e.target.value)}
-                      select
-                      SelectProps={{ native: true }}
-                      InputProps={{
-                      }}
-                    >
-                      <option value="">Chọn thuế GTGT</option>
-                      <option value="0">0%</option>
-                      <option value="5">5%</option>
-                      <option value="8">8%</option>
-                      <option value="10">10%</option>
-                    </RoundedTextField>
+                    <Controller
+                      name="purchaseVAT"
+                      control={control}
+                      rules={{ required: businessType === BusinessType.HOUSEHOLD_BUSINESS }}
+                      render={({ field }) => (
+                        <RoundedTextField
+                          fullWidth
+                          label="Thuế GTGT mua vào (%)"
+                          placeholder="Chọn thuế GTGT"
+                          {...field}
+                          select
+                          SelectProps={{ native: true }}
+                          InputProps={{}}
+                        >
+                          <option value="">Chọn thuế GTGT</option>
+                          <option value="0">0%</option>
+                          <option value="5">5%</option>
+                          <option value="8">8%</option>
+                          <option value="10">10%</option>
+                        </RoundedTextField>
+                      )}
+                    />
                   </Box>
 
-                  <RoundedTextField
-                    fullWidth
-                    label="Nhóm ngành nghề tính thuế"
-                    placeholder="Chọn nhóm ngành nghề"
-                    value={taxIndustryLabel}
-                    onClick={handleOpenTaxIndustry}
-                    InputProps={{
-                      readOnly: true,
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton size="small" onClick={handleOpenTaxIndustry}>
-                            <Icon name="ArrowDown2" size={20} color="#4E4E4E" variant="Outline" />
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
+                  <Controller
+                    name="taxIndustry"
+                    control={control}
+                    rules={{ required: businessType === BusinessType.HOUSEHOLD_BUSINESS }}
+                    render={({ field }) => (
+                      <RoundedTextField
+                        fullWidth
+                        label="Nhóm ngành nghề tính thuế"
+                        placeholder="Chọn nhóm ngành nghề"
+                        value={taxIndustryLabel}
+                        onClick={handleOpenTaxIndustry}
+                        InputProps={{
+                          readOnly: true,
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <IconButton size="small" onClick={handleOpenTaxIndustry}>
+                                <Icon name="ArrowDown2" size={20} color="#4E4E4E" variant="Outline" />
+                              </IconButton>
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    )}
                   />
                 </>
               ) : (
                 <Box sx={{ mb: 2 }}>
-                  <RoundedTextField
-                    fullWidth
-                    label="Thuế GTGT (%)"
-                    placeholder="Chọn thuế GTGT"
-                    value={saleVAT}
-                    onChange={(e) => handleFieldChange(setSaleVAT)(e.target.value)}
-                    select
-                    SelectProps={{ native: true }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Icon name="ReceiptDiscount" size={20} color="#6C757D" variant="Outline" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  >
-                    <option value="">Chọn thuế GTGT</option>
-                    <option value="0">0%</option>
-                    <option value="5">5%</option>
-                    <option value="8">8%</option>
-                    <option value="10">10%</option>
-                  </RoundedTextField>
+                  <Controller
+                    name="saleVAT"
+                    control={control}
+                    rules={{ required: businessType === BusinessType.PRIVATE_ENTERPRISE }}
+                    render={({ field }) => (
+                      <RoundedTextField
+                        fullWidth
+                        label="Thuế GTGT (%)"
+                        placeholder="Chọn thuế GTGT"
+                        {...field}
+                        select
+                        SelectProps={{ native: true }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <Icon name="ReceiptDiscount" size={20} color="#6C757D" variant="Outline" />
+                            </InputAdornment>
+                          ),
+                        }}
+                      >
+                        <option value="">Chọn thuế GTGT</option>
+                        <option value="0">0%</option>
+                        <option value="5">5%</option>
+                        <option value="8">8%</option>
+                        <option value="10">10%</option>
+                      </RoundedTextField>
+                    )}
+                  />
                 </Box>
               )}
             </Box>
@@ -844,8 +948,8 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
           <Box sx={{ display: { xs: 'none', sm: 'none' }, gap: 2, mt: 4, justifyContent: 'flex-end' }}>
             <Button
               variant="outlined"
-              onClick={handleSave}
-              disabled={!isFormValid() || isLoading}
+              onClick={handleSubmit(onSubmit)}
+              disabled={!isValid || isLoading}
               sx={{
                 borderRadius: '12px',
                 textTransform: 'none',
@@ -870,8 +974,8 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
             {!singleSaveMode && (
               <Button
                 variant="contained"
-                onClick={handleSaveAndAddNew}
-                disabled={!isFormValid() || isLoading}
+                onClick={handleSubmit(onSubmitAndAddNew)}
+                disabled={!isValid || isLoading}
                 sx={{
                   borderRadius: '12px',
                   textTransform: 'none',
@@ -906,8 +1010,8 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
           ? [
             {
               label: 'Lưu',
-              onClick: handleSave,
-              disabled: !isFormValid() || isLoading,
+              onClick: handleSubmit(onSubmit),
+              disabled: !isValid || isLoading,
               loading: isLoading,
               variant: 'outlined',
             },
@@ -915,15 +1019,15 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
           : [
             {
               label: 'Lưu',
-              onClick: handleSave,
-              disabled: !isFormValid() || isLoading,
+              onClick: handleSubmit(onSubmit),
+              disabled: !isValid || isLoading,
               loading: isLoading,
               variant: 'outlined',
             },
             {
               label: 'Lưu và thêm mới',
-              onClick: handleSaveAndAddNew,
-              disabled: !isFormValid() || isLoading,
+              onClick: handleSubmit(onSubmitAndAddNew),
+              disabled: !isValid || isLoading,
               loading: isLoading,
               variant: 'contained',
               color: 'primary',
@@ -971,8 +1075,7 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
               <Box key={opt.value}>
                 <Box
                   onClick={() => {
-                    setProductType(opt.value);
-                    setHasChanges(true);
+                    setValue('productType', opt.value, { shouldDirty: true });
                     setProductTypeSheetOpen(false);
                   }}
                   sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1.75, px: 0, cursor: 'pointer' }}
@@ -992,16 +1095,14 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
         open={productGroupScreenOpen}
         onClose={() => setProductGroupScreenOpen(false)}
         onSelect={(label) => {
-          setProductGroup(label);
-          setHasChanges(true);
+          setValue('productGroup', label, { shouldDirty: true });
         }}
       />
       <UnitSelectionScreen
         open={unitScreenOpen}
         onClose={() => setUnitScreenOpen(false)}
         onSelect={(unitObj) => {
-          setUnit(unitObj);
-          setHasChanges(true);
+          setValue('unit', unitObj, { shouldDirty: true });
           setUnitScreenOpen(false);
         }}
       />
@@ -1009,8 +1110,7 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
         open={warehouseScreenOpen}
         onClose={() => setWarehouseScreenOpen(false)}
         onSelect={(warehouse) => {
-          setDefaultWarehouse(warehouse);
-          setHasChanges(true);
+          setValue('defaultWarehouse', warehouse, { shouldDirty: true });
         }}
       />
       <TaxIndustrySelectionScreen
@@ -1018,8 +1118,7 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
         value={taxIndustry}
         onClose={() => setTaxIndustryScreenOpen(false)}
         onSelect={(code) => {
-          setTaxIndustry(code);
-          setHasChanges(true);
+          setValue('taxIndustry', code, { shouldDirty: true });
           setTaxIndustryScreenOpen(false);
         }}
       />
@@ -1046,13 +1145,12 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
                     setSnackImageSizeOpen(true);
                     return;
                   }
-                  setImageFile(file);
+                  setValue('imageFile', file, { shouldDirty: true });
                   const reader = new FileReader();
                   reader.onloadend = () => {
-                    setImagePreview(reader.result as string);
+                    setValue('imagePreview', reader.result as string, { shouldDirty: true });
                   };
                   reader.readAsDataURL(file);
-                  setHasChanges(true);
                 }
               };
               input.click();
