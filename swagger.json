@@ -1,0 +1,4630 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "HealthController_getHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Application is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "example": "2024-01-01T00:00:00.000Z"
+                    },
+                    "uptime": {
+                      "type": "number",
+                      "example": 123.456
+                    },
+                    "environment": {
+                      "type": "string",
+                      "example": "production"
+                    },
+                    "version": {
+                      "type": "string",
+                      "example": "1.0.0"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Health check endpoint",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/uploads/image": {
+      "post": {
+        "operationId": "UploadController_uploadImage",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Image uploaded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadImageResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Upload a single image",
+        "tags": [
+          "uploads"
+        ]
+      }
+    },
+    "/uploads/delete": {
+      "post": {
+        "operationId": "UploadController_deleteFiles",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "urls": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "urls"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Files delete request processed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteFilesResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Delete uploaded files by URL",
+        "tags": [
+          "uploads"
+        ]
+      }
+    },
+    "/users": {
+      "post": {
+        "operationId": "UserController_createUser",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data"
+          }
+        },
+        "summary": "Create a new user with context",
+        "tags": [
+          "users"
+        ]
+      },
+      "get": {
+        "operationId": "UserController_getAllUsers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Users retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get all users with authorization",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "operationId": "UserController_getUser",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "User ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found"
+          }
+        },
+        "summary": "Get user by ID with context",
+        "tags": [
+          "users"
+        ]
+      },
+      "put": {
+        "operationId": "UserController_updateUser",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "User ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update user by ID with context",
+        "tags": [
+          "users"
+        ]
+      },
+      "delete": {
+        "operationId": "UserController_deleteUser",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "User ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User deleted successfully"
+          }
+        },
+        "summary": "Delete user by ID with context",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/bulk": {
+      "post": {
+        "operationId": "UserController_createMultipleUsers",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Create multiple users in single transaction",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/debug/context": {
+      "get": {
+        "operationId": "UserController_getContextInfo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Debug context information",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/business-profiles": {
+      "post": {
+        "operationId": "BusinessProfileController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBusinessProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Business profile created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data"
+          },
+          "409": {
+            "description": "Business profile already exists or tax number is already registered"
+          }
+        },
+        "summary": "Create a new business profile",
+        "tags": [
+          "business-profiles"
+        ]
+      }
+    },
+    "/business-profiles/tenant/{tenantId}": {
+      "get": {
+        "operationId": "BusinessProfileController_findByTenantId",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "description": "Tenant ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Business profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business profile not found for this tenant"
+          }
+        },
+        "summary": "Get business profile by tenant ID",
+        "tags": [
+          "business-profiles"
+        ]
+      }
+    },
+    "/business-profiles/{id}": {
+      "put": {
+        "operationId": "BusinessProfileController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Business profile ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBusinessProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Business profile updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data"
+          },
+          "404": {
+            "description": "Business profile not found"
+          },
+          "409": {
+            "description": "Tax number is already registered"
+          }
+        },
+        "summary": "Update business profile",
+        "tags": [
+          "business-profiles"
+        ]
+      }
+    },
+    "/provider-settings": {
+      "post": {
+        "operationId": "ProviderSettingController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProviderSettingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Provider setting created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderSettingResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data or missing required credentials"
+          }
+        },
+        "summary": "Create a new provider setting",
+        "tags": [
+          "provider-settings"
+        ]
+      },
+      "get": {
+        "operationId": "ProviderSettingController_findById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Provider setting ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Search in provider name",
+            "schema": {}
+          },
+          {
+            "name": "isUse",
+            "required": false,
+            "in": "query",
+            "description": "Filter by usage status (true/false)",
+            "schema": {}
+          },
+          {
+            "name": "providerType",
+            "required": false,
+            "in": "query",
+            "description": "Filter by provider type",
+            "schema": {}
+          },
+          {
+            "name": "businessProfileId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by business profile ID",
+            "schema": {}
+          },
+          {
+            "name": "tenantId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by tenant ID",
+            "schema": {}
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Items per page (default: 10, max: 100)",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number (default: 1)",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Provider settings retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderSettingListResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Provider setting not found"
+          }
+        },
+        "summary": "Get all provider settings with pagination and filtering",
+        "tags": [
+          "provider-settings"
+        ]
+      }
+    },
+    "/provider-settings/tenant/{tenantId}": {
+      "get": {
+        "operationId": "ProviderSettingController_findByTenantId",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "description": "Tenant ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Provider settings retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderSettingResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get provider settings by tenant ID",
+        "tags": [
+          "provider-settings"
+        ]
+      }
+    },
+    "/provider-settings/{id}": {
+      "put": {
+        "operationId": "ProviderSettingController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Provider setting ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProviderSettingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Provider setting updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderSettingResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data or missing required credentials"
+          },
+          "404": {
+            "description": "Provider setting not found"
+          }
+        },
+        "summary": "Update provider setting",
+        "tags": [
+          "provider-settings"
+        ]
+      },
+      "delete": {
+        "operationId": "ProviderSettingController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Provider setting ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Provider setting deleted successfully"
+          },
+          "404": {
+            "description": "Provider setting not found"
+          }
+        },
+        "summary": "Delete provider setting",
+        "tags": [
+          "provider-settings"
+        ]
+      }
+    },
+    "/accounting-object-groups": {
+      "post": {
+        "operationId": "AccountingObjectGroupController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccountingObjectGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Accounting object group created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingObjectGroupResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data"
+          },
+          "409": {
+            "description": "Group code already exists"
+          }
+        },
+        "summary": "Create a new accounting object group",
+        "tags": [
+          "accounting-object-groups"
+        ]
+      },
+      "get": {
+        "operationId": "AccountingObjectGroupController_list",
+        "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Search by name or code",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "description": "Filter by active status",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "parentGroupId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by parent group ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupCategory",
+            "required": false,
+            "in": "query",
+            "description": "Filter by group category",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingObjectGroupListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get list of accounting object groups",
+        "tags": [
+          "accounting-object-groups"
+        ]
+      }
+    },
+    "/accounting-object-groups/{id}": {
+      "get": {
+        "operationId": "AccountingObjectGroupController_findById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Accounting object group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accounting object group retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingObjectGroupResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Accounting object group not found"
+          }
+        },
+        "summary": "Get accounting object group by ID",
+        "tags": [
+          "accounting-object-groups"
+        ]
+      },
+      "put": {
+        "operationId": "AccountingObjectGroupController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Accounting object group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccountingObjectGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accounting object group updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingObjectGroupResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data"
+          },
+          "404": {
+            "description": "Accounting object group not found"
+          },
+          "409": {
+            "description": "Group code already exists"
+          }
+        },
+        "summary": "Update accounting object group",
+        "tags": [
+          "accounting-object-groups"
+        ]
+      },
+      "delete": {
+        "operationId": "AccountingObjectGroupController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Accounting object group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Accounting object group deleted successfully"
+          },
+          "404": {
+            "description": "Accounting object group not found"
+          }
+        },
+        "summary": "Delete accounting object group",
+        "tags": [
+          "accounting-object-groups"
+        ]
+      }
+    },
+    "/accounting-objects": {
+      "post": {
+        "operationId": "AccountingObjectController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccountingObjectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Accounting object created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingObjectResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data"
+          },
+          "409": {
+            "description": "Object code already exists"
+          }
+        },
+        "summary": "Create a new accounting object",
+        "tags": [
+          "accounting-objects"
+        ]
+      },
+      "get": {
+        "operationId": "AccountingObjectController_list",
+        "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Search by name, code, or phone",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "description": "Filter by active status",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "isCustomer",
+            "required": false,
+            "in": "query",
+            "description": "Filter by customer status",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "isVendor",
+            "required": false,
+            "in": "query",
+            "description": "Filter by vendor status",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "isEmployee",
+            "required": false,
+            "in": "query",
+            "description": "Filter by employee status",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "objectGroupId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by object group ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "objectCategory",
+            "required": false,
+            "in": "query",
+            "description": "Filter by object category",
+            "schema": {}
+          },
+          {
+            "name": "objectType",
+            "required": false,
+            "in": "query",
+            "description": "Filter by object type",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingObjectListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get list of accounting objects",
+        "tags": [
+          "accounting-objects"
+        ]
+      }
+    },
+    "/accounting-objects/{id}": {
+      "get": {
+        "operationId": "AccountingObjectController_findById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Accounting object ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accounting object retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingObjectResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Accounting object not found"
+          }
+        },
+        "summary": "Get accounting object by ID",
+        "tags": [
+          "accounting-objects"
+        ]
+      },
+      "put": {
+        "operationId": "AccountingObjectController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Accounting object ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccountingObjectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accounting object updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingObjectResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data"
+          },
+          "404": {
+            "description": "Accounting object not found"
+          },
+          "409": {
+            "description": "Object code already exists"
+          }
+        },
+        "summary": "Update accounting object",
+        "tags": [
+          "accounting-objects"
+        ]
+      },
+      "delete": {
+        "operationId": "AccountingObjectController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Accounting object ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Accounting object deleted successfully"
+          },
+          "404": {
+            "description": "Accounting object not found"
+          }
+        },
+        "summary": "Delete accounting object",
+        "tags": [
+          "accounting-objects"
+        ]
+      }
+    },
+    "/warehouses": {
+      "post": {
+        "operationId": "WarehouseController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWarehouseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Warehouse created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarehouseResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data"
+          },
+          "409": {
+            "description": "Warehouse code already exists"
+          }
+        },
+        "summary": "Create a new warehouse",
+        "tags": [
+          "warehouses"
+        ]
+      },
+      "get": {
+        "operationId": "WarehouseController_list",
+        "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Search by name or code",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "description": "Filter by active status",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarehouseListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get list of warehouses",
+        "tags": [
+          "warehouses"
+        ]
+      }
+    },
+    "/warehouses/{id}": {
+      "get": {
+        "operationId": "WarehouseController_findById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Warehouse ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Warehouse retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarehouseResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Warehouse not found"
+          }
+        },
+        "summary": "Get warehouse by ID",
+        "tags": [
+          "warehouses"
+        ]
+      },
+      "put": {
+        "operationId": "WarehouseController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Warehouse ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWarehouseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Warehouse updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarehouseResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data"
+          },
+          "404": {
+            "description": "Warehouse not found"
+          },
+          "409": {
+            "description": "Warehouse code already exists"
+          }
+        },
+        "summary": "Update warehouse",
+        "tags": [
+          "warehouses"
+        ]
+      },
+      "delete": {
+        "operationId": "WarehouseController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Warehouse ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Warehouse deleted successfully"
+          },
+          "404": {
+            "description": "Warehouse not found"
+          }
+        },
+        "summary": "Delete warehouse",
+        "tags": [
+          "warehouses"
+        ]
+      }
+    },
+    "/item-groups": {
+      "post": {
+        "operationId": "ItemGroupController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateItemGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Item group created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemGroupResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data"
+          },
+          "409": {
+            "description": "Group code already exists"
+          }
+        },
+        "summary": "Create a new item group",
+        "tags": [
+          "item-groups"
+        ]
+      },
+      "get": {
+        "operationId": "ItemGroupController_list",
+        "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Search by name or code",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "description": "Filter by active status",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "parentGroupId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by parent group ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groupCategory",
+            "required": false,
+            "in": "query",
+            "description": "Filter by group category",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemGroupListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get list of item groups",
+        "tags": [
+          "item-groups"
+        ]
+      }
+    },
+    "/item-groups/{id}": {
+      "get": {
+        "operationId": "ItemGroupController_findById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Item group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item group retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemGroupResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Item group not found"
+          }
+        },
+        "summary": "Get item group by ID",
+        "tags": [
+          "item-groups"
+        ]
+      },
+      "put": {
+        "operationId": "ItemGroupController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Item group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateItemGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item group updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemGroupResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data"
+          },
+          "404": {
+            "description": "Item group not found"
+          },
+          "409": {
+            "description": "Group code already exists"
+          }
+        },
+        "summary": "Update item group",
+        "tags": [
+          "item-groups"
+        ]
+      },
+      "delete": {
+        "operationId": "ItemGroupController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Item group ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Item group deleted successfully"
+          },
+          "404": {
+            "description": "Item group not found"
+          }
+        },
+        "summary": "Delete item group",
+        "tags": [
+          "item-groups"
+        ]
+      }
+    },
+    "/items": {
+      "post": {
+        "operationId": "ItemController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Item created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data"
+          },
+          "409": {
+            "description": "Item code already exists"
+          }
+        },
+        "summary": "Create a new item",
+        "tags": [
+          "items"
+        ]
+      },
+      "get": {
+        "operationId": "ItemController_list",
+        "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Search by name or code",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "description": "Filter by active status",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Filter by item type",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get list of items",
+        "tags": [
+          "items"
+        ]
+      }
+    },
+    "/items/{id}": {
+      "get": {
+        "operationId": "ItemController_findById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Item ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Item not found"
+          }
+        },
+        "summary": "Get item by ID",
+        "tags": [
+          "items"
+        ]
+      },
+      "put": {
+        "operationId": "ItemController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Item ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data"
+          },
+          "404": {
+            "description": "Item not found"
+          },
+          "409": {
+            "description": "Item code already exists"
+          }
+        },
+        "summary": "Update item",
+        "tags": [
+          "items"
+        ]
+      },
+      "delete": {
+        "operationId": "ItemController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Item ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Item deleted successfully"
+          },
+          "404": {
+            "description": "Item not found"
+          }
+        },
+        "summary": "Delete item",
+        "tags": [
+          "items"
+        ]
+      }
+    },
+    "/bank-accounts": {
+      "post": {
+        "operationId": "BankAccountController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBankAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Bank account created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankAccountResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data"
+          },
+          "409": {
+            "description": "Bank account number already exists"
+          }
+        },
+        "summary": "Create a new bank account",
+        "tags": [
+          "bank-accounts"
+        ]
+      },
+      "get": {
+        "operationId": "BankAccountController_list",
+        "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Search by account number, account owner, or bank name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bankName",
+            "required": false,
+            "in": "query",
+            "description": "Filter by bank name",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankAccountListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get list of bank accounts",
+        "tags": [
+          "bank-accounts"
+        ]
+      }
+    },
+    "/bank-accounts/{id}": {
+      "get": {
+        "operationId": "BankAccountController_findById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Bank account ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bank account retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankAccountResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Bank account not found"
+          }
+        },
+        "summary": "Get bank account by ID",
+        "tags": [
+          "bank-accounts"
+        ]
+      },
+      "put": {
+        "operationId": "BankAccountController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Bank account ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBankAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bank account updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankAccountResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input data"
+          },
+          "404": {
+            "description": "Bank account not found"
+          },
+          "409": {
+            "description": "Bank account number already exists"
+          }
+        },
+        "summary": "Update bank account",
+        "tags": [
+          "bank-accounts"
+        ]
+      },
+      "delete": {
+        "operationId": "BankAccountController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Bank account ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Bank account deleted successfully"
+          },
+          "404": {
+            "description": "Bank account not found"
+          }
+        },
+        "summary": "Delete bank account",
+        "tags": [
+          "bank-accounts"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "nestjs-backend API",
+    "description": "API documentation for nestjs-backend",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "users",
+      "description": "User management endpoints"
+    },
+    {
+      "name": "auth",
+      "description": "Authentication endpoints"
+    },
+    {
+      "name": "business-profiles",
+      "description": "Business profile management endpoints"
+    },
+    {
+      "name": "provider-settings",
+      "description": "Provider settings management endpoints"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.your-domain.com",
+      "description": "Production server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "UploadImageResponseDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "DeleteFilesResponseDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "john.doe@example.com",
+            "description": "User email address"
+          },
+          "name": {
+            "type": "string",
+            "example": "John Doe",
+            "description": "User full name",
+            "minLength": 2
+          }
+        },
+        "required": [
+          "email",
+          "name"
+        ]
+      },
+      "UserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "123e4567-e89b-12d3-a456-426614174000",
+            "description": "User unique identifier"
+          },
+          "email": {
+            "type": "string",
+            "example": "john.doe@example.com",
+            "description": "User email address"
+          },
+          "name": {
+            "type": "string",
+            "example": "John Doe",
+            "description": "User full name"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "John Doe",
+            "description": "User formatted display name"
+          },
+          "isNewUser": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether user is newly created (within 7 days)"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2023-01-01T00:00:00.000Z",
+            "description": "User creation timestamp"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2023-01-01T00:00:00.000Z",
+            "description": "User last update timestamp"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "displayName",
+          "isNewUser",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "EInvoiceProviderDto": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "description": "Enable e-invoice provider",
+            "default": false
+          },
+          "provider": {
+            "type": "string",
+            "description": "E-invoice provider",
+            "enum": [
+              "viettel",
+              "minvoice",
+              "misa"
+            ]
+          },
+          "apiKey": {
+            "type": "string",
+            "description": "API key for e-invoice provider"
+          },
+          "account": {
+            "type": "string",
+            "description": "Account for e-invoice provider"
+          },
+          "password": {
+            "type": "string",
+            "description": "Password for e-invoice provider"
+          },
+          "issueInvoiceOnOrderScreen": {
+            "type": "boolean",
+            "description": "Issue invoice on order screen",
+            "default": true
+          },
+          "taxNumber": {
+            "type": "string",
+            "description": "Tax number for e-invoice"
+          }
+        }
+      },
+      "CreateBusinessProfileDto": {
+        "type": "object",
+        "properties": {
+          "businessType": {
+            "type": "string",
+            "description": "Business type",
+            "enum": [
+              "individual_business",
+              "private_company"
+            ],
+            "example": "individual_business"
+          },
+          "taxNumber": {
+            "type": "string",
+            "description": "Tax number (Mã số thuế)",
+            "example": "0123456789"
+          },
+          "name": {
+            "type": "string",
+            "description": "Company name",
+            "example": "Công ty TNHH ABC"
+          },
+          "address": {
+            "type": "string",
+            "description": "Company address",
+            "example": "123 Đường ABC, Quận 1, TP.HCM"
+          },
+          "ownerName": {
+            "type": "string",
+            "description": "Owner name",
+            "example": "Nguyễn Văn A"
+          },
+          "identityNumber": {
+            "type": "string",
+            "description": "Identity number (CMND/CCCD)",
+            "example": "123456789012"
+          },
+          "fieldsOfOperation": {
+            "type": "string",
+            "description": "Fields of operation",
+            "enum": [
+              "commerce",
+              "services",
+              "manufacturing",
+              "construction_installation"
+            ],
+            "example": "commerce"
+          },
+          "sector": {
+            "type": "array",
+            "description": "Business sectors",
+            "example": [
+              "convenience_store",
+              "electronics_mobile"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "convenience_store",
+                "mom_baby",
+                "furniture_household",
+                "flowers_gifts",
+                "fashion_accessories",
+                "cosmetics",
+                "electronics_mobile",
+                "stationery",
+                "construction",
+                "toys_sports",
+                "pharmaceuticals_medical",
+                "electronics_home_appliances"
+              ]
+            }
+          },
+          "accountingRegime": {
+            "type": "string",
+            "description": "Accounting regime",
+            "enum": [
+              "accounting_regime_88_2021_tt_btc",
+              "accounting_regime_200_2014_tt_btc",
+              "accounting_regime_133_2016_tt_btc"
+            ],
+            "example": "accounting_regime_88_2021_tt_btc"
+          },
+          "startDataDate": {
+            "type": "string",
+            "description": "Start data date",
+            "example": "2025-01-01",
+            "default": "2025-01-01"
+          },
+          "taxFrequency": {
+            "type": "string",
+            "description": "Tax frequency",
+            "enum": [
+              "quarterly",
+              "monthly"
+            ],
+            "example": "quarterly"
+          },
+          "useInvoiceMachine": {
+            "type": "string",
+            "description": "Use invoice machine",
+            "enum": [
+              "yes",
+              "no"
+            ],
+            "example": "yes"
+          },
+          "inventoryMethod": {
+            "type": "string",
+            "description": "Inventory method",
+            "enum": [
+              "weighted_average"
+            ],
+            "example": "weighted_average"
+          },
+          "taxableBusinessSectorsVatPit": {
+            "type": "string",
+            "description": "Taxable business sectors VAT/PIT code",
+            "enum": [
+              "101",
+              "102",
+              "103",
+              "104",
+              "105",
+              "106",
+              "201",
+              "202",
+              "203",
+              "204",
+              "205",
+              "206",
+              "207",
+              "208",
+              "209",
+              "210",
+              "211",
+              "212",
+              "213",
+              "214",
+              "215",
+              "216",
+              "217",
+              "218",
+              "301",
+              "302",
+              "303",
+              "304",
+              "305",
+              "306",
+              "307",
+              "308",
+              "309",
+              "310",
+              "401",
+              "402",
+              "403"
+            ],
+            "example": "101"
+          },
+          "taxCalculationMethod": {
+            "type": "string",
+            "description": "Tax calculation method",
+            "enum": [
+              "tax_calculation_method_deduction",
+              "tax_calculation_method_direct_on_revenue"
+            ],
+            "example": "tax_calculation_method_deduction",
+            "default": "tax_calculation_method_deduction"
+          },
+          "accountingCurrency": {
+            "type": "string",
+            "description": "Accounting currency",
+            "enum": [
+              "VND",
+              "USD",
+              "has_foreign_currency_transaction"
+            ],
+            "example": "VND",
+            "default": "VND"
+          },
+          "initialCashOnHand": {
+            "type": "number",
+            "description": "Initial cash on hand",
+            "example": 10000000,
+            "default": 0
+          },
+          "initialBankBalance": {
+            "type": "number",
+            "description": "Initial bank balance",
+            "example": 50000000,
+            "default": 0
+          },
+          "einvoiceProvider": {
+            "description": "E-invoice provider configuration",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EInvoiceProviderDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "businessType",
+          "taxNumber",
+          "name",
+          "address",
+          "ownerName",
+          "identityNumber",
+          "fieldsOfOperation",
+          "sector",
+          "accountingRegime",
+          "taxFrequency",
+          "useInvoiceMachine",
+          "inventoryMethod",
+          "taxableBusinessSectorsVatPit"
+        ]
+      },
+      "EInvoiceProviderResponseDto": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "description": "E-invoice provider active status"
+          },
+          "provider": {
+            "type": "string",
+            "description": "E-invoice provider name",
+            "enum": [
+              "viettel",
+              "minvoice",
+              "misa"
+            ],
+            "nullable": true
+          },
+          "apiKey": {
+            "type": "string",
+            "description": "API key for e-invoice provider",
+            "nullable": true
+          },
+          "account": {
+            "type": "string",
+            "description": "Account for e-invoice provider",
+            "nullable": true
+          },
+          "password": {
+            "type": "string",
+            "description": "Password for e-invoice provider",
+            "nullable": true
+          },
+          "issueInvoiceOnOrderScreen": {
+            "type": "boolean",
+            "description": "Issue invoice on order screen"
+          },
+          "taxNumber": {
+            "type": "string",
+            "description": "Tax number for e-invoice",
+            "nullable": true
+          }
+        },
+        "required": [
+          "active",
+          "provider",
+          "apiKey",
+          "account",
+          "password",
+          "issueInvoiceOnOrderScreen",
+          "taxNumber"
+        ]
+      },
+      "BusinessProfileResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Business profile ID"
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "businessType": {
+            "type": "string",
+            "description": "Business type",
+            "enum": [
+              "individual_business",
+              "private_company"
+            ]
+          },
+          "taxNumber": {
+            "type": "string",
+            "description": "Tax number"
+          },
+          "name": {
+            "type": "string",
+            "description": "Company name"
+          },
+          "address": {
+            "type": "string",
+            "description": "Company address"
+          },
+          "ownerName": {
+            "type": "string",
+            "description": "Owner name"
+          },
+          "identityNumber": {
+            "type": "string",
+            "description": "Identity number"
+          },
+          "fieldsOfOperation": {
+            "type": "string",
+            "description": "Fields of operation",
+            "enum": [
+              "commerce",
+              "services",
+              "manufacturing",
+              "construction_installation"
+            ]
+          },
+          "sector": {
+            "type": "array",
+            "description": "Business sectors",
+            "items": {
+              "type": "string",
+              "enum": [
+                "convenience_store",
+                "mom_baby",
+                "furniture_household",
+                "flowers_gifts",
+                "fashion_accessories",
+                "cosmetics",
+                "electronics_mobile",
+                "stationery",
+                "construction",
+                "toys_sports",
+                "pharmaceuticals_medical",
+                "electronics_home_appliances"
+              ]
+            }
+          },
+          "accountingRegime": {
+            "type": "string",
+            "description": "Accounting regime",
+            "enum": [
+              "accounting_regime_88_2021_tt_btc",
+              "accounting_regime_200_2014_tt_btc",
+              "accounting_regime_133_2016_tt_btc"
+            ]
+          },
+          "startDataDate": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Start data date"
+          },
+          "taxFrequency": {
+            "type": "string",
+            "description": "Tax frequency",
+            "enum": [
+              "quarterly",
+              "monthly"
+            ]
+          },
+          "useInvoiceMachine": {
+            "type": "string",
+            "description": "Use invoice machine",
+            "enum": [
+              "yes",
+              "no"
+            ]
+          },
+          "inventoryMethod": {
+            "type": "string",
+            "description": "Inventory method",
+            "enum": [
+              "weighted_average"
+            ]
+          },
+          "taxableBusinessSectorsVatPit": {
+            "type": "string",
+            "description": "Taxable business sectors VAT/PIT code",
+            "enum": [
+              "101",
+              "102",
+              "103",
+              "104",
+              "105",
+              "106",
+              "201",
+              "202",
+              "203",
+              "204",
+              "205",
+              "206",
+              "207",
+              "208",
+              "209",
+              "210",
+              "211",
+              "212",
+              "213",
+              "214",
+              "215",
+              "216",
+              "217",
+              "218",
+              "301",
+              "302",
+              "303",
+              "304",
+              "305",
+              "306",
+              "307",
+              "308",
+              "309",
+              "310",
+              "401",
+              "402",
+              "403"
+            ]
+          },
+          "taxCalculationMethod": {
+            "type": "string",
+            "description": "Tax calculation method",
+            "enum": [
+              "tax_calculation_method_deduction",
+              "tax_calculation_method_direct_on_revenue"
+            ]
+          },
+          "accountingCurrency": {
+            "type": "string",
+            "description": "Accounting currency",
+            "enum": [
+              "VND",
+              "USD",
+              "has_foreign_currency_transaction"
+            ]
+          },
+          "initialCashOnHand": {
+            "type": "number",
+            "description": "Initial cash on hand"
+          },
+          "initialBankBalance": {
+            "type": "number",
+            "description": "Initial bank balance"
+          },
+          "einvoiceProvider": {
+            "description": "E-invoice provider configuration",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EInvoiceProviderResponseDto"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Updated at"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "businessType",
+          "taxNumber",
+          "name",
+          "address",
+          "ownerName",
+          "identityNumber",
+          "fieldsOfOperation",
+          "sector",
+          "accountingRegime",
+          "startDataDate",
+          "taxFrequency",
+          "useInvoiceMachine",
+          "inventoryMethod",
+          "taxableBusinessSectorsVatPit",
+          "taxCalculationMethod",
+          "accountingCurrency",
+          "initialCashOnHand",
+          "initialBankBalance",
+          "einvoiceProvider",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "UpdateBusinessProfileDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Business type"
+          },
+          "taxNumber": {
+            "type": "string",
+            "description": "Tax number (Mã số thuế)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Company name"
+          },
+          "address": {
+            "type": "string",
+            "description": "Company address"
+          },
+          "ownerName": {
+            "type": "string",
+            "description": "Owner name"
+          },
+          "identityNumber": {
+            "type": "string",
+            "description": "Identity number (CMND/CCCD)"
+          },
+          "fieldsOfOperation": {
+            "type": "string",
+            "description": "Fields of operation"
+          },
+          "sector": {
+            "description": "Business sectors",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "accountingRegime": {
+            "type": "string",
+            "description": "Accounting regime"
+          },
+          "startDataDate": {
+            "type": "string",
+            "description": "Start data date"
+          },
+          "taxCalculationMethod": {
+            "type": "string",
+            "description": "Tax calculation method"
+          },
+          "accountingCurrency": {
+            "type": "string",
+            "description": "Accounting currency"
+          },
+          "taxFrequency": {
+            "type": "string",
+            "description": "Tax frequency"
+          },
+          "useInvoiceMachine": {
+            "type": "string",
+            "description": "Use invoice machine"
+          },
+          "inventoryMethod": {
+            "type": "string",
+            "description": "Inventory method"
+          },
+          "initialCashOnHand": {
+            "type": "number",
+            "description": "Initial cash on hand"
+          },
+          "initialBankBalance": {
+            "type": "number",
+            "description": "Initial bank balance"
+          }
+        }
+      },
+      "CreateProviderSettingDto": {
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID for multi-tenancy"
+          },
+          "businessProfileId": {
+            "type": "string",
+            "description": "Business profile ID"
+          },
+          "providerType": {
+            "type": "string",
+            "description": "Provider type",
+            "enum": [
+              "einvoice",
+              "payment",
+              "sms",
+              "email",
+              "banking",
+              "tax",
+              "accounting"
+            ],
+            "example": "einvoice"
+          },
+          "name": {
+            "type": "string",
+            "description": "Provider name",
+            "example": "VNPT E-Invoice"
+          },
+          "apiKey": {
+            "type": "string",
+            "description": "API key for the provider"
+          },
+          "account": {
+            "type": "string",
+            "description": "Account name/username"
+          },
+          "password": {
+            "type": "string",
+            "description": "Password for the account"
+          },
+          "isUse": {
+            "type": "boolean",
+            "description": "Whether to use this provider",
+            "default": false
+          },
+          "configuration": {
+            "type": "object",
+            "description": "Additional configuration in JSON format",
+            "additionalProperties": true,
+            "example": {
+              "endpoint": "https://api.example.com",
+              "timeout": 30000,
+              "retryAttempts": 3
+            }
+          }
+        },
+        "required": [
+          "tenantId",
+          "businessProfileId",
+          "providerType",
+          "name"
+        ]
+      },
+      "ProviderSettingResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Provider setting ID"
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "businessProfileId": {
+            "type": "string",
+            "description": "Business profile ID"
+          },
+          "providerType": {
+            "type": "string",
+            "description": "Provider type"
+          },
+          "name": {
+            "type": "string",
+            "description": "Provider name"
+          },
+          "apiKey": {
+            "type": "string",
+            "description": "API key (masked for security)"
+          },
+          "account": {
+            "type": "string",
+            "description": "Account name/username"
+          },
+          "isUse": {
+            "type": "boolean",
+            "description": "Whether this provider is currently in use"
+          },
+          "configuration": {
+            "type": "object",
+            "description": "Additional configuration"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Updated at"
+          },
+          "hasRequiredCredentials": {
+            "type": "boolean",
+            "description": "Whether provider has required credentials"
+          },
+          "displayName": {
+            "type": "string",
+            "description": "Provider display name"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "businessProfileId",
+          "providerType",
+          "name",
+          "isUse",
+          "configuration",
+          "createdAt",
+          "updatedAt",
+          "hasRequiredCredentials",
+          "displayName"
+        ]
+      },
+      "ProviderSettingListResponseDto": {
+        "type": "object",
+        "properties": {
+          "settings": {
+            "description": "List of provider settings",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProviderSettingResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total count"
+          },
+          "page": {
+            "type": "number",
+            "description": "Current page"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Items per page"
+          },
+          "totalPages": {
+            "type": "number",
+            "description": "Total pages"
+          }
+        },
+        "required": [
+          "settings",
+          "total",
+          "page",
+          "limit",
+          "totalPages"
+        ]
+      },
+      "UpdateProviderSettingDto": {
+        "type": "object",
+        "properties": {
+          "providerType": {
+            "type": "string",
+            "description": "Provider type",
+            "enum": [
+              "einvoice",
+              "payment",
+              "sms",
+              "email",
+              "banking",
+              "tax",
+              "accounting"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Provider name"
+          },
+          "apiKey": {
+            "type": "string",
+            "description": "API key for the provider"
+          },
+          "account": {
+            "type": "string",
+            "description": "Account name/username"
+          },
+          "password": {
+            "type": "string",
+            "description": "Password for the account"
+          },
+          "isUse": {
+            "type": "boolean",
+            "description": "Whether to use this provider"
+          },
+          "configuration": {
+            "type": "object",
+            "description": "Additional configuration in JSON format",
+            "additionalProperties": true
+          }
+        }
+      },
+      "CreateAccountingObjectGroupDto": {
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Updated at"
+          },
+          "id": {
+            "type": "string",
+            "description": "ID"
+          },
+          "groupCode": {
+            "type": "string",
+            "description": "Group code"
+          },
+          "name": {
+            "type": "string",
+            "description": "Group name"
+          },
+          "note": {
+            "type": "string",
+            "description": "Note"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is active",
+            "default": true
+          },
+          "parentGroupId": {
+            "type": "string",
+            "description": "Parent group ID"
+          },
+          "groupCategory": {
+            "type": "string",
+            "description": "Group category",
+            "enum": [
+              "customer",
+              "supplier",
+              "employee"
+            ]
+          }
+        },
+        "required": [
+          "tenantId",
+          "createdAt",
+          "updatedAt",
+          "id",
+          "groupCode",
+          "name"
+        ]
+      },
+      "AccountingObjectGroupResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Accounting object group ID"
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "groupCode": {
+            "type": "string",
+            "description": "Group code"
+          },
+          "name": {
+            "type": "string",
+            "description": "Group name"
+          },
+          "note": {
+            "type": "string",
+            "description": "Note"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is active"
+          },
+          "parentGroupId": {
+            "type": "string",
+            "description": "Parent group ID"
+          },
+          "createdAt": {
+            "type": "object",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "type": "object",
+            "description": "Updated at"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "groupCode",
+          "name",
+          "isActive",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "AccountingObjectGroupListResponseDto": {
+        "type": "object",
+        "properties": {
+          "groups": {
+            "description": "List of accounting object groups",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountingObjectGroupResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total count"
+          }
+        },
+        "required": [
+          "groups",
+          "total"
+        ]
+      },
+      "UpdateAccountingObjectGroupDto": {
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Updated at"
+          },
+          "id": {
+            "type": "string",
+            "description": "ID"
+          },
+          "groupCode": {
+            "type": "string",
+            "description": "Group code"
+          },
+          "name": {
+            "type": "string",
+            "description": "Group name"
+          },
+          "note": {
+            "type": "string",
+            "description": "Note"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is active"
+          },
+          "parentGroupId": {
+            "type": "string",
+            "description": "Parent group ID"
+          }
+        }
+      },
+      "CreateAccountingObjectDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "ID"
+          },
+          "objectCategory": {
+            "type": "string",
+            "description": "Object category",
+            "enum": [
+              "customer",
+              "supplier",
+              "employee"
+            ]
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Updated at"
+          },
+          "code": {
+            "type": "string",
+            "description": "Object code"
+          },
+          "name": {
+            "type": "string",
+            "description": "Object name"
+          },
+          "objectType": {
+            "type": "string",
+            "description": "Object type",
+            "enum": [
+              "individual",
+              "company"
+            ]
+          },
+          "address": {
+            "type": "string",
+            "description": "Address"
+          },
+          "otherAddress": {
+            "type": "string",
+            "description": "Other address"
+          },
+          "listDeliveryAddress": {
+            "description": "List of delivery addresses",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "objectGroupId": {
+            "type": "string",
+            "description": "Object group ID"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone"
+          },
+          "isVendor": {
+            "type": "boolean",
+            "description": "Is vendor",
+            "default": false
+          },
+          "isLocalObject": {
+            "type": "boolean",
+            "description": "Is local object",
+            "default": false
+          },
+          "isCustomer": {
+            "type": "boolean",
+            "description": "Is customer",
+            "default": false
+          },
+          "isEmployee": {
+            "type": "boolean",
+            "description": "Is employee",
+            "default": false
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is active",
+            "default": true
+          },
+          "legalRepresentative": {
+            "type": "string",
+            "description": "Legal representative"
+          },
+          "country": {
+            "type": "string",
+            "description": "Country"
+          },
+          "website": {
+            "type": "string",
+            "description": "Website"
+          },
+          "provinceOrCity": {
+            "type": "string",
+            "description": "Province or city"
+          },
+          "companyTaxCode": {
+            "type": "string",
+            "description": "Company tax code"
+          },
+          "isSameAddress": {
+            "type": "boolean",
+            "description": "Is same address",
+            "default": false
+          },
+          "payAccountId": {
+            "type": "string",
+            "description": "Pay account ID"
+          },
+          "receiveAccountId": {
+            "type": "string",
+            "description": "Receive account ID"
+          },
+          "reftype": {
+            "type": "string",
+            "description": "Ref type"
+          },
+          "contactName": {
+            "type": "string",
+            "description": "Contact name"
+          },
+          "contactPhone": {
+            "type": "string",
+            "description": "Contact phone"
+          },
+          "contactEmail": {
+            "type": "string",
+            "description": "Contact email"
+          },
+          "contactPosition": {
+            "type": "string",
+            "description": "Contact position"
+          },
+          "invoiceReceiptName": {
+            "type": "string",
+            "description": "Invoice receipt name"
+          },
+          "invoiceReceiptPhone": {
+            "type": "string",
+            "description": "Invoice receipt phone"
+          },
+          "invoiceReceiptEmail": {
+            "type": "string",
+            "description": "Invoice receipt email"
+          },
+          "identityNumber": {
+            "type": "string",
+            "description": "Identity number"
+          },
+          "passportNumber": {
+            "type": "string",
+            "description": "Passport number"
+          },
+          "listBankAccountIds": {
+            "description": "List of bank account IDs",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "note": {
+            "type": "string",
+            "description": "Note"
+          }
+        },
+        "required": [
+          "id",
+          "objectCategory",
+          "tenantId",
+          "createdAt",
+          "updatedAt",
+          "code",
+          "name",
+          "objectType"
+        ]
+      },
+      "AccountingObjectResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Accounting object ID"
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "code": {
+            "type": "string",
+            "description": "Object code"
+          },
+          "name": {
+            "type": "string",
+            "description": "Object name"
+          },
+          "objectType": {
+            "type": "string",
+            "description": "Object type",
+            "enum": [
+              "individual",
+              "company"
+            ]
+          },
+          "address": {
+            "type": "string",
+            "description": "Address"
+          },
+          "otherAddress": {
+            "type": "string",
+            "description": "Other address"
+          },
+          "listDeliveryAddress": {
+            "description": "List of delivery addresses",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "objectGroupId": {
+            "type": "string",
+            "description": "Object group ID"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone"
+          },
+          "isVendor": {
+            "type": "boolean",
+            "description": "Is vendor"
+          },
+          "isLocalObject": {
+            "type": "boolean",
+            "description": "Is local object"
+          },
+          "isCustomer": {
+            "type": "boolean",
+            "description": "Is customer"
+          },
+          "isEmployee": {
+            "type": "boolean",
+            "description": "Is employee"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is active"
+          },
+          "legalRepresentative": {
+            "type": "string",
+            "description": "Legal representative"
+          },
+          "country": {
+            "type": "string",
+            "description": "Country"
+          },
+          "website": {
+            "type": "string",
+            "description": "Website"
+          },
+          "provinceOrCity": {
+            "type": "string",
+            "description": "Province or city"
+          },
+          "companyTaxCode": {
+            "type": "string",
+            "description": "Company tax code"
+          },
+          "isSameAddress": {
+            "type": "boolean",
+            "description": "Is same address"
+          },
+          "payAccountId": {
+            "type": "string",
+            "description": "Pay account ID"
+          },
+          "receiveAccountId": {
+            "type": "string",
+            "description": "Receive account ID"
+          },
+          "reftype": {
+            "type": "string",
+            "description": "Ref type"
+          },
+          "contactName": {
+            "type": "string",
+            "description": "Contact name"
+          },
+          "contactPhone": {
+            "type": "string",
+            "description": "Contact phone"
+          },
+          "contactEmail": {
+            "type": "string",
+            "description": "Contact email"
+          },
+          "contactPosition": {
+            "type": "string",
+            "description": "Contact position"
+          },
+          "invoiceReceiptName": {
+            "type": "string",
+            "description": "Invoice receipt name"
+          },
+          "invoiceReceiptPhone": {
+            "type": "string",
+            "description": "Invoice receipt phone"
+          },
+          "invoiceReceiptEmail": {
+            "type": "string",
+            "description": "Invoice receipt email"
+          },
+          "identityNumber": {
+            "type": "string",
+            "description": "Identity number"
+          },
+          "passportNumber": {
+            "type": "string",
+            "description": "Passport number"
+          },
+          "listBankAccountIds": {
+            "description": "List of bank account IDs",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "note": {
+            "type": "string",
+            "description": "Note"
+          },
+          "createdAt": {
+            "type": "object",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "type": "object",
+            "description": "Updated at"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "code",
+          "name",
+          "objectType",
+          "isVendor",
+          "isLocalObject",
+          "isCustomer",
+          "isEmployee",
+          "isActive",
+          "isSameAddress",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "AccountingObjectListResponseDto": {
+        "type": "object",
+        "properties": {
+          "objects": {
+            "description": "List of accounting objects",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountingObjectResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total count"
+          }
+        },
+        "required": [
+          "objects",
+          "total"
+        ]
+      },
+      "UpdateAccountingObjectDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Object code"
+          },
+          "name": {
+            "type": "string",
+            "description": "Object name"
+          },
+          "objectType": {
+            "type": "string",
+            "description": "Object type",
+            "enum": [
+              "individual",
+              "company"
+            ]
+          },
+          "address": {
+            "type": "string",
+            "description": "Address"
+          },
+          "otherAddress": {
+            "type": "string",
+            "description": "Other address"
+          },
+          "listDeliveryAddress": {
+            "description": "List of delivery addresses",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "objectGroupId": {
+            "type": "string",
+            "description": "Object group ID"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone"
+          },
+          "isVendor": {
+            "type": "boolean",
+            "description": "Is vendor"
+          },
+          "isLocalObject": {
+            "type": "boolean",
+            "description": "Is local object"
+          },
+          "isCustomer": {
+            "type": "boolean",
+            "description": "Is customer"
+          },
+          "isEmployee": {
+            "type": "boolean",
+            "description": "Is employee"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is active"
+          },
+          "legalRepresentative": {
+            "type": "string",
+            "description": "Legal representative"
+          },
+          "country": {
+            "type": "string",
+            "description": "Country"
+          },
+          "website": {
+            "type": "string",
+            "description": "Website"
+          },
+          "provinceOrCity": {
+            "type": "string",
+            "description": "Province or city"
+          },
+          "companyTaxCode": {
+            "type": "string",
+            "description": "Company tax code"
+          },
+          "isSameAddress": {
+            "type": "boolean",
+            "description": "Is same address"
+          },
+          "payAccountId": {
+            "type": "string",
+            "description": "Pay account ID"
+          },
+          "receiveAccountId": {
+            "type": "string",
+            "description": "Receive account ID"
+          },
+          "reftype": {
+            "type": "string",
+            "description": "Ref type"
+          },
+          "contactName": {
+            "type": "string",
+            "description": "Contact name"
+          },
+          "contactPhone": {
+            "type": "string",
+            "description": "Contact phone"
+          },
+          "contactEmail": {
+            "type": "string",
+            "description": "Contact email"
+          },
+          "contactPosition": {
+            "type": "string",
+            "description": "Contact position"
+          },
+          "invoiceReceiptName": {
+            "type": "string",
+            "description": "Invoice receipt name"
+          },
+          "invoiceReceiptPhone": {
+            "type": "string",
+            "description": "Invoice receipt phone"
+          },
+          "invoiceReceiptEmail": {
+            "type": "string",
+            "description": "Invoice receipt email"
+          },
+          "identityNumber": {
+            "type": "string",
+            "description": "Identity number"
+          },
+          "passportNumber": {
+            "type": "string",
+            "description": "Passport number"
+          },
+          "listBankAccountIds": {
+            "description": "List of bank account IDs",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "note": {
+            "type": "string",
+            "description": "Note"
+          }
+        }
+      },
+      "CreateWarehouseDto": {
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Updated at"
+          },
+          "id": {
+            "type": "string",
+            "description": "ID"
+          },
+          "code": {
+            "type": "string",
+            "description": "Warehouse code"
+          },
+          "name": {
+            "type": "string",
+            "description": "Warehouse name"
+          },
+          "address": {
+            "type": "string",
+            "description": "Warehouse address"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is active",
+            "default": true
+          },
+          "inventoryAccountId": {
+            "type": "string",
+            "description": "Inventory account ID"
+          }
+        },
+        "required": [
+          "tenantId",
+          "createdAt",
+          "updatedAt",
+          "id",
+          "code",
+          "name"
+        ]
+      },
+      "WarehouseResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Warehouse ID"
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "code": {
+            "type": "string",
+            "description": "Warehouse code"
+          },
+          "name": {
+            "type": "string",
+            "description": "Warehouse name"
+          },
+          "address": {
+            "type": "string",
+            "description": "Warehouse address"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is active"
+          },
+          "inventoryAccountId": {
+            "type": "string",
+            "description": "Inventory account ID"
+          },
+          "createdAt": {
+            "type": "object",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "type": "object",
+            "description": "Updated at"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "code",
+          "name",
+          "isActive",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "WarehouseListResponseDto": {
+        "type": "object",
+        "properties": {
+          "warehouses": {
+            "description": "List of warehouses",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WarehouseResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total count"
+          }
+        },
+        "required": [
+          "warehouses",
+          "total"
+        ]
+      },
+      "UpdateWarehouseDto": {
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Updated at"
+          },
+          "id": {
+            "type": "string",
+            "description": "ID"
+          },
+          "code": {
+            "type": "string",
+            "description": "Warehouse code"
+          },
+          "name": {
+            "type": "string",
+            "description": "Warehouse name"
+          },
+          "address": {
+            "type": "string",
+            "description": "Warehouse address"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is active"
+          },
+          "inventoryAccountId": {
+            "type": "string",
+            "description": "Inventory account ID"
+          }
+        }
+      },
+      "CreateItemGroupDto": {
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Updated at"
+          },
+          "id": {
+            "type": "string",
+            "description": "ID"
+          },
+          "code": {
+            "type": "string",
+            "description": "Group code"
+          },
+          "name": {
+            "type": "string",
+            "description": "Group name"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is active",
+            "default": true
+          },
+          "parentGroupId": {
+            "type": "string",
+            "description": "Parent group ID"
+          },
+          "groupCategory": {
+            "type": "string",
+            "description": "Group category",
+            "enum": [
+              "goods",
+              "service",
+              "material",
+              "finished_goods",
+              "tool_and_equipment",
+              "combination"
+            ]
+          }
+        },
+        "required": [
+          "tenantId",
+          "createdAt",
+          "updatedAt",
+          "id",
+          "code",
+          "name"
+        ]
+      },
+      "ItemGroupResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Item group ID"
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "code": {
+            "type": "string",
+            "description": "Group code"
+          },
+          "name": {
+            "type": "string",
+            "description": "Group name"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is active"
+          },
+          "parentGroupId": {
+            "type": "string",
+            "description": "Parent group ID"
+          },
+          "groupCategory": {
+            "type": "string",
+            "description": "Group category"
+          },
+          "createdAt": {
+            "type": "object",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "type": "object",
+            "description": "Updated at"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "code",
+          "name",
+          "isActive",
+          "groupCategory",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ItemGroupListResponseDto": {
+        "type": "object",
+        "properties": {
+          "groups": {
+            "description": "List of item groups",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemGroupResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total count"
+          }
+        },
+        "required": [
+          "groups",
+          "total"
+        ]
+      },
+      "UpdateItemGroupDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Group code"
+          },
+          "name": {
+            "type": "string",
+            "description": "Group name"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is active"
+          },
+          "parentGroupId": {
+            "type": "string",
+            "description": "Parent group ID"
+          },
+          "groupCategory": {
+            "type": "string",
+            "description": "Group category",
+            "enum": [
+              "goods",
+              "service",
+              "material",
+              "finished_goods",
+              "tool_and_equipment",
+              "combination"
+            ]
+          }
+        }
+      },
+      "CreateItemDto": {
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Updated at"
+          },
+          "id": {
+            "type": "string",
+            "description": "ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Item name"
+          },
+          "code": {
+            "type": "string",
+            "description": "Item code"
+          },
+          "type": {
+            "type": "string",
+            "description": "Item type",
+            "enum": [
+              "goods",
+              "service",
+              "material",
+              "finished_goods",
+              "tool_and_equipment",
+              "combination"
+            ],
+            "default": "goods"
+          },
+          "barcode": {
+            "type": "string",
+            "description": "Barcode"
+          },
+          "listItemCategoryId": {
+            "type": "string",
+            "description": "List of item category IDs"
+          },
+          "minimumStock": {
+            "type": "number",
+            "description": "Minimum stock"
+          },
+          "maximumStock": {
+            "type": "number",
+            "description": "Maximum stock"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is active",
+            "default": true
+          },
+          "unitId": {
+            "type": "string",
+            "description": "Unit ID"
+          },
+          "sellPrice": {
+            "type": "number",
+            "description": "Sell price"
+          },
+          "importTaxRate": {
+            "type": "number",
+            "description": "Import tax rate"
+          },
+          "exportTaxRate": {
+            "type": "number",
+            "description": "Export tax rate"
+          },
+          "vatRate": {
+            "type": "number",
+            "description": "VAT rate"
+          },
+          "specialConsumptionTaxRate": {
+            "type": "number",
+            "description": "Special consumption tax rate"
+          },
+          "discountAccountId": {
+            "type": "string",
+            "description": "Discount account ID"
+          },
+          "saleOffAccountId": {
+            "type": "string",
+            "description": "Sale off account ID"
+          },
+          "returnAccountId": {
+            "type": "string",
+            "description": "Return account ID"
+          },
+          "inventoryAccountId": {
+            "type": "string",
+            "description": "Inventory account ID"
+          },
+          "revenueAccountId": {
+            "type": "string",
+            "description": "Revenue account ID"
+          },
+          "cogsAccountId": {
+            "type": "string",
+            "description": "COGS account ID"
+          },
+          "purchaseDescription": {
+            "type": "string",
+            "description": "Purchase description"
+          },
+          "saleDescription": {
+            "type": "string",
+            "description": "Sale description"
+          },
+          "saleAccountId": {
+            "type": "string",
+            "description": "Sale account ID"
+          },
+          "taxReductionType": {
+            "type": "string",
+            "description": "Tax reduction type"
+          },
+          "purchaseLastUnitPrice": {
+            "type": "number",
+            "description": "Purchase last unit price"
+          },
+          "specificWarehouseId": {
+            "type": "string",
+            "description": "Specific warehouse ID"
+          },
+          "specialConsumptionTaxGroupId": {
+            "type": "string",
+            "description": "Special consumption tax group ID"
+          },
+          "listImageUrl": {
+            "description": "List of image URLs (existing URLs or URLs to download)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "imageUrls": {
+            "description": "Array of image URLs to download and save",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "defaultImageUrl": {
+            "type": "string",
+            "description": "Default image URL"
+          },
+          "allowNegativeStock": {
+            "type": "boolean",
+            "description": "Allow negative stock",
+            "default": false
+          },
+          "initialStock": {
+            "type": "number",
+            "description": "Initial stock"
+          },
+          "taxableBusinessSectorsVatPit": {
+            "type": "string",
+            "description": "Taxable business sectors VAT/PIT"
+          }
+        },
+        "required": [
+          "tenantId",
+          "createdAt",
+          "updatedAt",
+          "id",
+          "name",
+          "code"
+        ]
+      },
+      "ItemResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Item ID"
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Item name"
+          },
+          "code": {
+            "type": "string",
+            "description": "Item code"
+          },
+          "type": {
+            "type": "string",
+            "description": "Item type"
+          },
+          "barcode": {
+            "type": "string",
+            "description": "Barcode"
+          },
+          "listItemCategoryId": {
+            "description": "List of item category IDs",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "minimumStock": {
+            "type": "number",
+            "description": "Minimum stock"
+          },
+          "maximumStock": {
+            "type": "number",
+            "description": "Maximum stock"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is active"
+          },
+          "unitId": {
+            "type": "string",
+            "description": "Unit ID"
+          },
+          "sellPrice": {
+            "type": "number",
+            "description": "Sell price"
+          },
+          "importTaxRate": {
+            "type": "number",
+            "description": "Import tax rate"
+          },
+          "exportTaxRate": {
+            "type": "number",
+            "description": "Export tax rate"
+          },
+          "vatRate": {
+            "type": "number",
+            "description": "VAT rate"
+          },
+          "specialConsumptionTaxRate": {
+            "type": "number",
+            "description": "Special consumption tax rate"
+          },
+          "discountAccountId": {
+            "type": "string",
+            "description": "Discount account ID"
+          },
+          "saleOffAccountId": {
+            "type": "string",
+            "description": "Sale off account ID"
+          },
+          "returnAccountId": {
+            "type": "string",
+            "description": "Return account ID"
+          },
+          "inventoryAccountId": {
+            "type": "string",
+            "description": "Inventory account ID"
+          },
+          "revenueAccountId": {
+            "type": "string",
+            "description": "Revenue account ID"
+          },
+          "cogsAccountId": {
+            "type": "string",
+            "description": "COGS account ID"
+          },
+          "purchaseDescription": {
+            "type": "string",
+            "description": "Purchase description"
+          },
+          "saleDescription": {
+            "type": "string",
+            "description": "Sale description"
+          },
+          "saleAccountId": {
+            "type": "string",
+            "description": "Sale account ID"
+          },
+          "taxReductionType": {
+            "type": "string",
+            "description": "Tax reduction type"
+          },
+          "purchaseLastUnitPrice": {
+            "type": "number",
+            "description": "Purchase last unit price"
+          },
+          "specificWarehouseId": {
+            "type": "string",
+            "description": "Specific warehouse ID"
+          },
+          "specialConsumptionTaxGroupId": {
+            "type": "string",
+            "description": "Special consumption tax group ID"
+          },
+          "listImageUrl": {
+            "description": "List of image URLs",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "defaultImageUrl": {
+            "type": "string",
+            "description": "Default image URL"
+          },
+          "allowNegativeStock": {
+            "type": "boolean",
+            "description": "Allow negative stock"
+          },
+          "initialStock": {
+            "type": "number",
+            "description": "Initial stock"
+          },
+          "createdAt": {
+            "type": "object",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "type": "object",
+            "description": "Updated at"
+          },
+          "createdBy": {
+            "type": "string",
+            "description": "Created by user ID"
+          },
+          "updatedBy": {
+            "type": "string",
+            "description": "Updated by user ID"
+          },
+          "isDeleted": {
+            "type": "boolean",
+            "description": "Is deleted (soft delete)"
+          },
+          "warehouseQuantities": {
+            "type": "array",
+            "description": "Warehouse quantities - array of {warehouseId, quantity}",
+            "items": {
+              "type": "object",
+              "properties": {
+                "warehouseId": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "totalQuantity": {
+            "type": "number",
+            "description": "Total quantity across all warehouses"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "name",
+          "code",
+          "type",
+          "listItemCategoryId",
+          "isActive",
+          "listImageUrl",
+          "allowNegativeStock",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ItemListResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "description": "List of items",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total count"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ]
+      },
+      "UpdateItemDto": {
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Updated at"
+          },
+          "id": {
+            "type": "string",
+            "description": "ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Item name"
+          },
+          "code": {
+            "type": "string",
+            "description": "Item code"
+          },
+          "type": {
+            "type": "string",
+            "description": "Item type",
+            "enum": [
+              "goods",
+              "service",
+              "material",
+              "finished_goods",
+              "tool_and_equipment",
+              "combination"
+            ],
+            "default": "goods"
+          },
+          "barcode": {
+            "type": "string",
+            "description": "Barcode"
+          },
+          "listItemCategoryId": {
+            "type": "string",
+            "description": "List of item category IDs"
+          },
+          "minimumStock": {
+            "type": "number",
+            "description": "Minimum stock"
+          },
+          "maximumStock": {
+            "type": "number",
+            "description": "Maximum stock"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is active",
+            "default": true
+          },
+          "unitId": {
+            "type": "string",
+            "description": "Unit ID"
+          },
+          "sellPrice": {
+            "type": "number",
+            "description": "Sell price"
+          },
+          "importTaxRate": {
+            "type": "number",
+            "description": "Import tax rate"
+          },
+          "exportTaxRate": {
+            "type": "number",
+            "description": "Export tax rate"
+          },
+          "vatRate": {
+            "type": "number",
+            "description": "VAT rate"
+          },
+          "specialConsumptionTaxRate": {
+            "type": "number",
+            "description": "Special consumption tax rate"
+          },
+          "discountAccountId": {
+            "type": "string",
+            "description": "Discount account ID"
+          },
+          "saleOffAccountId": {
+            "type": "string",
+            "description": "Sale off account ID"
+          },
+          "returnAccountId": {
+            "type": "string",
+            "description": "Return account ID"
+          },
+          "inventoryAccountId": {
+            "type": "string",
+            "description": "Inventory account ID"
+          },
+          "revenueAccountId": {
+            "type": "string",
+            "description": "Revenue account ID"
+          },
+          "cogsAccountId": {
+            "type": "string",
+            "description": "COGS account ID"
+          },
+          "purchaseDescription": {
+            "type": "string",
+            "description": "Purchase description"
+          },
+          "saleDescription": {
+            "type": "string",
+            "description": "Sale description"
+          },
+          "saleAccountId": {
+            "type": "string",
+            "description": "Sale account ID"
+          },
+          "taxReductionType": {
+            "type": "string",
+            "description": "Tax reduction type"
+          },
+          "purchaseLastUnitPrice": {
+            "type": "number",
+            "description": "Purchase last unit price"
+          },
+          "specificWarehouseId": {
+            "type": "string",
+            "description": "Specific warehouse ID"
+          },
+          "specialConsumptionTaxGroupId": {
+            "type": "string",
+            "description": "Special consumption tax group ID"
+          },
+          "listImageUrl": {
+            "description": "List of image URLs (existing URLs or URLs to download)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "imageUrls": {
+            "description": "Array of image URLs to download and save",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "defaultImageUrl": {
+            "type": "string",
+            "description": "Default image URL"
+          },
+          "allowNegativeStock": {
+            "type": "boolean",
+            "description": "Allow negative stock",
+            "default": false
+          },
+          "initialStock": {
+            "type": "number",
+            "description": "Initial stock"
+          },
+          "taxableBusinessSectorsVatPit": {
+            "type": "string",
+            "description": "Taxable business sectors VAT/PIT"
+          }
+        }
+      },
+      "CreateBankAccountDto": {
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Updated at"
+          },
+          "id": {
+            "type": "string",
+            "description": "ID"
+          },
+          "accountId": {
+            "type": "string",
+            "description": "Account ID in Chart of Accounts custom"
+          },
+          "initialBalance": {
+            "type": "number",
+            "description": "Initial balance",
+            "default": 0
+          },
+          "bankName": {
+            "type": "string",
+            "description": "Bank name (value from VN_LIST_BANK)"
+          },
+          "accountNumber": {
+            "type": "string",
+            "description": "Account number"
+          },
+          "accountOwner": {
+            "type": "string",
+            "description": "Account owner"
+          },
+          "city": {
+            "type": "string",
+            "description": "City/Province"
+          },
+          "address": {
+            "type": "string",
+            "description": "Branch address"
+          },
+          "branch": {
+            "type": "string",
+            "description": "Branch name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description"
+          }
+        },
+        "required": [
+          "tenantId",
+          "createdAt",
+          "updatedAt",
+          "id",
+          "initialBalance",
+          "bankName",
+          "accountNumber"
+        ]
+      },
+      "BankAccountResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Bank account ID"
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "Tenant ID"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Created at"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Updated at"
+          },
+          "accountId": {
+            "type": "string",
+            "description": "Account ID in Chart of Accounts custom"
+          },
+          "initialBalance": {
+            "type": "number",
+            "description": "Initial balance"
+          },
+          "bankName": {
+            "type": "string",
+            "description": "Bank name"
+          },
+          "accountNumber": {
+            "type": "string",
+            "description": "Account number"
+          },
+          "accountOwner": {
+            "type": "string",
+            "description": "Account owner"
+          },
+          "city": {
+            "type": "string",
+            "description": "City/Province"
+          },
+          "address": {
+            "type": "string",
+            "description": "Branch address"
+          },
+          "branch": {
+            "type": "string",
+            "description": "Branch name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "createdAt",
+          "updatedAt",
+          "initialBalance",
+          "bankName",
+          "accountNumber"
+        ]
+      },
+      "BankAccountListResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "description": "List of bank accounts",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BankAccountResponseDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total count"
+          }
+        },
+        "required": [
+          "data",
+          "total"
+        ]
+      },
+      "UpdateBankAccountDto": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "description": "Account ID in Chart of Accounts custom"
+          },
+          "initialBalance": {
+            "type": "number",
+            "description": "Initial balance"
+          },
+          "bankName": {
+            "type": "string",
+            "description": "Bank name (value from VN_LIST_BANK)"
+          },
+          "accountNumber": {
+            "type": "string",
+            "description": "Account number"
+          },
+          "accountOwner": {
+            "type": "string",
+            "description": "Account owner"
+          },
+          "city": {
+            "type": "string",
+            "description": "City/Province"
+          },
+          "address": {
+            "type": "string",
+            "description": "Branch address"
+          },
+          "branch": {
+            "type": "string",
+            "description": "Branch name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description"
+          }
+        }
+      }
+    }
+  }
+}

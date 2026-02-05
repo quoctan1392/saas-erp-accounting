@@ -604,6 +604,19 @@ class ApiService {
     const response = await this.coreApi.post(`/api/sales/vouchers/${id}/post`);
     return response.data.data || response.data;
   }
+
+  // Upload image
+  async uploadImage(file: File): Promise<{ url: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await this.coreApi.post('/api/uploads/image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data.data || response.data;
+  }
 }
 
 export const apiService = new ApiService();

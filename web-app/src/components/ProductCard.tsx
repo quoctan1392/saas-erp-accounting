@@ -28,6 +28,7 @@ interface ProductCardProps {
   warehouse?: string;
   discount?: number;
   discountAmount?: number;
+  discountType?: 'percent' | 'amount';
   isTradeDiscount?: boolean;
   vatRate?: number;
   taxIndustry?: string;
@@ -53,6 +54,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
   warehouse,
   discount = 0,
   discountAmount,
+  discountType,
   isTradeDiscount = false,
   vatRate,
   taxIndustry,
@@ -112,7 +114,9 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
         }}
         sx={{
           display: 'flex',
-          width: 361,
+          width: '100%',
+          alignSelf: 'stretch',
+          boxSizing: 'border-box',
           padding: '8px 12px 8px 8px',
           alignItems: 'center',
           gap: 1.5,
@@ -151,8 +155,8 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
         </Box>
 
         {/* Content */}
-        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', pt: 0.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
             <Box sx={{ minWidth: 0 }}>
               <Typography sx={{ fontSize: 15, fontWeight: 600, color: '#090909', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {name}
@@ -164,16 +168,31 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
             </Box>
 
             {/* Discount chip (top-right) */}
-            <Box sx={{ display: 'flex', gap: 0.5 }}>
-              {discount > 0 && (
-                <Box sx={{ display: 'flex', height: 20, padding: '2px 8px', alignItems: 'center', borderRadius: '16px', bgcolor: 'var(--Alert-Error-25, #FADBE1)' }}>
-                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#EF4444' }}>{`-${discount}%`}</Typography>
-                </Box>
-              )}
-              {discountAmount && discountAmount > 0 && (
-                <Box sx={{ display: 'flex', height: 20, padding: '2px 8px', alignItems: 'center', borderRadius: '16px', bgcolor: 'var(--Alert-Error-25, #FADBE1)' }}>
-                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#EF4444' }}>{`-${formatVND(discountAmount)}`}</Typography>
-                </Box>
+            <Box sx={{ display: 'flex', gap: 0.5, mt: 0.25 }}>
+              {/* Decide display based on explicit discountType when provided, otherwise infer */}
+              {discountType === 'percent' ? (
+                discount > 0 ? (
+                  <Box sx={{ display: 'flex', height: 20, padding: '2px 8px', alignItems: 'center', borderRadius: '16px', bgcolor: 'var(--Alert-Error-25, #FADBE1)' }}>
+                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#EF4444' }}>{`-${discount}%`}</Typography>
+                  </Box>
+                ) : null
+              ) : discountType === 'amount' ? (
+                discountAmount && discountAmount > 0 ? (
+                  <Box sx={{ display: 'flex', height: 20, padding: '2px 8px', alignItems: 'center', borderRadius: '16px', bgcolor: 'var(--Alert-Error-25, #FADBE1)' }}>
+                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#EF4444' }}>{`-${formatVND(discountAmount)}`}</Typography>
+                  </Box>
+                ) : null
+              ) : (
+                // Fallback inference: prefer percent if discount prop present
+                discount > 0 ? (
+                  <Box sx={{ display: 'flex', height: 20, padding: '2px 8px', alignItems: 'center', borderRadius: '16px', bgcolor: 'var(--Alert-Error-25, #FADBE1)' }}>
+                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#EF4444' }}>{`-${discount}%`}</Typography>
+                  </Box>
+                ) : discountAmount && discountAmount > 0 ? (
+                  <Box sx={{ display: 'flex', height: 20, padding: '2px 8px', alignItems: 'center', borderRadius: '16px', bgcolor: 'var(--Alert-Error-25, #FADBE1)' }}>
+                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#EF4444' }}>{`-${formatVND(discountAmount)}`}</Typography>
+                  </Box>
+                ) : null
               )}
             </Box>
           </Box>
@@ -221,7 +240,7 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({
       }}
       sx={{
         position: 'relative',
-        height: '100px',
+        height: '100%',
         padding: '8px 12px 8px 8px',
         borderRadius: '20px',
         border: selected ? '1px solid var(--Scheme-Primary, #FB7E00)' : '1px solid var(--Scheme-SurfaceContainer, #F5F5F5)',

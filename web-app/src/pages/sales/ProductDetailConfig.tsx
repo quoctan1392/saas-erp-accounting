@@ -262,6 +262,9 @@ const ProductDetailConfig: React.FC = () => {
     }
 
     // Build updated item with all config
+    // Generate a unique config ID for this new config
+    const configId = `${item.id}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    
     const updatedItem = {
       id: item.id,
       code: item.code,
@@ -281,21 +284,66 @@ const ProductDetailConfig: React.FC = () => {
       unit: unit || undefined,
       stock: item.stock,
       stockByWarehouse: item.stockByWarehouse,
+      configId, // Include the generated config ID
     };
 
+    // CRITICAL: Save the new config to sessionStorage BEFORE navigating
+    // This ensures ItemSelection can read it when it mounts
+    try {
+      const SESSION_KEY = 'itemSelection_selectedItems';
+      const saved = sessionStorage.getItem(SESSION_KEY);
+      const currentMap = saved ? JSON.parse(saved) : {};
+      
+      // Add new config with unique configId as key
+      currentMap[configId] = {
+        quantity: updatedItem.quantity,
+        item: {
+          id: item.id,
+          _id: item.id,
+          code: item.code,
+          name: item.name,
+          image: item.image,
+          unitPrice: updatedItem.unitPrice,
+          sellPrice: updatedItem.unitPrice,
+          price: updatedItem.unitPrice,
+          unit: updatedItem.unit,
+          stock: item.stock,
+          stockByWarehouse: item.stockByWarehouse,
+        },
+        warehouse: updatedItem.warehouse,
+        warehouseId: updatedItem.warehouseId,
+        discount: updatedItem.discount,
+        discountAmount: updatedItem.discountAmount,
+        isTradeDiscount: updatedItem.isTradeDiscount,
+        taxIndustry: updatedItem.taxIndustry,
+        vatRate: updatedItem.vatRate,
+        configId: configId,
+      };
+      
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(currentMap));
+      console.log('[ProductDetailConfig] Saved new config to sessionStorage:', { configId, currentMap });
+    } catch (err) {
+      console.warn('[ProductDetailConfig] Failed to save to sessionStorage:', err);
+    }
+
+    // Trigger callback if provided (for immediate state update if component still mounted)
     if (callbackId) {
       const cb = consumeCallback(callbackId);
       if (cb) {
+        console.log('[ProductDetailConfig] Invoking callback with updated item:', updatedItem);
         cb(updatedItem);
       }
     }
 
-    // Navigate back to item selection with updated item
+    // Navigate back to item selection
+    // Pass itemId so ItemSelection can re-open ConfigChoiceBottomSheet for this item
     navigate('/sales/select-items', { 
       state: { 
-        updatedItem,
-        callbackId: navState.parentCallbackId // pass through parent callback if any
-      } 
+        fromProductConfig: true,
+        callbackId: navState.parentCallbackId, // pass through parent callback if any
+        reopenConfigForItemId: item.id, // signal to re-open config bottom sheet
+      },
+      replace: false
     });
   };
 

@@ -2,7 +2,7 @@ import { Box, Typography, Button, IconButton, Switch, InputAdornment, Snackbar, 
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BusinessType } from '../../types/onboarding';
 import React, { useState, useEffect, useRef, useMemo, type TouchEvent } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { ROUTES } from '../../config/constants';
 import RoundedTextField from '../../components/RoundedTextField';
 import BottomSheet from '../../components/BottomSheet';
@@ -37,7 +37,7 @@ const Icon: React.FC<IconProps> = ({ name, size = 24, color = 'currentColor', va
 interface ProductFormProps {
   overlay?: boolean;
   singleSave?: boolean;
-  onSaved?: (created: any) => void;
+  onSaved?: (created: unknown) => void;
   onClose?: () => void;
 }
 
@@ -50,7 +50,8 @@ interface ProductFormData {
   unitActive: boolean;
   salePrice: string;
   purchasePrice: string;
-  defaultWarehouse: { id: string; name: string } | null;
+  specificWarehouseId: { id: string; name: string } | null;
+  defaultWarehouse?: { id: string; name: string } | null;
   initialStock: string;
   allowNegative: boolean;
   purchaseVAT: string;
@@ -65,14 +66,15 @@ interface ProductFormData {
 const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, singleSave, onSaved, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const singleSaveMode = singleSave ?? Boolean(location.state && (location.state as any).singleSave);
+  const navState = location.state as { singleSave?: boolean } | undefined;
+  const singleSaveMode = singleSave ?? Boolean(navState?.singleSave);
   console.log('🔵 ProductFormScreen rendered, pathname:', location.pathname);
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
 
   // Initialize form with react-hook-form
-  const { control, handleSubmit, watch, setValue, getValues, reset, formState: { isDirty, isValid } } = useForm<ProductFormData>({
+  const { control, handleSubmit, setValue, getValues, reset, formState: { isDirty, isValid } } = useForm<ProductFormData>({
     defaultValues: {
       productType: 'goods',
       code: '',
@@ -82,7 +84,7 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
       unitActive: true,
       salePrice: '',
       purchasePrice: '',
-      defaultWarehouse: null,
+      specificWarehouseId: null,
       initialStock: '0',
       allowNegative: false,
       purchaseVAT: '',
@@ -97,11 +99,11 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
   });
 
   // Watch form values
-  const productType = watch('productType');
-  const businessType = watch('businessType');
-  const taxIndustry = watch('taxIndustry');
-  const imagePreview = watch('imagePreview');
-  const unit = watch('unit');
+  const productType = useWatch({name: 'productType', control});
+  const businessType =  useWatch({name: 'businessType', control})
+  const taxIndustry = useWatch({name: 'taxIndustry', control})
+  const imagePreview = useWatch({name: 'imagePreview', control})
+  // `unit` can be derived from form values when needed; avoid unused variable
 
   // UI state
   const [productTypeSheetOpen, setProductTypeSheetOpen] = useState(false);
@@ -240,24 +242,29 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
   // Reset all overlay states when route changes (fix stale state issue)
   useEffect(() => {
     console.log('🟢 Resetting overlay states for pathname:', location.pathname);
-    setProductTypeSheetOpen(false);
-    setProductGroupScreenOpen(false);
-    setUnitScreenOpen(false);
-    setWarehouseScreenOpen(false);
-    // If a warehouse was created via the create page, apply it then clear state
-    if (location.state?.selectedWarehouse) {
-      setValue('defaultWarehouse', location.state.selectedWarehouse, { shouldDirty: true });
-      // clear navigation state so it doesn't reapply
-      navigate(location.pathname, { replace: true, state: {} });
-    }
+    // Defer state resets to avoid synchronous setState inside effect
+    const raf = requestAnimationFrame(() => {
+      setProductTypeSheetOpen(false);
+      setProductGroupScreenOpen(false);
+      setUnitScreenOpen(false);
+      setWarehouseScreenOpen(false);
 
-    // If navigation requested to re-open the warehouse selection overlay, do it now
-    if (location.state?.openWarehouseSelection) {
-      setWarehouseScreenOpen(true);
-      // clear navigation state
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-  }, [location.pathname, location.state, navigate]);
+      // If a warehouse was created via the create page, apply it then clear state
+      if (location.state?.selectedWarehouse) {
+        setValue('specificWarehouseId', location.state.selectedWarehouse, { shouldDirty: true });
+        // clear navigation state so it doesn't reapply
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+
+      // If navigation requested to re-open the warehouse selection overlay, do it now
+      if (location.state?.openWarehouseSelection) {
+        setWarehouseScreenOpen(true);
+        // clear navigation state
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [location.pathname, location.state, navigate, setValue]);
 
   const handleScanBarcode = () => {
     // Simple simulation for scanning: prompt the user to enter a barcode.
@@ -325,6 +332,22 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
       const effectivePurchaseVAT = data.businessType === BusinessType.PRIVATE_ENTERPRISE ? data.saleVAT : data.purchaseVAT;
       const effectiveSaleVAT = data.businessType === BusinessType.PRIVATE_ENTERPRISE ? data.saleVAT : '';
 
+      // Upload image first if exists
+      let uploadedImageUrl: string | undefined;
+      if (data.imageFile) {
+        console.log('Uploading image...');
+        try {
+          const uploadResult = await apiService.uploadImage(data.imageFile);
+          uploadedImageUrl = uploadResult.url;
+          console.log('Image uploaded successfully:', uploadedImageUrl);
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          alert('Không thể tải ảnh lên. Vui lòng thử lại.');
+          setIsLoading(false);
+          return;
+        }
+      }
+
       // Map to backend CreateItemDto
       type CreateItemDto = {
         code: string;
@@ -337,9 +360,9 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
         importTaxRate: number;
         minimumStock: number;
         isActive: boolean;
-        listItemCategoryId?: string[];
+        listItemCategoryId?: string;
         initialStock?: number;
-        defaultWarehouseId?: string;
+        specificWarehouseId?: string;
         defaultImageUrl?: string;
       };
 
@@ -357,10 +380,10 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
         minimumStock: parsedInitialStock,
         isActive: data.unitActive,
         // Optional fields
-        listItemCategoryId: data.productGroup ? [data.productGroup] : undefined,
+        listItemCategoryId: data.productGroup ? data.productGroup : undefined,
         initialStock: parsedInitialStock,
-        defaultWarehouseId: data.defaultWarehouse?.id || undefined,
-        defaultImageUrl: data.imagePreview || undefined,
+        specificWarehouseId: data.specificWarehouseId?.id || undefined,
+        defaultImageUrl: uploadedImageUrl || undefined,
       };
 
       console.log('Saving item with data:', itemData);
@@ -390,12 +413,12 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
 
       // Default behavior: go to categories after save
       setTimeout(() => navigate(ROUTES.DECLARATION_CATEGORIES), 1500);
+      setIsLoading(false)
     } catch (error) {
       console.error('Error saving product:', error);
       alert('Không thể lưu hàng hoá. Vui lòng thử lại.');
-    } finally {
-      setIsLoading(false);
-    }
+      setIsLoading(false)
+    } 
   };
 
   const onSubmitAndAddNew = async (data: ProductFormData) => {
@@ -403,6 +426,22 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
     try {
       const effectivePurchaseVAT = data.businessType === BusinessType.PRIVATE_ENTERPRISE ? data.saleVAT : data.purchaseVAT;
       const effectiveSaleVAT = data.businessType === BusinessType.PRIVATE_ENTERPRISE ? data.saleVAT : '';
+
+      // Upload image first if exists
+      let uploadedImageUrl: string | undefined;
+      if (data.imageFile) {
+        console.log('Uploading image...');
+        try {
+          const uploadResult = await apiService.uploadImage(data.imageFile);
+          uploadedImageUrl = uploadResult.url;
+          console.log('Image uploaded successfully:', uploadedImageUrl);
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          alert('Không thể tải ảnh lên. Vui lòng thử lại.');
+          setIsLoading(false);
+          return;
+        }
+      }
 
       // Map to backend CreateItemDto
       type CreateItemDto = {
@@ -432,7 +471,7 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
         minimumStock: parseFloat(data.initialStock.replace(/,/g, '')) || 0,
         isActive: data.unitActive,
         listItemCategoryId: data.productGroup ? [data.productGroup] : undefined,
-        defaultImageUrl: data.imagePreview || undefined,
+        defaultImageUrl: uploadedImageUrl || undefined,
       };
 
       console.log('Saving item with data:', itemData);
@@ -482,22 +521,15 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
           imageFile: null,
         });
       }
+      setIsLoading(false);
     } catch (error) {
       console.error('Error saving product:', error);
       alert('Không thể lưu hàng hoá. Vui lòng thử lại.');
-    } finally {
       setIsLoading(false);
     }
   };
 
-  const isFormValid = () => {
-    const formData = getValues();
-    if (!(formData.code && formData.name && formData.unit && formData.productType)) return false;
-    if (formData.businessType === BusinessType.HOUSEHOLD_BUSINESS) {
-      return formData.purchaseVAT !== '' && formData.taxIndustry !== '';
-    }
-    return formData.saleVAT !== '';
-  };
+  // Form validity is driven by react-hook-form's `isValid` from formState.
 
   return (<>
     <DecoratedFormLayout title="Thêm hàng hoá/dịch vụ 1" onBack={handleBack} rightAction={undefined}>
@@ -593,7 +625,7 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
                   name="productType"
                   control={control}
                   rules={{ required: true }}
-                  render={({ field }) => (
+                  render={() => (
                     <RoundedTextField
                       fullWidth
                       required
@@ -886,9 +918,9 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
 
                   <Controller
                     name="taxIndustry"
-                    control={control}
-                    rules={{ required: businessType === BusinessType.HOUSEHOLD_BUSINESS }}
-                    render={({ field }) => (
+                      control={control}
+                      rules={{ required: businessType === BusinessType.HOUSEHOLD_BUSINESS }}
+                      render={() => (
                       <RoundedTextField
                         fullWidth
                         label="Nhóm ngành nghề tính thuế"
@@ -1110,7 +1142,7 @@ const ProductFormScreen: React.FC<ProductFormProps> = ({ overlay = false, single
         open={warehouseScreenOpen}
         onClose={() => setWarehouseScreenOpen(false)}
         onSelect={(warehouse) => {
-          setValue('defaultWarehouse', warehouse, { shouldDirty: true });
+          setValue('specificWarehouseId', warehouse, { shouldDirty: true });
         }}
       />
       <TaxIndustrySelectionScreen

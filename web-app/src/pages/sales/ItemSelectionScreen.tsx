@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -12,9 +12,10 @@ import SummaryBar from '../../components/SummaryBar';
 import ProductFormScreen from '../declaration/ProductFormScreen';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUi } from '../../context/UiContext';
-import { registerCallback, consumeCallback } from '../../utils/callbackRegistry';
+import { consumeCallback } from '../../utils/callbackRegistry';
 import SearchBox from '../../components/SearchBox';
 import ProductCard from '../../components/ProductCard';
+import ConfigChoiceBottomSheet from '../../components/ConfigChoiceBottomSheet';
 import tokens from '../../styles/tokens';
 import { apiService } from '../../services/api';
 import { API_CONFIG } from '../../config/constants';
@@ -53,11 +54,15 @@ function safeNumber(v: unknown): number {
 const ItemSelectionScreen: React.FC = () => {
   const navigate = useNavigate();
   const { state } = useLocation();
-  const navState = useMemo(() => (state || {}) as { 
+  const navState = useMemo(() => (state || {}) as {
     callbackId?: string;
     updatedItem?: Record<string, unknown>;
     parentCallbackId?: string;
     fromSalesForm?: boolean;
+    fromProductConfig?: boolean;
+    reopenConfigForItemId?: string; // itemId to re-open ConfigChoiceBottomSheet
+    // when navigating from SalesForm, the form may include already-selected items
+    selectedItems?: Array<Record<string, unknown>>;
   }, [state]);
   const callbackId = navState.callbackId || navState.parentCallbackId;
   const [searchQuery, setSearchQuery] = useState('');
@@ -70,9 +75,18 @@ const ItemSelectionScreen: React.FC = () => {
   // route-based page: no overlay/backdrop animation state required
   const [showNewProduct, setShowNewProduct] = useState(false);
   
+  // State for config choice bottom sheet
+  const [showConfigChoice, setShowConfigChoice] = useState(false);
+  const [configChoiceItemId, setConfigChoiceItemId] = useState<string | null>(null);
+  const [currentConfigs, setCurrentConfigs] = useState<any[]>([]);
+  
+  // Track last quantity change time per item to prevent opening bottom sheet on rapid clicks
+  const lastQuantityChangeTime = React.useRef<Record<string, number>>({});
+  
   // Persist selectedItemsMap in sessionStorage to survive navigation
+  // Now supports multiple configs per item with unique config IDs
   const SESSION_KEY = 'itemSelection_selectedItems';
-  const [selectedItemsMap, setSelectedItemsMap] = useState<Record<string, { quantity: number; item: Item; warehouse?: string; warehouseId?: string; discount?: number; discountAmount?: number; isTradeDiscount?: boolean; taxIndustry?: string; vatRate?: number }>>(()=> {
+  const [selectedItemsMap, setSelectedItemsMap] = useState<Record<string, { quantity: number; item: Item; warehouse?: string; warehouseId?: string; discount?: number; discountAmount?: number; isTradeDiscount?: boolean; taxIndustry?: string; vatRate?: number; configId?: string }>>(()=> {
     try {
       const saved = sessionStorage.getItem(SESSION_KEY);
       return saved ? JSON.parse(saved) : {};
@@ -102,53 +116,8 @@ const ItemSelectionScreen: React.FC = () => {
     return s + (subtotal - discountAmt);
   }, 0);
 
-  // Handle updatedItem from ProductDetailConfig (runs only when updatedItem changes)
-  const updatedItemRef = useRef<Record<string, unknown> | undefined>(undefined);
-  useEffect(() => {
-    // Skip if we already processed this updatedItem
-    if (navState.updatedItem && navState.updatedItem !== updatedItemRef.current) {
-      updatedItemRef.current = navState.updatedItem;
-      const updated = navState.updatedItem;
-      const itemId = String(updated.id || '');
-      if (itemId) {
-        setSelectedItemsMap(prev => ({
-          ...prev,
-          [itemId]: {
-            quantity: Number(updated.quantity) || 1,
-            item: {
-              id: itemId,
-              code: String(updated.code || ''),
-              name: String(updated.name || ''),
-              image: updated.image as string | undefined,
-              unitPrice: Number(updated.unitPrice) || 0,
-              sellPrice: Number(updated.unitPrice) || 0,
-              unit: updated.unit as string | { name?: string } | undefined,
-              stock: Number(updated.stock) || 0,
-              stockByWarehouse: updated.stockByWarehouse as Record<string, number> | undefined,
-            },
-            warehouse: updated.warehouse as string | undefined,
-            warehouseId: updated.warehouseId as string | undefined,
-            discount: Number(updated.discount) || 0,
-            discountAmount: Number(updated.discountAmount) || 0,
-            isTradeDiscount: Boolean(updated.isTradeDiscount),
-            taxIndustry: updated.taxIndustry as string | undefined,
-            vatRate: Number(updated.vatRate) || 0,
-          },
-        }));
-      }
-      
-      // Clear the updatedItem from state to prevent re-applying on re-render
-      setTimeout(() => {
-        window.history.replaceState(
-          { 
-            ...navState, 
-            updatedItem: undefined 
-          },
-          ''
-        );
-      }, 0);
-    }
-  }, [navState.updatedItem, navState]);
+  // selectedItemsMap is now fully managed via sessionStorage
+  // Updates from ProductDetailConfig are written directly to sessionStorage before navigation
 
   const loadItems = useCallback(async () => {
     startLoading();
@@ -366,20 +335,118 @@ const ItemSelectionScreen: React.FC = () => {
     setSelectedCategory('all');
     loadItems();
     
-    // If returning from SalesForm, restore selections from sessionStorage
-    // This ensures selections persist when user navigates back
-    if (navState.fromSalesForm) {
+    // Always restore selections from sessionStorage on mount/return
+    // This ensures selections persist when navigating back from ProductDetailConfig or SalesForm
+    try {
+      const saved = sessionStorage.getItem(SESSION_KEY);
+      let restored: Record<string, unknown> | null = null;
+      if (saved) {
+        restored = JSON.parse(saved);
+        console.log('[ItemSelection] Restored selectedItemsMap from sessionStorage:', restored);
+        setSelectedItemsMap(restored as any);
+      }
+
+      // If navigation state includes `selectedItems` from SalesForm, prefer those
+      // so quantities already chosen in the form are reflected in the selection UI.
+      if (navState.fromSalesForm && Array.isArray(navState.selectedItems) && navState.selectedItems.length > 0) {
+        const fromNav = navState.selectedItems as Array<Record<string, unknown>>;
+        const mapped: Record<string, any> = { ...(restored || {}) };
+        fromNav.forEach(si => {
+          const key = String(si.itemId || si.id || si._id || si.code || '');
+          if (!key) return;
+          mapped[key] = {
+            quantity: Number(si.quantity) || 1,
+            item: {
+              id: key,
+              _id: si._id || si.id || key,
+              code: si.code || si.itemCode || undefined,
+              name: si.name || si.itemName || si.itemName || '',
+              itemName: si.itemName || si.name || '',
+              unitPrice: Number(si.unitPrice ?? si.price ?? si.sellPrice) || 0,
+              sellPrice: Number(si.unitPrice ?? si.price ?? si.sellPrice) || 0,
+              price: Number(si.unitPrice ?? si.price ?? si.sellPrice) || 0,
+              unit: si.unit || undefined,
+              stock: si.stock ?? undefined,
+              image: si.image ?? undefined,
+              stockByWarehouse: si.stockByWarehouse ?? undefined,
+            },
+            warehouse: si.warehouseName || si.warehouse || undefined,
+            warehouseId: si.warehouseId || undefined,
+            discount: Number(si.discount) || 0,
+            discountAmount: Number(si.discountAmount) || 0,
+            isTradeDiscount: Boolean(si.isTradeDiscount),
+            taxIndustry: si.taxIndustry,
+            vatRate: Number(si.vatRate) || 0,
+          };
+        });
+        console.log('[ItemSelection] Initialized selections from navigation state:', mapped);
+        setSelectedItemsMap(mapped as any);
+        try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(mapped)); } catch { /* ignore */ }
+      }
+    } catch (err) {
+      console.warn('Failed to restore selections from sessionStorage', err);
+    }
+  }, [loadItems, SESSION_KEY]);
+
+  // Re-open ConfigChoiceBottomSheet when returning from ProductDetailConfig
+  useEffect(() => {
+    // Only run this effect when explicitly returning from ProductDetailConfig
+    if (navState.fromProductConfig && navState.reopenConfigForItemId) {
+      const itemId = navState.reopenConfigForItemId;
+      console.log('[ItemSelection] Re-opening ConfigChoiceBottomSheet for item:', itemId);
+      
+      // Re-read from sessionStorage to get the latest data (including newly added config)
+      let latestMap = selectedItemsMap;
       try {
         const saved = sessionStorage.getItem(SESSION_KEY);
         if (saved) {
-          const restored = JSON.parse(saved);
-          setSelectedItemsMap(restored);
+          latestMap = JSON.parse(saved);
+          console.log('[ItemSelection] Re-read selectedItemsMap from sessionStorage:', latestMap);
+          // Update state with latest from sessionStorage
+          setSelectedItemsMap(latestMap);
         }
       } catch (err) {
-        console.warn('Failed to restore selections from sessionStorage', err);
+        console.warn('[ItemSelection] Failed to read sessionStorage:', err);
       }
+      
+      // Find all configs for this item from the latest map
+      const itemConfigs = Object.entries(latestMap)
+        .filter(([key, config]) => {
+          const configItemId = (config as any).item?.id || (config as any).item?._id || '';
+          return configItemId === itemId;
+        })
+        .map(([configId, config]) => {
+          const c = config as any;
+          return {
+            id: configId,
+            itemId,
+            name: c.item?.name || c.item?.itemName || '',
+            code: c.item?.code,
+            image: c.item?.image,
+            unitPrice: c.item?.unitPrice || c.item?.sellPrice || c.item?.price || 0,
+            unit: c.item?.unit,
+            quantity: c.quantity,
+            warehouse: c.warehouse,
+            discount: c.discount,
+            discountAmount: c.discountAmount,
+            isTradeDiscount: c.isTradeDiscount,
+            taxIndustry: c.taxIndustry,
+            vatRate: c.vatRate,
+          };
+        });
+      
+      console.log('[ItemSelection] Found configs for reopen:', itemConfigs);
+      
+      if (itemConfigs.length > 0) {
+        setConfigChoiceItemId(itemId);
+        setCurrentConfigs(itemConfigs);
+        setShowConfigChoice(true);
+      }
+      
+      // Clear the navigation state to prevent re-triggering
+      window.history.replaceState({}, '');
     }
-  }, [loadItems, navState.fromSalesForm, SESSION_KEY]);
+  }, [navState.fromProductConfig, navState.reopenConfigForItemId, SESSION_KEY]);
 
   useEffect(() => {
     let result = items;
@@ -445,6 +512,127 @@ const ItemSelectionScreen: React.FC = () => {
     });
   }, []);
 
+  // Handler when user clicks on product card - show config bottom sheet if has configs
+  const handleProductCardClick = useCallback((item: Item) => {
+    const itemId = item.id || item._id || '';
+    
+    console.log('[ItemSelection] handleProductCardClick for item:', itemId);
+    console.log('[ItemSelection] Current selectedItemsMap:', selectedItemsMap);
+    
+    // Find all configs for this item
+    const itemConfigs = Object.entries(selectedItemsMap)
+      .filter(([key, config]) => {
+        const configItemId = config.item.id || config.item._id || '';
+        return configItemId === itemId;
+      })
+      .map(([configId, config]) => ({
+        id: configId,
+        itemId,
+        name: config.item.name || config.item.itemName || '',
+        code: config.item.code,
+        image: config.item.image,
+        unitPrice: config.item.unitPrice || config.item.sellPrice || config.item.price || 0,
+        unit: config.item.unit,
+        quantity: config.quantity,
+        warehouse: config.warehouse,
+        warehouseId: config.warehouseId,
+        discount: config.discount,
+        discountAmount: config.discountAmount,
+        isTradeDiscount: config.isTradeDiscount,
+        taxIndustry: config.taxIndustry,
+        vatRate: config.vatRate,
+      }));
+
+    console.log('[ItemSelection] Found configs for item:', itemConfigs);
+
+    if (itemConfigs.length > 0) {
+      // Has configs, show bottom sheet
+      setConfigChoiceItemId(itemId);
+      setCurrentConfigs(itemConfigs);
+      setShowConfigChoice(true);
+    } else {
+      // No configs yet, navigate directly to ProductDetailConfig
+      handleNavigateToConfig(item);
+    }
+  }, [selectedItemsMap]);
+
+  // Handler for configs change from bottom sheet
+  const handleConfigsChange = useCallback((updatedConfigs: any[]) => {
+    setSelectedItemsMap(prev => {
+      const updated = { ...prev };
+      
+      // Remove all old configs for this item
+      Object.keys(updated).forEach(key => {
+        const config = updated[key];
+        const configItemId = config.item.id || config.item._id || '';
+        if (configItemId === configChoiceItemId) {
+          delete updated[key];
+        }
+      });
+      
+      // Add updated configs
+      updatedConfigs.forEach(config => {
+        updated[config.id] = {
+          quantity: config.quantity,
+          item: {
+            id: config.itemId,
+            _id: config.itemId,
+            name: config.name,
+            code: config.code,
+            image: config.image,
+            unitPrice: config.unitPrice,
+            sellPrice: config.unitPrice,
+            price: config.unitPrice,
+            unit: config.unit,
+          } as Item,
+          warehouse: config.warehouse,
+          warehouseId: config.warehouseId,
+          discount: config.discount,
+          discountAmount: config.discountAmount,
+          isTradeDiscount: config.isTradeDiscount,
+          taxIndustry: config.taxIndustry,
+          vatRate: config.vatRate,
+          configId: config.id,
+        };
+      });
+      
+      return updated;
+    });
+    setCurrentConfigs(updatedConfigs);
+  }, [configChoiceItemId]);
+
+  // Handler for "Chọn thêm" button - navigate to ProductDetailConfig
+  const handleNavigateToConfig = useCallback((item?: Item) => {
+    const targetItem = item || (configChoiceItemId ? items.find(i => (i.id || i._id) === configChoiceItemId) : null);
+    if (!targetItem) return;
+    
+    const payload = {
+      id: targetItem.id,
+      code: targetItem.code || '',
+      name: targetItem.name || targetItem.itemName || '',
+      unitPrice: targetItem.sellPrice ?? targetItem.unitPrice ?? targetItem.price ?? 0,
+      unit: targetItem.unit,
+      stock: targetItem.stock,
+      stockByWarehouse: targetItem.stockByWarehouse,
+      defaultWarehouse: (targetItem as any).defaultWarehouse,
+      quantity: 1,
+    };
+    
+    // Close bottom sheet before navigating
+    setShowConfigChoice(false);
+    
+    // Navigate to ProductDetailConfig
+    // ProductDetailConfig will persist the new config to sessionStorage
+    // and navigate back with reopenConfigForItemId
+    navigate(`/sales/product-config/${payload.code}`, {
+      state: {
+        item: payload,
+        parentCallbackId: callbackId,
+        fromItemSelection: true,
+      },
+    });
+  }, [configChoiceItemId, items, callbackId, navigate]);
+
   const clearSelection = useCallback(() => {
     setSelectedItemsMap({});
     try {
@@ -455,64 +643,65 @@ const ItemSelectionScreen: React.FC = () => {
   }, [SESSION_KEY]);
 
   const confirmSelection = useCallback(() => {
-    // If opened from SalesForm with callbackId, use callback mechanism
+    // Save to sessionStorage before navigation so SalesForm can pick up the latest state
+    try {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(selectedItemsMap));
+    } catch (err) {
+      console.warn('Failed to save selectedItemsMap to sessionStorage', err);
+    }
+    
+    // Prepare selected items in consistent format for both callback and standalone modes
+    // Use the selection map keys (config ids) as the `id` so different configs for the
+    // same product remain distinct when sent back to the Sales form.
+    const selectedItems = Object.entries(selectedItemsMap).map(([configId, e]) => ({
+      id: configId,
+      configId,
+      itemId: e.item.id,
+      itemName: e.item.name || e.item.itemName || '',
+      itemCode: e.item.code || '',
+      image: e.item.image,
+      quantity: e.quantity,
+      unitPrice: e.item.sellPrice ?? e.item.unitPrice ?? e.item.price ?? 0,
+      unit: e.item.unit,
+      discount: e.discount || 0,
+      discountAmount: e.discountAmount || 0,
+      isTradeDiscount: e.isTradeDiscount || false,
+      warehouseName: e.warehouse,
+      warehouseId: e.warehouseId,
+      taxIndustry: e.taxIndustry,
+      vatRate: e.vatRate || 0,
+      stock: e.item.stock,
+      stockByWarehouse: e.item.stockByWarehouse,
+    }));
+
+    console.log('[ItemSelection] confirmSelection - selectedItems:', selectedItems);
+    
+    // Save to sessionStorage as backup
+    try {
+      sessionStorage.setItem('pendingSelectedItems', JSON.stringify(selectedItems));
+    } catch (err) {
+      console.warn('Failed to save selectedItems to sessionStorage', err);
+    }
+
+    // If opened from SalesForm with callbackId, invoke callback AND pass through navigation state
     if (callbackId) {
       const cb = consumeCallback(callbackId);
       if (cb) {
-        const selectedItems = Object.values(selectedItemsMap).map(e => ({
-          ...(e.item as Item),
-          quantity: e.quantity,
-          warehouseName: e.warehouse,
-          warehouseId: e.warehouseId,
-          discount: e.discount || 0,
-          discountAmount: e.discountAmount || 0,
-          isTradeDiscount: e.isTradeDiscount || false,
-          taxIndustry: e.taxIndustry,
-          vatRate: e.vatRate || 0,
-        }));
-        console.log('[ItemSelection] confirmSelection - invoking callbackId with selectedItems:', selectedItems);
-        // Save to sessionStorage as backup in case callback fails to deliver
-        try {
-          sessionStorage.setItem('pendingSelectedItems', JSON.stringify(selectedItems));
-        } catch (err) {
-          console.warn('Failed to save selectedItems to sessionStorage (callback path)', err);
-        }
+        console.log('[ItemSelection] Invoking callback with selectedItems');
         cb(selectedItems);
       }
+      // Clear transient selection state
       clearSelection();
-      triggerClose();
+      // Navigate to sales form with state (so form can read from location.state OR from callback)
+      navigate('/sales/orders/new', { 
+        state: { 
+          selectedItems,
+          fromItemSelection: true 
+        } 
+      });
     } else {
       // Standalone mode: navigate to sales form with selected items
-      const selectedItems = Object.values(selectedItemsMap).map(e => ({
-        id: e.item.id,
-        itemId: e.item.id,
-        itemName: e.item.name || e.item.itemName || '',
-        itemCode: e.item.code || '',
-        image: e.item.image,
-        quantity: e.quantity,
-        unitPrice: e.item.sellPrice ?? e.item.unitPrice ?? e.item.price ?? 0,
-        unit: e.item.unit,
-        discount: e.discount || 0,
-        discountAmount: e.discountAmount || 0,
-        isTradeDiscount: e.isTradeDiscount || false,
-        warehouseName: e.warehouse,
-        warehouseId: e.warehouseId,
-        taxIndustry: e.taxIndustry,
-        vatRate: e.vatRate || 0,
-        stock: e.item.stock,
-        stockByWarehouse: e.item.stockByWarehouse,
-      }));
-      
-      console.log('[ItemSelection] confirmSelection - navigating with selectedItems:', selectedItems);
-      
-      // Save to sessionStorage as backup in case navigation state is lost
-      try {
-        sessionStorage.setItem('pendingSelectedItems', JSON.stringify(selectedItems));
-      } catch (err) {
-        console.warn('Failed to save selectedItems to sessionStorage', err);
-      }
-      
-      // Navigate to sales form
+      clearSelection();
       navigate('/sales/orders/new', { 
         state: { 
           selectedItems,
@@ -520,7 +709,7 @@ const ItemSelectionScreen: React.FC = () => {
         } 
       });
     }
-  }, [callbackId, selectedItemsMap, clearSelection, triggerClose, navigate]);
+  }, [callbackId, selectedItemsMap, clearSelection, navigate]);
 
   const page = (
     <Box sx={{ position: 'relative', minHeight: '100vh', bgcolor: '#fff', display: 'flex', flexDirection: 'column' }}>
@@ -542,7 +731,24 @@ const ItemSelectionScreen: React.FC = () => {
         </Box>
       </Box>
 
-      <Box sx={{ borderRadius: { xs: '16px 16px 0 0', sm: '16px' }, px: 0.5, py: { xs: 2, sm: 6 }, pb: { xs: `calc(100px + env(safe-area-inset-bottom, 0px))`, sm: 6 }, position: { xs: 'fixed', sm: 'relative' }, top: { xs: '80px', sm: 'auto' }, bottom: { xs: 0, sm: 'auto' }, left: '16px', right: '16px', maxWidth: 'calc(100% - 32px)', display: 'flex', flexDirection: 'column', overflowY: { xs: 'auto', sm: 'visible' }, bgcolor: 'transparent' }}>
+      <Box sx={{ 
+        borderRadius: { xs: '16px 16px 0 0', sm: '16px' }, 
+        px: 0.5, 
+        py: { xs: 2, sm: 6 }, 
+        pb: { xs: `calc(100px + env(safe-area-inset-bottom, 0px))`, sm: 6 }, 
+        position: { xs: 'fixed', sm: 'relative' }, 
+        top: { xs: '80px', sm: 'auto' }, 
+        bottom: { xs: 0, sm: 'auto' }, 
+        left: '16px', 
+        right: '16px', 
+        maxWidth: 'calc(100% - 32px)', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        overflowY: { xs: 'auto', sm: 'visible' }, 
+        bgcolor: 'transparent',
+        pointerEvents: 'none', // Allow clicks to pass through to the summary bar below
+        '& > *': { pointerEvents: 'auto' } // But allow clicks on child elements
+      }}>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 0, maxWidth: '100%', mx: 'auto' }}>
           <SearchBox fullWidth placeholder="Tìm kiếm bằng mã, tên sản phẩm hoặc mô tả" value={searchQuery} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)} />
 
@@ -578,12 +784,27 @@ const ItemSelectionScreen: React.FC = () => {
             ) : (
               filteredItems.map(item => {
                 const id = item.id || item._id || '';
-                const selectedEntry = selectedItemsMap[id];
-                // Use updated price from selectedEntry if available, else default
-                const displayPrice = selectedEntry?.item?.unitPrice ?? item.sellPrice ?? item.unitPrice ?? item.price ?? 0;
-                const displayWarehouse = selectedEntry?.warehouse || undefined;
-                const displayDiscount = selectedEntry?.discount || 0;
-                const displayDiscountAmount = selectedEntry?.discountAmount || 0;
+                
+                // Find ALL configs for this item (not just the first one)
+                const allConfigsForItem = Object.entries(selectedItemsMap)
+                  .filter(([key, config]) => {
+                    const configItemId = config.item.id || config.item._id || '';
+                    return configItemId === id;
+                  });
+                
+                const hasConfigs = allConfigsForItem.length > 0;
+                const hasMultipleConfigs = allConfigsForItem.length > 1;
+                
+                // Sum total quantity from all configs
+                const totalQuantity = allConfigsForItem.reduce((sum, [, config]) => sum + (config.quantity || 0), 0);
+                
+                // Use first config for display (price, warehouse, etc.) if available
+                const firstConfig = hasConfigs ? allConfigsForItem[0][1] : null;
+                const displayPrice = firstConfig?.item?.unitPrice ?? item.sellPrice ?? item.unitPrice ?? item.price ?? 0;
+                const displayWarehouse = firstConfig?.warehouse || undefined;
+                const displayDiscount = firstConfig?.discount || 0;
+                const displayDiscountAmount = firstConfig?.discountAmount || 0;
+                
                 return (
                   <ProductCard
                     key={id}
@@ -596,67 +817,84 @@ const ItemSelectionScreen: React.FC = () => {
                     // show selected warehouse if user configured one
                     selectedWarehouse={displayWarehouse}
                     unitPrice={displayPrice}
-                    unit={selectedEntry?.item?.unit ?? item.unit}
+                    unit={firstConfig?.item?.unit ?? item.unit}
                     mode="selection"
-                    selected={Boolean(selectedEntry)}
-                    quantity={selectedEntry?.quantity ?? 1}
+                    selected={hasConfigs}
+                    quantity={totalQuantity || 1}
                     discount={displayDiscount}
                     discountAmount={displayDiscountAmount}
                     warehouse={displayWarehouse}
-                    onQuantityChange={(q: number) => changeQuantity(id, q)}
-                    onClick={() => toggleSelect(item)}
-                    onCardClick={() => {
-                      const payload = {
-                        id: item.id,
-                        code: item.code || '',
-                        name: item.name || item.itemName || '',
-                        unitPrice: item.sellPrice ?? item.unitPrice ?? item.price ?? 0,
-                        unit: item.unit,
-                        stock: item.stock,
-                        stockByWarehouse: item.stockByWarehouse,
-                        defaultWarehouse: (item as unknown as { defaultWarehouse?: unknown }).defaultWarehouse,
-                        quantity: selectedItemsMap[item.id || item._id || '']?.quantity || 1,
-                      };
+                    // Number spinner behavior with time-based logic:
+                    // - NO configs yet (first time selection):
+                    //   - Rapid clicks (< 5s): change quantity directly (allow spam +/-)
+                    //   - After 5s pause, click +: open bottom sheet
+                    // - SINGLE config:
+                    //   - decrement (-): always changes directly
+                    //   - increment (+): open bottom sheet only if paused >= 5s
+                    // - MULTIPLE configs (>= 2): 
+                    //   - Any change (+/-): open bottom sheet only if paused >= 5s
+                    onQuantityChange={(newQty: number) => {
+                      const now = Date.now();
+                      const lastChangeTime = lastQuantityChangeTime.current[id] || 0;
+                      const timeSinceLastChange = now - lastChangeTime;
+                      const THRESHOLD_MS = 5000; // 5 seconds
                       
-                      // Register a local callback that updates the selection map
-                      const localCallbackId = registerCallback((updatedItem: Record<string, unknown>) => {
-                        const uid = String(updatedItem.id);
-                        // Store full config returned from ProductDetailConfig
-                        setSelectedItemsMap(prev => ({
-                          ...prev,
-                          [uid]: {
-                            quantity: Number(updatedItem.quantity) || 1,
-                            item: {
-                              ...(item as Item),
-                              unitPrice: Number(updatedItem.unitPrice) || 0,
-                              sellPrice: Number(updatedItem.unitPrice) || 0,
-                              unit: updatedItem.unit || item.unit,
-                            },
-                            // Store additional config for order line
-                            warehouse: updatedItem.warehouse as string | undefined,
-                            warehouseId: updatedItem.warehouseId as string | undefined,
-                            discount: Number(updatedItem.discount) || 0,
-                            discountAmount: Number(updatedItem.discountAmount) || 0,
-                            isTradeDiscount: Boolean(updatedItem.isTradeDiscount),
-                            taxIndustry: updatedItem.taxIndustry as string | undefined,
-                            vatRate: Number(updatedItem.vatRate) || 0,
-                          },
-                        }));
-                      });
+                      // Re-check configs from current selectedItemsMap to avoid stale closure
+                      const currentConfigs = Object.entries(selectedItemsMap)
+                        .filter(([key, config]) => {
+                          const configItemId = config.item.id || config.item._id || '';
+                          return configItemId === id;
+                        });
+                      const currentHasConfigs = currentConfigs.length > 0;
                       
-                      // Track that we created a local callback
-                      if (!callbackId) localCallbackCreatedRef.current = true;
-
-                      // Navigate using product code instead of internal id so URLs show product code (e.g. VT00001)
-                      // Pass both callbackId (for legacy callback mechanism) and parentCallbackId (for return navigation)
-                      navigate(`/sales/product-config/${payload.code}`, { 
-                        state: { 
-                          item: payload, 
-                          callbackId: localCallbackId,
-                          parentCallbackId: callbackId // pass parent callback for final confirmation
-                        } 
-                      });
+                      if (!currentHasConfigs) {
+                        // No configs yet (first time selection)
+                        const currentQty = totalQuantity || 0;
+                        if (newQty > currentQty && timeSinceLastChange >= THRESHOLD_MS) {
+                          // Increment (+) after 5s pause → open bottom sheet
+                          handleProductCardClick(item);
+                        } else {
+                          // Rapid clicking or decrement → change quantity directly
+                          changeQuantity(id, newQty);
+                        }
+                        lastQuantityChangeTime.current[id] = now;
+                      } else if (currentConfigs.length === 1) {
+                        // Single config: decrement always changes, increment opens sheet after 5s
+                        const currentQty = totalQuantity || 0;
+                        if (newQty > currentQty) {
+                          // Increment (+)
+                          if (timeSinceLastChange >= THRESHOLD_MS) {
+                            // After 5s pause → open bottom sheet
+                            handleProductCardClick(item);
+                          } else {
+                            // Rapid clicking → just increase quantity
+                            const firstConfigId = currentConfigs[0][0];
+                            changeQuantity(firstConfigId, newQty);
+                          }
+                          lastQuantityChangeTime.current[id] = now;
+                        } else {
+                          // Decrement (-) → always change quantity directly for single config
+                          const firstConfigId = currentConfigs[0][0];
+                          changeQuantity(firstConfigId, newQty);
+                          lastQuantityChangeTime.current[id] = now;
+                        }
+                      } else {
+                        // Multiple configs (>= 2): any change requires 5s pause to open bottom sheet
+                        if (timeSinceLastChange >= THRESHOLD_MS) {
+                          // After 5s pause → open bottom sheet (for + or -)
+                          handleProductCardClick(item);
+                        } else {
+                          // Rapid clicking → do nothing
+                          console.log('[ItemSelection] Multiple configs - need 5s pause to open bottom sheet');
+                        }
+                        lastQuantityChangeTime.current[id] = now;
+                      }
                     }}
+                    onClick={() => toggleSelect(item)}
+                    // Card click behavior:
+                    // - If NOT selected yet: open ProductDetailConfig to create first config
+                    // - If already selected: open bottom sheet to view/add configs
+                    onCardClick={() => handleProductCardClick(item)}
                   />
                 );
               })
@@ -666,8 +904,8 @@ const ItemSelectionScreen: React.FC = () => {
       </Box>
 
       {/* Floating sticky toolbar for selected items */}
-      {selectedCount > 0 && (
-        <Box sx={{ position: 'fixed', left: 16, right: 16, bottom: 48, zIndex: 12000, display: 'flex', justifyContent: 'center' }}>
+      {selectedCount > 0 && !showConfigChoice && (
+        <Box sx={{ position: 'fixed', left: 16, right: 16, bottom: 48, zIndex: 20000, display: 'flex', justifyContent: 'center', pointerEvents: 'auto' }}>
           <SummaryBar
             count={selectedCount}
             total={formatVND(selectedTotal)}
@@ -676,6 +914,19 @@ const ItemSelectionScreen: React.FC = () => {
           />
         </Box>
       )}
+
+      {/* Config choice bottom sheet */}
+      <ConfigChoiceBottomSheet
+        open={showConfigChoice}
+        onClose={() => {
+          setShowConfigChoice(false);
+          setConfigChoiceItemId(null);
+          setCurrentConfigs([]);
+        }}
+        initialConfigs={currentConfigs}
+        onConfigsChange={handleConfigsChange}
+        onAddMore={() => handleNavigateToConfig()}
+      />
     </Box>
   );
   // Product form overlay (slide-in) when adding from selection
@@ -701,16 +952,16 @@ const ItemSelectionScreen: React.FC = () => {
         <ProductFormScreen
           overlay
           singleSave
-          onSaved={(created: Record<string, unknown>) => {
+          onSaved={(created: unknown) => {
             try {
               console.debug('[ItemSelection] onSaved created item from overlay:', created);
             } catch {
               // ignore debug log error
             }
             // normalize id
-            const id = String(created?.id || created?._id || Date.now());
+            const createdObj = (created as Record<string, unknown>) || {};
+            const id = String(createdObj?.id || createdObj?._id || Date.now());
             // Normalize stock from created item using many possible field names
-            const createdObj = (created || {}) as Record<string, unknown>;
             const candidateNumber = (v: unknown) => {
               if (typeof v === 'number') return v;
               if (typeof v === 'string') return Number(v.toString().replace(/,/g, '')) || 0;
@@ -725,7 +976,7 @@ const ItemSelectionScreen: React.FC = () => {
                 finalStock = finalStock || 0;
               }
             }
-            const item = { ...(created || {}), id, stock: finalStock || 0, stockByWarehouse: finalStockByWarehouse } as Item;
+            const item = { ...createdObj, id, stock: finalStock || 0, stockByWarehouse: finalStockByWarehouse } as Item;
             // add to items and auto-select
             setItems(prev => [item, ...prev]);
             setFilteredItems(prev => [item, ...prev]);

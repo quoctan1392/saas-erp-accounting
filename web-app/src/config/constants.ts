@@ -1,7 +1,7 @@
 export const API_CONFIG = {
-  AUTH_SERVICE_URL: import.meta.env.VITE_AUTH_SERVICE_URL || 'http://192.168.1.13:3001',
-  TENANT_SERVICE_URL: import.meta.env.VITE_TENANT_SERVICE_URL || 'http://192.168.1.13:3002',
-  CORE_SERVICE_URL: import.meta.env.VITE_CORE_SERVICE_URL || 'http://192.168.1.13:3003',
+  AUTH_SERVICE_URL: import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:3001',
+  TENANT_SERVICE_URL: import.meta.env.VITE_TENANT_SERVICE_URL || 'http://localhost:3002',
+  CORE_SERVICE_URL: import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:3003',
 };
 
 export const GOOGLE_CONFIG = {

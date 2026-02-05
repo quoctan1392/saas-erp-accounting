@@ -150,6 +150,41 @@ const SalesFormScreen = () => {
   useEffect(() => {
     try {
       sessionStorage.setItem(ITEMS_SESSION_KEY, JSON.stringify(items));
+      
+      // Also update ItemSelection's sessionStorage so when user goes back,
+      // quantities are synced correctly
+      const SESSION_KEY = 'itemSelection_selectedItems';
+      const itemSelectionMap: Record<string, any> = {};
+      items.forEach(it => {
+        const configId = it.id; // use item's id as config id
+        itemSelectionMap[configId] = {
+          quantity: it.quantity,
+          item: {
+            id: it.itemId,
+            _id: it.itemId,
+            code: it.itemCode,
+            name: it.itemName,
+            itemName: it.itemName,
+            unitPrice: it.unitPrice,
+            sellPrice: it.unitPrice,
+            price: it.unitPrice,
+            unit: it.unit,
+            stock: it.stock,
+            image: it.image,
+            stockByWarehouse: it.stockByWarehouse,
+          },
+          warehouse: it.warehouseName,
+          warehouseId: undefined,
+          discount: it.discount || 0,
+          discountAmount: it.discountAmount || 0,
+          isTradeDiscount: it.isTradeDiscount || false,
+          taxIndustry: it.taxIndustry,
+          vatRate: it.vatRate || 0,
+          configId: configId,
+        };
+      });
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(itemSelectionMap));
+      console.log('[SalesForm] Synced items to ItemSelection sessionStorage:', itemSelectionMap);
     } catch (err) {
       console.warn('Failed to persist items to sessionStorage', err);
     }
@@ -159,10 +194,14 @@ const SalesFormScreen = () => {
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalAmount = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const totalDiscount = items.reduce((sum, item) => {
-    if (item.discountType === 'percent') {
+    // Use pre-calculated discountAmount if available, otherwise compute from discount percentage
+    if (item.discountAmount && item.discountAmount > 0) {
+      return sum + item.discountAmount;
+    }
+    if (item.discountType === 'percent' && item.discount > 0) {
       return sum + (item.unitPrice * item.quantity * item.discount / 100);
     }
-    return sum + item.discount;
+    return sum;
   }, 0);
   const vatAmount = 0; // Will be calculated based on items
   const finalAmount = totalAmount - totalDiscount + vatAmount;
@@ -218,65 +257,64 @@ const SalesFormScreen = () => {
       processedStateRef.current = true;
 
       // Transform selectedItems to SaleItem format (support multiple source shapes)
-      const incoming: SaleItem[] = (navState.selectedItems as any[]).map((item: any) => {
-        const resolvedName = item.itemName || item.name || '';
-        const resolvedCode = item.itemCode || item.code || '';
-        const resolvedUnitPrice = item.unitPrice ?? item.sellPrice ?? item.price ?? 0;
-        const resolvedQuantity = item.quantity || 1;
-        const resolvedDiscountAmount = (item.discountAmount ?? item.discountAmt ?? item.discount_amount) ?? 0;
-        const resolvedDiscount = (typeof item.discount === 'number' ? item.discount : (item.discountPercent ?? item.discount_percent ?? 0)) || 0;
-        const resolvedWarehouseName = item.warehouseName ?? item.warehouse ?? (item.defaultWarehouse && (item.defaultWarehouse.name || item.defaultWarehouse.code)) ?? undefined;
-        const resolvedStock = item.stock ?? (item.stockByWarehouse ? Object.values(item.stockByWarehouse).reduce((s: number, v: any) => s + (Number(v) || 0), 0) : undefined);
+      const incoming: SaleItem[] = (navState.selectedItems as unknown[]).map((item: unknown) => {
+        const it = item as Record<string, unknown>;
+        const resolvedName = (it.itemName as string) || (it.name as string) || '';
+        const resolvedCode = (it.itemCode as string) || (it.code as string) || '';
+        const resolvedUnitPrice = (it.unitPrice as number) ?? (it.sellPrice as number) ?? (it.price as number) ?? 0;
+        const resolvedQuantity = (it.quantity as number) || 1;
+        const resolvedDiscountAmount = (it.discountAmount as number ?? it.discountAmt as number ?? it.discount_amount as number) ?? 0;
+        const resolvedDiscount = (typeof it.discount === 'number' ? (it.discount as number) : ((it.discountPercent as number) ?? (it.discount_percent as number) ?? 0)) || 0;
+        const defaultWh = it.defaultWarehouse as Record<string, unknown> | undefined;
+        const defaultWhName = defaultWh ? String(defaultWh.name ?? defaultWh.code ?? '') : undefined;
+        const resolvedWarehouseName = (it.warehouseName as string) ?? (it.warehouse as string) ?? (defaultWhName || undefined);
+        const resolvedStock = (it.stock as number) ?? ((it.stockByWarehouse && Object.values(it.stockByWarehouse as Record<string, unknown>).reduce((s: number, v: unknown) => s + (safeNumber(v) || 0), 0)) as number) ?? undefined;
 
         return {
-          id: item.id || `${Date.now()}-${Math.random()}`,
-          itemId: item.itemId || item.id || '',
+          id: (it.id as string) || `${Date.now()}-${Math.random()}`,
+          itemId: (it.itemId as string) || (it.id as string) || '',
           itemName: resolvedName,
           itemCode: resolvedCode,
-          image: item.image,
-          unit: item.unit,
+          image: it.image as string | undefined,
+          unit: it.unit as string | { name?: string } | undefined,
           quantity: resolvedQuantity,
           unitPrice: resolvedUnitPrice,
           discount: resolvedDiscount,
-          discountType: (resolvedDiscountAmount ? 'amount' : 'percent') as 'percent' | 'amount',
+          // Prefer 'percent' if discount percentage is provided, else infer 'amount' if discountAmount exists
+          discountType: (resolvedDiscount > 0 ? 'percent' : (resolvedDiscountAmount > 0 ? 'amount' : 'percent')) as 'percent' | 'amount',
           total: (resolvedUnitPrice * resolvedQuantity) - (resolvedDiscountAmount || 0),
           stock: resolvedStock,
           warehouseName: resolvedWarehouseName,
-          stockByWarehouse: item.stockByWarehouse,
+          stockByWarehouse: it.stockByWarehouse as Record<string, number> | undefined,
           discountAmount: resolvedDiscountAmount || undefined,
-          isTradeDiscount: item.isTradeDiscount,
-          taxIndustry: item.taxIndustry,
-          vatRate: item.vatRate,
+          isTradeDiscount: it.isTradeDiscount as boolean | undefined,
+          taxIndustry: it.taxIndustry as string | undefined,
+          vatRate: it.vatRate as number | undefined,
         } as SaleItem;
       });
 
       console.log('[SalesForm] Transformed incoming items:', incoming);
 
-      // Merge incoming items into existing items, summing quantities for duplicates
+      // Replace existing items with incoming items (by config id)
+      // When user returns to ItemSelection and modifies quantity, the new quantity
+      // should REPLACE the old one, not add to it. Use incoming `id` (config id)
+      // as primary key so different configs for the same product remain as separate lines.
       setItems(prev => {
         const map = new Map<string, SaleItem>();
-        // seed with previous items
-        prev.forEach(it => map.set(it.itemId || it.id, { ...it }));
-        // merge incoming
+        // Seed with previous items keyed by their unique `id`
+        prev.forEach(it => map.set(it.id, { ...it }));
+        // Replace (not add) incoming items - this ensures quantity modifications
+        // replace the old quantity instead of summing.
         incoming.forEach(it => {
-          const key = it.itemId || it.id;
-          const existing = map.get(key);
-          if (existing) {
-            const newQty = (existing.quantity || 0) + (it.quantity || 0);
-            const unitPrice = it.unitPrice || existing.unitPrice;
-            const discountAmount = (existing.discountAmount || 0) + (it.discountAmount || 0);
-            const discount = it.discount || existing.discount || 0;
-            const total = (unitPrice * newQty) - (discountAmount || 0);
-            map.set(key, { ...existing, quantity: newQty, unitPrice, discount, discountAmount, total });
-          } else {
-            map.set(key, { ...it });
-          }
+          const key = it.id || it.itemId;
+          // Simply replace the item with the new one from ItemSelection
+          map.set(key, { ...it });
         });
         return Array.from(map.values());
       });
 
       // Clear navigation/session backup to prevent re-applying
-      try { sessionStorage.removeItem('pendingSelectedItems'); } catch {}
+      try { sessionStorage.removeItem('pendingSelectedItems'); } catch (err) { console.warn('[SalesForm] Failed to remove pendingSelectedItems', err); }
       setTimeout(() => { window.history.replaceState({}, ''); }, 0);
     }
   }, [location]);
@@ -375,7 +413,32 @@ const SalesFormScreen = () => {
     const callbackId = registerCallback((selectedItems: SelectedProduct[]) => {
       handleAddItem(selectedItems);
     });
-    navigate('/sales/select-items', { state: { callbackId, fromSalesForm: true } });
+
+    // Prepare current items to send to the Item Selection screen so it can
+    // prefill quantities for already-selected products.
+    const preselected: SelectedProduct[] = items.map((it) => ({
+      id: it.itemId || it.id,
+      _id: it.itemId || it.id,
+      name: it.itemName,
+      itemName: it.itemName,
+      code: it.itemCode,
+      image: it.image,
+      unitPrice: it.unitPrice,
+      price: it.unitPrice,
+      unit: typeof it.unit === 'string' ? it.unit : (it.unit && (it.unit as any).name) || undefined,
+      stock: it.stock,
+      warehouseName: it.warehouseName,
+      warehouseId: undefined,
+      stockByWarehouse: it.stockByWarehouse,
+      quantity: it.quantity,
+      discount: it.discount,
+      discountAmount: it.discountAmount,
+      isTradeDiscount: it.isTradeDiscount,
+      taxIndustry: it.taxIndustry,
+      vatRate: it.vatRate,
+    }));
+
+    navigate('/sales/select-items', { state: { callbackId, fromSalesForm: true, selectedItems: preselected } });
   };
 
   const handleAddAttachment = () => {
@@ -638,7 +701,7 @@ const SalesFormScreen = () => {
             </Box>
           ) : (
             // Items List
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2, width: '100%' }}>
               {items.map((item) => (
                 <ProductCard
                   key={item.id}
@@ -656,8 +719,12 @@ const SalesFormScreen = () => {
                   // pass per-warehouse stock if present on the item, and selected warehouse
                   stockByWarehouse={item.stockByWarehouse}
                   selectedWarehouse={item.warehouseName}
-                  discount={item.discountType === 'percent' ? item.discount : 0}
-                  discountAmount={item.discountType === 'amount' ? item.discount : item.discountAmount}
+                  // Pass discount percentage from item state
+                  discount={item.discount}
+                  // Pass computed discountAmount (already calculated in config)
+                  discountAmount={item.discountAmount}
+                  // Indicate which type the discount represents so ProductCard displays correctly
+                  discountType={item.discountType}
                   isTradeDiscount={item.isTradeDiscount}
                   vatRate={item.vatRate}
                   taxIndustry={item.taxIndustry}

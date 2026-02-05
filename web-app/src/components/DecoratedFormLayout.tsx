@@ -21,6 +21,7 @@ const DecoratedFormLayout: React.FC<Props> = ({ title, children, rightAction, on
         minHeight: '100vh',
         backgroundColor: transparentBackground ? 'transparent' : tokens.colors.background.white,
         position: 'relative',
+        scrollbarColor: 'transparent',
         pt: 0,
       }}
     >
